@@ -423,6 +423,7 @@ describe("steamDetection", () => {
 
       mockFs.readFile.mockResolvedValueOnce(vdfContent as never);
 
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockFs.stat.mockImplementation((): Promise<any> => {
         // Succeed on first and second call (libraryfolders.vdf and first manifest)
         // Then fail all others

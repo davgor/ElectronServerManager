@@ -206,7 +206,7 @@ function isProcessRunning(processName: string): boolean {
     return false;
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`Error checking process: ${err}`);
+    console.error(`Error checking process: ${err instanceof Error ? err.message : String(err)}`);
     return false;
   }
 }
@@ -405,7 +405,7 @@ export async function getServerBuildId(
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`Error checking buildid for app ${appId}: ${err}`);
+    console.error(`Error checking buildid for app ${appId}: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }
@@ -428,12 +428,6 @@ export async function backupServerSave(
         appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
       ];
 
-    if (!serverInfo) {
-      // eslint-disable-next-line no-console
-      console.error(`Unknown server app ID: ${appId}`);
-      return null;
-    }
-
     // Create the save location path
     const savePath = path.join(installPath, serverInfo.saveLocation);
 
@@ -453,7 +447,7 @@ export async function backupServerSave(
       await fs.mkdir(backupDir, { recursive: true });
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`Failed to create backup directory: ${err}`);
+      console.error(`Failed to create backup directory: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     }
 
@@ -486,12 +480,12 @@ export async function backupServerSave(
       return backupFile;
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`Failed to create backup: ${err}`);
+      console.error(`Failed to create backup: ${err instanceof Error ? err.message : String(err)}`);
       return null;
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`Error during backup: ${err}`);
+    console.error(`Error during backup: ${err instanceof Error ? err.message : String(err)}`);
     return null;
   }
 }

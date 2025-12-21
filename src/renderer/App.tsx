@@ -42,7 +42,7 @@ function App(): JSX.Element {
   useEffect(() => {
     try {
       const saved = localStorage.getItem("serverBackupLocations");
-      if (saved) {
+      if (saved !== null && saved.length > 0) {
         setBackupLocations(JSON.parse(saved) as Record<number, string>);
       }
     } catch (err) {
@@ -100,7 +100,7 @@ function App(): JSX.Element {
 
                 if (!restartResult.success) {
                   setError(
-                    `Failed to auto-restart ${newServer.name}: ${restartResult.error || "Unknown error"}`
+                    `Failed to auto-restart ${newServer.name}: ${restartResult.error ?? "Unknown error"}`
                   );
                 }
               })();
@@ -139,7 +139,7 @@ function App(): JSX.Element {
 
                   if (!updateResult.success) {
                     setError(
-                      `Failed to auto-update ${newServer.name}: ${updateResult.error || "Unknown error"}`
+                      `Failed to auto-update ${newServer.name}: ${updateResult.error ?? "Unknown error"}`
                     );
                   }
                 })();
@@ -178,7 +178,7 @@ function App(): JSX.Element {
         setLoading(false);
       }
     },
-    [selectedPath, servers, autoRestartServers]
+    [selectedPath, servers, autoRestartServers, autoUpdateServers, lastAutoUpdateTime]
   );
 
   const handleRunServer = useCallback(
@@ -192,7 +192,7 @@ function App(): JSX.Element {
             installPath
           )) as { success: boolean; error?: string };
 
-          if (!result.success && result.error) {
+          if (!result.success && result.error !== undefined) {
             setError(result.error);
             return;
           }
@@ -234,7 +234,7 @@ function App(): JSX.Element {
             installPath
           )) as { success: boolean; error?: string };
 
-          if (!result.success && result.error) {
+          if (!result.success && result.error !== undefined) {
             setError(result.error);
             return;
           }
@@ -270,12 +270,12 @@ function App(): JSX.Element {
             serverBackupLocation
           )) as { success: boolean; backupPath?: string; error?: string };
 
-          if (!result.success && result.error) {
+          if (!result.success && result.error !== undefined) {
             setError(result.error);
             return;
           }
 
-          if (result.backupPath) {
+          if (result.backupPath !== undefined) {
             // Update last backup time for this server
             setLastBackups((prev) => ({
               ...prev,
@@ -304,12 +304,12 @@ function App(): JSX.Element {
           "select-backup-folder"
         )) as { success: boolean; path?: string; error?: string };
 
-        if (result.success && result.path) {
+        if (result.success && result.path !== undefined) {
           setBackupLocations((prev) => ({
             ...prev,
             [appId]: result.path!,
           }));
-        } else if (result.error) {
+        } else if (result.error !== undefined) {
           setError(result.error);
         }
       } catch (err) {
@@ -380,7 +380,7 @@ function App(): JSX.Element {
                 serverBackupLocation
               )) as { success: boolean; backupPath?: string };
 
-              if (result.success && result.backupPath) {
+              if (result.success && result.backupPath !== undefined) {
                 setLastBackups((prev) => ({
                   ...prev,
                   [server.appId]: new Date().toLocaleString(),
@@ -435,7 +435,7 @@ function App(): JSX.Element {
                     <div className="server-cover">
                       <img
                         // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                        src={server.coverArt as string}
+                        src={server.coverArt}
                         alt={server.name}
                       />
                     </div>
@@ -533,7 +533,7 @@ function App(): JSX.Element {
                             <span className="backup-path-display">
                               {backupLocations[server.appId]
                                 .split("\\")
-                                .pop() || backupLocations[server.appId]}
+                                .pop() ?? backupLocations[server.appId]}
                             </span>
                           )}
                         </div>
