@@ -30,8 +30,8 @@ const STEAM_DEDICATED_SERVERS = {
   1623730: {
     name: "Palworld Dedicated Server",
     folderName: "PalServer",
-    executable: "pal_server.exe",
-    saveLocation: "savegame",
+    executable: "PalServer.exe",
+    saveLocation: "Pal/Saved/SaveGames",
   },
 };
 
