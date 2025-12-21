@@ -4,6 +4,7 @@ on:
   push:
     branches:
       - main
+  merge_group:
   workflow_dispatch:
 
 jobs:
@@ -34,44 +35,25 @@ jobs:
       - name: Build Electron main
         run: npm run electron-build
 
-      - name: Build and package with electron-builder
-        env:
-          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run dist
-
       - name: Get version from package.json
         id: version
         run: |
           VERSION=$(grep '"version"' package.json | head -1 | awk -F'"' '{print $4}')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Create Release
-        id: create_release
-        uses: actions/create-release@v1
+      - name: Build and package with electron-builder
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npm run dist
+
+      - name: Upload release assets
+        uses: softprops/action-gh-release@v1
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
-          release_name: Release v${{ steps.version.outputs.VERSION }}
+          name: Release v${{ steps.version.outputs.VERSION }}
           draft: false
           prerelease: false
-
-      - name: Upload EXE installer
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release/Electron Server Manager 1.0.0.exe
-          asset_name: Electron-Server-Manager-${{ steps.version.outputs.VERSION }}-installer.exe
-          asset_content_type: application/octet-stream
-
-      - name: Upload Portable EXE
-        uses: actions/upload-release-asset@v1
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        with:
-          upload_url: ${{ steps.create_release.outputs.upload_url }}
-          asset_path: ./release/Electron Server Manager 1.0.0.exe
-          asset_name: Electron-Server-Manager-${{ steps.version.outputs.VERSION }}-portable.exe
-          asset_content_type: application/octet-stream
+          files: |
+            release/*.AppImage
+            release/*.deb
+            release/*.exe
