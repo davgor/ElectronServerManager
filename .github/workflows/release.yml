@@ -35,13 +35,15 @@ jobs:
         run: npm run electron-build
 
       - name: Build and package with electron-builder
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npm run dist
 
       - name: Get version from package.json
         id: version
         run: |
-          $version = (Get-Content package.json | ConvertFrom-Json).version
-          echo "VERSION=$version" >> $env:GITHUB_OUTPUT
+          VERSION=$(grep '"version"' package.json | head -1 | awk -F'"' '{print $4}')
+          echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
       - name: Create Release
         id: create_release
