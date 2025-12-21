@@ -47,6 +47,16 @@ jobs:
           VERSION=$(grep '"version"' package.json | head -1 | awk -F'"' '{print $4}')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
+      - name: Create git tag
+        run: |
+          git config user.name "GitHub Actions"
+          git config user.email "actions@github.com"
+          TAG="v${{ steps.version.outputs.VERSION }}"
+          if ! git rev-parse $TAG >/dev/null 2>&1; then
+            git tag $TAG
+            git push origin $TAG
+          fi
+
       - name: Build and package with electron-builder (Windows)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -63,10 +73,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         with:
           tag_name: v${{ steps.version.outputs.VERSION }}
-          name: Release v${{ steps.version.outputs.VERSION }}
-          draft: false
-          prerelease: false
+          generate_release_notes: true
           files: |
             release/*.AppImage
             release/*.deb
             release/*.exe
+            release/*.msi
