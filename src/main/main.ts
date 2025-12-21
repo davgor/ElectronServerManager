@@ -1,4 +1,5 @@
 import path from "path";
+import { existsSync } from "fs";
 import { spawn, execSync } from "child_process";
 
 import { app, BrowserWindow, Menu, ipcMain, dialog } from "electron";
@@ -48,10 +49,6 @@ function createWindow(): void {
 
   void mainWindow.loadURL(startURL);
 
-  if (isDev === true) {
-    mainWindow.webContents.openDevTools();
-  }
-
   mainWindow.on("closed", () => {
     mainWindow = null;
   });
@@ -74,6 +71,33 @@ app.on("activate", () => {
 // IPC Handlers
 ipcMain.handle("get-app-version", () => {
   return app.getVersion();
+});
+
+ipcMain.handle("check-diagnostics", () => {
+  const diagnostics: Record<string, boolean | string | string[]> = {};
+  
+  // Check if we can execute processes
+  try {
+    execSync("echo test", { encoding: "utf8" });
+    diagnostics.canExecuteProcesses = true;
+  } catch {
+    diagnostics.canExecuteProcesses = false;
+  }
+  
+  // Check platform
+  diagnostics.platform = process.platform;
+  
+  // Check if Steam is installed
+  try {
+    const steamPaths = getCommonSteamPaths();
+    diagnostics.steamFound = steamPaths.length > 0;
+    diagnostics.steamPaths = steamPaths;
+  } catch (err) {
+    diagnostics.steamFound = false;
+    diagnostics.steamError = err instanceof Error ? err.message : "Unknown error";
+  }
+  
+  return diagnostics;
 });
 
 ipcMain.handle("get-steam-paths", () => {
@@ -114,23 +138,70 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
     }
 
     const serverExePath = path.join(installPath, executable);
+    
+    // Verify the executable exists before attempting to launch
+    if (!existsSync(serverExePath)) {
+      // eslint-disable-next-line no-console
+      console.error(`Server executable not found: ${serverExePath}`);
+      return {
+        success: false,
+        error: `Server executable not found at: ${serverExePath}. Please verify the installation path.`,
+      };
+    }
+    
+    // Verify the install directory exists
+    if (!existsSync(installPath)) {
+      // eslint-disable-next-line no-console
+      console.error(`Install directory not found: ${installPath}`);
+      return {
+        success: false,
+        error: `Install directory not found: ${installPath}`,
+      };
+    }
 
     // Launch the server executable detached from this process
-    const serverProcess = spawn(serverExePath, [], {
+    // Quote the path in case it contains spaces
+    const quotedPath = `"${serverExePath}"`;
+    
+    // eslint-disable-next-line no-console
+    console.log(`Attempting to spawn: ${quotedPath} from ${installPath}`);
+
+    const serverProcess = spawn(quotedPath, [], {
       cwd: installPath,
       detached: true,
-      stdio: "ignore",
+      stdio: ["ignore", "pipe", "pipe"],
       shell: true,
     });
 
+    let errorOutput = "";
+
+    // Attach listeners BEFORE unreffing
     // Handle errors from the spawned process
     serverProcess.on("error", (err: NodeJS.ErrnoException) => {
-      if (err.code === "ENOENT") {
+      // eslint-disable-next-line no-console
+      console.error(`Spawn error for ${executable}: ${err.message} (code: ${err.code})`);
+    });
+
+    // Capture stderr to log startup errors
+    serverProcess.stderr.on("data", (data: Buffer) => {
+      errorOutput += data.toString();
+      // eslint-disable-next-line no-console
+      console.error(`Server stderr: ${data.toString()}`);
+    });
+    
+    // Capture stdout for debugging
+    serverProcess.stdout.on("data", (data: Buffer) => {
+      // eslint-disable-next-line no-console
+      console.log(`Server stdout: ${data.toString()}`);
+    });
+
+    // Exit handler for debugging
+    serverProcess.on("exit", (code, signal) => {
+      // eslint-disable-next-line no-console
+      console.log(`Server process exited with code ${code}, signal ${signal}`);
+      if (code !== 0 && errorOutput) {
         // eslint-disable-next-line no-console
-        console.error(`Server executable not found: ${serverExePath}`);
-      } else {
-        // eslint-disable-next-line no-console
-        console.error(`Failed to start server: ${err.message}`);
+        console.error(`Server error output: ${errorOutput}`);
       }
     });
 
@@ -138,7 +209,7 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
     serverProcess.unref();
 
     // eslint-disable-next-line no-console
-    console.log(`Server process launched: ${executable}`);
+    console.log(`Server spawn called for: ${executable}`);
 
     return { success: true };
   } catch (error) {
@@ -259,26 +330,36 @@ ipcMain.handle(
 
       const serverExePath = path.join(installPath, executable);
 
-      const serverProcess = spawn(serverExePath, [], {
+      // eslint-disable-next-line no-console
+      console.log(`Attempting to spawn updated server: "${serverExePath}" from ${installPath}`);
+
+      const quotedPath = `"${serverExePath}"`;
+      const serverProcess = spawn(quotedPath, [], {
         cwd: installPath,
         detached: true,
-        stdio: "ignore",
+        stdio: ["ignore", "pipe", "pipe"],
         shell: true,
       });
 
       serverProcess.on("error", (err: NodeJS.ErrnoException) => {
-        if (err.code === "ENOENT") {
-          // eslint-disable-next-line no-console
-          console.error(
-            `Server executable not found after update: ${serverExePath}`
-          );
-        } else {
-          // eslint-disable-next-line no-console
-          console.error(
-            `Failed to restart server after update: ${err.message}`
-          );
-        }
+        // eslint-disable-next-line no-console
+        console.error(`Spawn error after update for ${executable}: ${err.message} (code: ${err.code})`);
       });
+
+      serverProcess.stderr.on("data", (data: Buffer) => {
+        // eslint-disable-next-line no-console
+        console.error(`Server stderr after update: ${data.toString()}`);
+      });
+
+      serverProcess.on("exit", (code, signal) => {
+        // eslint-disable-next-line no-console
+        console.log(`Updated server process exited with code ${code}, signal ${signal}`);
+      });
+
+      serverProcess.unref();
+
+      // eslint-disable-next-line no-console
+      console.log(`Updated server spawn called for: ${executable}`);
 
       serverProcess.unref();
 
