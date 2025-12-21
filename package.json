@@ -4,7 +4,10 @@
   "description": "Electron Server Manager Application",
   "main": "dist/main/main.js",
   "homepage": "./",
-  "author": "Your Name",
+  "author": {
+    "name": "Electron Server Manager Contributors",
+    "email": "davgor4@gmail.com"
+  },
   "license": "MIT",
   "scripts": {
     "start": "npm run electron-build && cross-env NODE_ENV=development concurrently \"npm run electron\" \"npm run dev\"",
