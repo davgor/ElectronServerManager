@@ -20,6 +20,12 @@ jobs:
           node-version: "20"
           cache: "npm"
 
+      - name: Install Wine
+        run: |
+          sudo dpkg --add-architecture i386
+          sudo apt-get update
+          sudo apt-get install -y wine wine32 wine64
+
       - name: Install dependencies
         run: npm ci
 
@@ -41,10 +47,15 @@ jobs:
           VERSION=$(grep '"version"' package.json | head -1 | awk -F'"' '{print $4}')
           echo "VERSION=$VERSION" >> $GITHUB_OUTPUT
 
-      - name: Build and package with electron-builder
+      - name: Build and package with electron-builder (Windows)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: npm run dist
+        run: npx electron-builder --win --publish never
+
+      - name: Build and package with electron-builder (Linux)
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: npx electron-builder --linux --publish never
 
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
