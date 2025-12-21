@@ -48,6 +48,17 @@ web_modules/
 # TypeScript cache
 *.tsbuildinfo
 
+# Electron build output
+dist/
+release/
+
+# Environment variables
+.env.local
+.env.*.local
+
+# OS files
+.DS_Store
+
 # Optional npm cache directory
 .npm
 

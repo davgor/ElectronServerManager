@@ -1,0 +1,13 @@
+node_modules
+dist
+build
+out
+*.min.js
+*.min.css
+.git
+.next
+.venv
+.env
+.env.local
+package-lock.json
+yarn.lock
