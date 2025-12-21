@@ -1,7 +1,7 @@
 {
   "appId": "com.electronservermanager.app",
   "productName": "Electron Server Manager",
-  "files": ["dist/main/**/*", "dist/renderer/**/*", "node_modules/**/*"],
+  "files": ["dist/main/**/*", "dist/preload/**/*", "dist/renderer/**/*", "node_modules/**/*"],
   "directories": {
     "output": "release",
     "buildResources": "assets"

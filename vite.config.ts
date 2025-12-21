@@ -7,6 +7,7 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
 // https://vitejs.dev/config/
 export default defineConfig({
+  base: "",
   plugins: [react()],
   resolve: {
     alias: {
@@ -20,5 +21,10 @@ export default defineConfig({
   build: {
     outDir: "dist/renderer",
     emptyOutDir: true,
+    rollupOptions: {
+      output: {
+        assetFileNames: "assets/[name][extname]",
+      },
+    },
   },
 });
