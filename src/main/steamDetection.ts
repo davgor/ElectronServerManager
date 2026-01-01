@@ -14,26 +14,33 @@ export interface SteamServer {
  * Known Steam dedicated server applications
  * Format: { appId: number, name: string }
  */
-const STEAM_DEDICATED_SERVERS = {
+export const STEAM_DEDICATED_SERVERS = {
   2278520: {
     name: "Enshrouded Dedicated Server",
     folderName: "EnshroudedServer",
     executable: "enshrouded_server.exe",
     saveLocation: "savegame",
-  },
-  892970: {
-    name: "Valheim Server",
-    folderName: "Valheim dedicated server",
-    executable: "valheim_server.exe",
-    saveLocation: "savegame",
+    configLocation: "enshrouded_server.json",
   },
   1623730: {
     name: "Palworld Dedicated Server",
     folderName: "PalServer",
     executable: "PalServer.exe",
     saveLocation: "Pal/Saved/SaveGames",
+    configLocation: "Pal/Saved/Config/WindowsServer/PalWorldSettings.ini",
   },
 };
+
+export interface ServerInfo {
+  name: string;
+  folderName?: string | null;
+  executable: string;
+  saveLocation?: string;
+  configLocation?: string;
+}
+
+// Re-export the mapping with a typed shape for callers
+export const STEAM_DEDICATED_SERVERS_TYPED: Record<number, ServerInfo> = STEAM_DEDICATED_SERVERS as unknown as Record<number, ServerInfo>;
 
 /**
  * Find the Steam installation directory on a specific drive (Windows)

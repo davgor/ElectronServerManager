@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { SteamServer } from "../types/electron";
+
 import "./App.css";
+import { ConfigEditor } from "./ConfigEditor";
 
 function App(): JSX.Element {
   const [servers, setServers] = useState<SteamServer[]>([]);
@@ -24,6 +26,9 @@ function App(): JSX.Element {
   const [lastAutoUpdateTime, setLastAutoUpdateTime] = useState<
     Record<number, number>
   >({}); // Track when auto-update was last triggered per server
+  const [editingServerAppId, setEditingServerAppId] = useState<number | null>(null);
+  const [editingServerInstallPath, setEditingServerInstallPath] = useState<string | null>(null);
+  const [editingServerName, setEditingServerName] = useState<string | null>(null);
 
   const fetchAvailablePaths = useCallback(async (): Promise<void> => {
     try {
@@ -477,6 +482,16 @@ function App(): JSX.Element {
                           Run Server
                         </button>
                       )}
+                      <button
+                        className="btn btn-edit-config"
+                        onClick={() => {
+                          setEditingServerAppId(server.appId);
+                          setEditingServerInstallPath(server.installPath);
+                          setEditingServerName(server.name);
+                        }}
+                      >
+                        ⚙️ Edit Config
+                      </button>
                     </div>
                     <div className="server-settings">
                       <label className="auto-restart-checkbox">
@@ -585,6 +600,21 @@ function App(): JSX.Element {
                 </div>
               ))}
             </div>
+            {editingServerAppId !== null && editingServerInstallPath !== null && editingServerInstallPath !== "" && editingServerName !== null && (
+              <ConfigEditor
+                appId={editingServerAppId}
+                serverName={editingServerName}
+                installPath={editingServerInstallPath}
+                onClose={() => {
+                  setEditingServerAppId(null);
+                  setEditingServerInstallPath(null);
+                  setEditingServerName(null);
+                }}
+                onSave={() => {
+                  void fetchServers(selectedPath);
+                }}
+              />
+            )}
           </div>
         )}
       </div>
