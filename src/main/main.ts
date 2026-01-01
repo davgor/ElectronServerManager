@@ -2,27 +2,16 @@ import path from "path";
 import { existsSync } from "fs";
 import { spawn, execSync } from "child_process";
 
-import { app, BrowserWindow, Menu, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, Menu, ipcMain, dialog, shell } from "electron";
 
 import {
   findInstalledServers,
   getServerBuildId,
   backupServerSave,
+  STEAM_DEDICATED_SERVERS,
+  ServerInfo,
 } from "./steamDetection";
 import { getCommonSteamPaths } from "./driveUtils";
-
-// Server executable mapping
-const SERVER_EXECUTABLES: Record<number, string> = {
-  2278520: "enshrouded_server.exe", // Enshrouded
-  892970: "valheim_server.exe", // Valheim
-  1623730: "pal_server.exe", // Palworld
-};
-
-// For CommonJS compatibility - declare global __dirname
-declare global {
-  // eslint-disable-next-line no-var
-  var __dirname: string;
-}
 
 const isDev = Boolean(
   process.env.NODE_ENV === "development" || process.env.ELECTRON_START_URL
@@ -129,15 +118,16 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
     // eslint-disable-next-line no-console
     console.log(`Starting server ${appId} at: ${installPath}`);
 
-    const executable = SERVER_EXECUTABLES[appId];
-    if (!executable) {
+    // Lookup executable from STEAM_DEDICATED_SERVERS
+    const mappingEntry = (STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>)[String(appId)];
+    if (!mappingEntry || typeof mappingEntry.executable !== "string" || mappingEntry.executable.length === 0) {
       return {
         success: false,
-        error: `Unknown server app ID: ${appId}`,
+        error: `Unknown server app ID or executable not defined: ${appId}`,
       };
     }
 
-    const serverExePath = path.join(installPath, executable);
+    const serverExePath = path.join(installPath, mappingEntry.executable);
     
     // Verify the executable exists before attempting to launch
     if (!existsSync(serverExePath)) {
@@ -179,7 +169,7 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
     // Handle errors from the spawned process
     serverProcess.on("error", (err: NodeJS.ErrnoException) => {
       // eslint-disable-next-line no-console
-      console.error(`Spawn error for ${executable}: ${err.message} (code: ${err.code})`);
+      console.error(`Spawn error for ${mappingEntry.executable}: ${err.message} (code: ${err.code})`);
     });
 
     // Capture stderr to log startup errors
@@ -209,7 +199,7 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
     serverProcess.unref();
 
     // eslint-disable-next-line no-console
-    console.log(`Server spawn called for: ${executable}`);
+    console.log(`Server spawn called for: ${mappingEntry.executable}`);
 
     return { success: true };
   } catch (error) {
@@ -226,16 +216,16 @@ ipcMain.handle("stop-server", (_event, appId: number, installPath: string) => {
     // eslint-disable-next-line no-console
     console.log(`Stopping server ${appId} at: ${installPath}`);
 
-    const executable = SERVER_EXECUTABLES[appId];
-    if (!executable) {
+    const mappingEntry = (STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>)[String(appId)];
+    if (!mappingEntry || typeof mappingEntry.executable !== "string" || mappingEntry.executable.length === 0) {
       return {
         success: false,
-        error: `Unknown server app ID: ${appId}`,
+        error: `Unknown server app ID or executable not defined: ${appId}`,
       };
     }
 
     const platform = process.platform;
-    const exeName = path.basename(executable, path.extname(executable));
+    const exeName = path.basename(mappingEntry.executable, path.extname(mappingEntry.executable));
     let killCommand: string;
 
     // Determine kill command based on platform
@@ -272,11 +262,11 @@ ipcMain.handle(
       // eslint-disable-next-line no-console
       console.log(`Starting auto-update for server ${appId}`);
 
-      const executable = SERVER_EXECUTABLES[appId];
-      if (!executable) {
+      const mappingEntry = (STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>)[String(appId)];
+      if (!mappingEntry || typeof mappingEntry.executable !== "string" || mappingEntry.executable.length === 0) {
         return {
           success: false,
-          error: `Unknown server app ID: ${appId}`,
+          error: `Unknown server app ID or executable not defined: ${appId}`,
         };
       }
 
@@ -287,7 +277,7 @@ ipcMain.handle(
 
       // Step 1: Stop the server if it's running
       const platform = process.platform;
-      const exeName = path.basename(executable, path.extname(executable));
+      const exeName = path.basename(mappingEntry.executable, path.extname(mappingEntry.executable));
       let killCommand: string;
 
       if (platform === "win32") {
@@ -328,7 +318,7 @@ ipcMain.handle(
       // eslint-disable-next-line no-console
       console.log(`Update detected for server ${appId}, restarting...`);
 
-      const serverExePath = path.join(installPath, executable);
+      const serverExePath = path.join(installPath, mappingEntry.executable);
 
       // eslint-disable-next-line no-console
       console.log(`Attempting to spawn updated server: "${serverExePath}" from ${installPath}`);
@@ -343,7 +333,7 @@ ipcMain.handle(
 
       serverProcess.on("error", (err: NodeJS.ErrnoException) => {
         // eslint-disable-next-line no-console
-        console.error(`Spawn error after update for ${executable}: ${err.message} (code: ${err.code})`);
+        console.error(`Spawn error after update for ${mappingEntry.executable}: ${err.message} (code: ${err.code})`);
       });
 
       serverProcess.stderr.on("data", (data: Buffer) => {
@@ -359,9 +349,7 @@ ipcMain.handle(
       serverProcess.unref();
 
       // eslint-disable-next-line no-console
-      console.log(`Updated server spawn called for: ${executable}`);
-
-      serverProcess.unref();
+      console.log(`Updated server spawn called for: ${mappingEntry.executable}`);
 
       // eslint-disable-next-line no-console
       console.log(`Server ${appId} restarted after update`);
@@ -467,6 +455,273 @@ ipcMain.handle("select-backup-folder", async () => {
     };
   }
 });
+
+// Config file handlers using mapping from steamDetection
+ipcMain.handle(
+  "get-server-config",
+  async (_event, appId: number, installPath: string) => {
+    try {
+      const fs = await import("fs/promises");
+
+      // Ensure mapping exists for this appId
+      if (!Object.prototype.hasOwnProperty.call(STEAM_DEDICATED_SERVERS, String(appId))) {
+        return { success: false, error: `No config mapping for app ${appId}` };
+      }
+
+      const serverInfo = STEAM_DEDICATED_SERVERS[appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS] as unknown as ServerInfo;
+      if (serverInfo.configLocation === undefined || serverInfo.configLocation === "") {
+        return { success: false, error: `No config mapping for app ${appId}` };
+      }
+
+      const configPath = path.join(installPath, serverInfo.configLocation);
+
+      try {
+        await fs.stat(configPath);
+      } catch {
+        return { success: false, error: `Config file not found: ${configPath}` };
+      }
+
+      const content = await fs.readFile(configPath, "utf-8");
+
+      // Detect format based on extension (json or ini)
+      const format = configPath.toLowerCase().endsWith(".json") ? "json" : "ini";
+
+      let parsed: Record<string, unknown> = {};
+      if (format === "json") {
+        parsed = JSON.parse(content) as Record<string, unknown>;
+      } else {
+        parsed = parseIniContent(content);
+      }
+
+      return { success: true, content: parsed, format, filePath: configPath };
+    } catch (err) {
+      console.error("Error reading server config:", err);
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+);
+
+// Open a file in the default OS application
+ipcMain.handle("open-file-default", async (_event, filePath: string) => {
+  try {
+    if (!filePath || typeof filePath !== "string") {
+      return { success: false, error: "Invalid file path" };
+    }
+
+    // Use Electron shell to open the path with the default app
+    const result = await shell.openPath(filePath);
+    // shell.openPath returns an empty string on success, otherwise an error message
+    if (typeof result === "string" && result.length > 0) {
+      return { success: false, error: result };
+    }
+    return { success: true };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("Error opening file:", err);
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle(
+  "save-server-config",
+  async (_event, appId: number, installPath: string, content: Record<string, unknown>, format: "json" | "ini") => {
+    try {
+      const fs = await import("fs/promises");
+
+
+      if (!Object.prototype.hasOwnProperty.call(STEAM_DEDICATED_SERVERS, String(appId))) {
+        return { success: false, error: `No config mapping for app ${appId}` };
+      }
+
+      const serverInfo = STEAM_DEDICATED_SERVERS[appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS] as unknown as ServerInfo;
+      if (serverInfo.configLocation === undefined || serverInfo.configLocation === "") {
+        return { success: false, error: `No config mapping for app ${appId}` };
+      }
+
+      const configPath = path.join(installPath, serverInfo.configLocation);
+
+      let fileContent = "";
+      if (format === "json") {
+        fileContent = JSON.stringify(content, null, 2);
+      } else {
+        fileContent = stringifyIniContent(content);
+      }
+
+      await fs.writeFile(configPath, fileContent, "utf-8");
+      return { success: true };
+    } catch (err) {
+      console.error("Error saving server config:", err);
+      return { success: false, error: err instanceof Error ? err.message : String(err) };
+    }
+  }
+);
+
+// INI helpers
+function parseIniContent(content: string): Record<string, unknown> {
+  const result: Record<string, unknown> = {};
+  let currentSection = "";
+
+  function splitRespectingQuotes(s: string, delim = ",") {
+    const parts: string[] = [];
+    let cur = "";
+    let inQuote = false;
+    for (let i = 0; i < s.length; i++) {
+      const ch = s[i];
+      if (ch === '"') {
+        inQuote = !inQuote;
+        cur += ch;
+        continue;
+      }
+      if (ch === delim && !inQuote) {
+        parts.push(cur.trim());
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    if (cur.trim() !== "") {
+      parts.push(cur.trim());
+    }
+    return parts;
+  }
+
+  function parseTokenValue(token: string): unknown {
+    const t = token.trim();
+    if (t === "") {
+      return "";
+    }
+    if (t.startsWith('"') && t.endsWith('"')) {
+      return t.slice(1, -1);
+    }
+    if (/^[-+]?\d+\.?\d*$/.test(t)) {
+      return Number(t);
+    }
+    if (/^(true|false)$/i.test(t)) {
+      return t.toLowerCase() === "true";
+    }
+    return t;
+  }
+
+  const lines = content.split(/\r?\n/);
+  for (const raw of lines) {
+    const line = raw.trim();
+    if (!line || line.startsWith(";") || line.startsWith("#")) {
+      continue;
+    }
+
+    if (line.startsWith("[") && line.endsWith("]")) {
+      currentSection = line.slice(1, -1);
+      result[currentSection] = {};
+      continue;
+    }
+
+    const idx = line.indexOf("=");
+    if (idx === -1) {
+      continue;
+    }
+    const key = line.slice(0, idx).trim();
+    const value = line.slice(idx + 1).trim();
+
+    // Handle parenthesized values: either arrays like (a,b,c) or key=value pairs (k=v,...)
+    if (value.startsWith("(") && value.endsWith(")")) {
+      const inner = value.slice(1, -1).trim();
+      // if inner contains '=' then it's a map-like structure
+      if (inner.includes("=")) {
+        const obj: Record<string, unknown> = {};
+        const pairs = splitRespectingQuotes(inner, ',');
+        for (const p of pairs) {
+          const eq = p.indexOf('=');
+          if (eq === -1) {
+            continue;
+          }
+          const sk = p.slice(0, eq).trim();
+          const svRaw = p.slice(eq + 1).trim();
+          obj[sk] = parseTokenValue(svRaw);
+        }
+        if (currentSection) {
+          const sec = result[currentSection] as Record<string, unknown>;
+          sec[key] = obj;
+        } else {
+          result[key] = obj;
+        }
+        continue;
+      }
+
+      // Otherwise treat as simple array
+      const items = splitRespectingQuotes(inner, ',').map((it) => parseTokenValue(it));
+      if (currentSection) {
+        const sec = result[currentSection] as Record<string, unknown>;
+        sec[key] = items;
+      } else {
+        result[key] = items;
+      }
+      continue;
+    }
+
+    // plain primitive value
+    const parsed = parseTokenValue(value);
+    if (currentSection) {
+      const sec = result[currentSection] as Record<string, unknown>;
+      sec[key] = parsed;
+    } else {
+      result[key] = parsed;
+    }
+  }
+
+  return result;
+}
+
+function stringifyIniContent(content: Record<string, unknown>): string {
+  const escapeIfNeeded = (s: string) => {
+    if (s === "") {
+      return '""';
+    }
+    if (s.includes(' ') || s.includes(',') || s.includes('"')) {
+      return `"${s.replace(/"/g, '\\"')}"`;
+    }
+    return s;
+  };
+
+  let out = "";
+  for (const [k, v] of Object.entries(content)) {
+    // sections (objects) produce [section] blocks
+    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
+      out += `[${k}]\n`;
+      const section = v as Record<string, unknown>;
+      for (const [sk, sv] of Object.entries(section)) {
+        // If the section value is an object or array, serialize as parenthesized tuple or key=value list
+        if (Array.isArray(sv)) {
+          const items = sv.map((it) => {
+            if (typeof it === 'string') {
+              return escapeIfNeeded(it);
+            }
+            return String(it);
+          });
+          out += `${sk}=(${items.join(',')})\n`;
+        } else if (typeof sv === 'object' && sv !== null) {
+          const pairs: string[] = [];
+          for (const [k2, v2] of Object.entries(sv as Record<string, unknown>)) {
+            const valStr = typeof v2 === 'string' ? escapeIfNeeded(v2) : String(v2);
+            pairs.push(`${k2}=${valStr}`);
+          }
+          out += `${sk}=(${pairs.join(',')})\n`;
+        } else {
+          out += `${sk}=${String(sv)}\n`;
+        }
+      }
+      out += "\n";
+    } else {
+      // top-level primitive or array
+      if (Array.isArray(v)) {
+        const items = v.map((it) => (typeof it === 'string' ? escapeIfNeeded(it) : String(it)));
+        out += `${k}=(${items.join(',')})\n`;
+      } else {
+        out += `${k}=${String(v)}\n`;
+      }
+    }
+  }
+  return out;
+}
 
 const menu = Menu.buildFromTemplate([
   {
