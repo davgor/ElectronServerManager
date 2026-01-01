@@ -18,6 +18,7 @@ export function ConfigEditor({
 }: ConfigEditorProps): JSX.Element {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [format, setFormat] = useState<"json" | "ini" | null>(null);
+  const [filePath, setFilePath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
@@ -42,6 +43,7 @@ export function ConfigEditor({
           content?: Record<string, unknown>;
           format?: "json" | "ini";
           error?: string;
+          filePath?: string;
         };
 
         if (!result.success) {
@@ -51,6 +53,12 @@ export function ConfigEditor({
 
         setConfig(result.content ?? {});
         setFormat(result.format ?? "json");
+        // store filePath for open-in-default action
+        if (typeof result.filePath === "string") {
+          setFilePath(result.filePath);
+        } else {
+          setFilePath(null);
+        }
       } catch (err) {
         const errorMsg =
           err instanceof Error ? err.message : "Failed to load config";
@@ -553,6 +561,25 @@ export function ConfigEditor({
           <button className="btn btn-cancel" onClick={onClose}>
             Cancel
           </button>
+          <button
+            className="btn btn-open"
+            onClick={() => {
+              if (filePath === null || filePath === "") {
+                return;
+              }
+              void window.electron.ipcRenderer.invoke("open-file-default", filePath).then((res) => {
+                const r = res as { success: boolean; error?: string };
+                if (!r.success) {
+                  // eslint-disable-next-line no-console
+                  console.error("Failed to open file:", r.error);
+                }
+              });
+            }}
+            disabled={filePath === null || filePath === ""}
+          >
+            Open
+          </button>
+
           <button
             className="btn btn-save"
             onClick={handleSave}

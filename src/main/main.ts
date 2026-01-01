@@ -2,7 +2,7 @@ import path from "path";
 import { existsSync } from "fs";
 import { spawn, execSync } from "child_process";
 
-import { app, BrowserWindow, Menu, ipcMain, dialog } from "electron";
+import { app, BrowserWindow, Menu, ipcMain, dialog, shell } from "electron";
 
 import {
   findInstalledServers,
@@ -500,6 +500,27 @@ ipcMain.handle(
     }
   }
 );
+
+// Open a file in the default OS application
+ipcMain.handle("open-file-default", async (_event, filePath: string) => {
+  try {
+    if (!filePath || typeof filePath !== "string") {
+      return { success: false, error: "Invalid file path" };
+    }
+
+    // Use Electron shell to open the path with the default app
+    const result = await shell.openPath(filePath);
+    // shell.openPath returns an empty string on success, otherwise an error message
+    if (typeof result === "string" && result.length > 0) {
+      return { success: false, error: result };
+    }
+    return { success: true };
+  } catch (err) {
+    // eslint-disable-next-line no-console
+    console.error("Error opening file:", err);
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
 
 ipcMain.handle(
   "save-server-config",
