@@ -1,0 +1,91 @@
+.titlebar {
+  -webkit-app-region: drag;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  width: 100%;
+  box-sizing: border-box;
+  padding: 0; /* flush to edges */
+  background: linear-gradient(180deg, #0f232b, #0b1b20); /* dark grey-blue like Steam */
+  color: #e6f0ff;
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 56px;
+  z-index: 1000;
+}
+
+.titlebar-left-pill {
+  -webkit-app-region: drag;
+  background: transparent;
+  padding: 0;
+  border-radius: 0;
+  box-shadow: none;
+  margin-left: 0; /* flush to left edge */
+  z-index: 1;
+  white-space: nowrap;
+  max-width: 60%;
+  display: inline-block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  position: relative;
+  top: 0;
+  left: 8px; /* tiny inset to keep from the absolute edge */
+}
+.titlebar-drag {
+  font-weight: 700;
+  font-size: 16px;
+  color: #cfefff;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  padding: 0 8px;
+  background: transparent;
+  border: none;
+}
+
+/* Controls container */
+.titlebar-controls {
+  position: absolute;
+  right: 8px;
+  top: 50%;
+  transform: translateY(-50%);
+  display: flex;
+  gap: 6px;
+  -webkit-app-region: no-drag;
+}
+
+/* Compact flat icon buttons */
+.titlebar-icon {
+  width: 36px;
+  height: 28px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 14px;
+  line-height: 1;
+  color: rgba(255,255,255,0.9);
+  background: transparent;
+  border: none;
+  transition: background 120ms ease, transform 80ms ease, color 120ms ease;
+}
+
+.titlebar-icon:focus {
+  outline: none;
+}
+
+.titlebar-icon:hover {
+  background: rgba(255,255,255,0.06);
+}
+
+.titlebar-icon.close:hover {
+  background: rgba(255,77,79,0.95);
+  color: #fff;
+}
+
+.titlebar-icon:active {
+  transform: translateY(1px);
+}

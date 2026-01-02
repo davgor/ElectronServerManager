@@ -2,7 +2,7 @@ import path from "path";
 import { existsSync } from "fs";
 import { spawn, execSync } from "child_process";
 
-import { app, BrowserWindow, Menu, ipcMain, dialog, shell } from "electron";
+import { app, BrowserWindow, Menu, ipcMain, dialog, shell, screen } from "electron";
 
 import {
   findInstalledServers,
@@ -20,11 +20,17 @@ const isDev = Boolean(
 let mainWindow: BrowserWindow | null;
 
 function createWindow(): void {
+  // Open at a size that should fit the main UI without vertical scrolling
+  // `useContentSize: true` makes the width/height refer to the web page size (content),
+  // which helps avoid accidental scrollbars when using a frameless window.
   mainWindow = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    minWidth: 400,
-    minHeight: 300,
+    width: 1220,
+    height: 900,
+    useContentSize: true,
+    minWidth: 1000,
+    minHeight: 700,
+    frame: false,
+    autoHideMenuBar: true,
     webPreferences: {
       preload: path.join(__dirname, "../preload/preload.js"),
       nodeIntegration: false,
@@ -32,11 +38,48 @@ function createWindow(): void {
     },
   });
 
+  // Remove native title bar (frameless window) for a cleaner, custom chrome
+  // and hide the menu bar by default. Renderer should provide window controls.
+  mainWindow.setMenuBarVisibility(false);
+
   const startURL = isDev
     ? "http://localhost:5173"
     : `file://${path.join(__dirname, "../../dist/renderer/index.html")}`;
 
   void mainWindow.loadURL(startURL);
+
+  // After the renderer finishes loading, measure the page and resize the window
+  // so the content fits without scrollbars (but respect screen work area limits).
+  mainWindow.webContents.once("did-finish-load", () => {
+    void (async () => {
+      try {
+        const dims = (await mainWindow!.webContents.executeJavaScript(
+          // return content width/height
+          '({w: Math.max(document.documentElement.clientWidth, document.body.scrollWidth || 0), h: Math.max(document.documentElement.clientHeight, document.body.scrollHeight || 0)})'
+        )) as { w: number; h: number } | null;
+
+        if (dims && typeof dims.w === "number" && typeof dims.h === "number") {
+          const paddingX = 16; // slightly thinner horizontal padding
+          const paddingY = 120; // larger vertical padding so window is taller
+
+          const desiredWidth = Math.max(900, Math.round(dims.w + paddingX));
+          const desiredHeight = Math.max(600, Math.round(dims.h + paddingY));
+
+          const workArea = screen.getPrimaryDisplay().workAreaSize;
+          const maxWidth = Math.max(600, workArea.width - 40);
+          const maxHeight = Math.max(400, workArea.height - 40);
+
+          const finalWidth = Math.min(desiredWidth, maxWidth);
+          const finalHeight = Math.min(desiredHeight, maxHeight);
+
+          // Use setContentSize so we set the web (content) size when frameless
+          mainWindow!.setContentSize(finalWidth, finalHeight);
+        }
+      } catch (err) {
+        // ignore measurement errors — fall back to default size
+      }
+    })();
+  });
 
   mainWindow.on("closed", () => {
     mainWindow = null;
@@ -54,6 +97,47 @@ app.on("window-all-closed", () => {
 app.on("activate", () => {
   if (mainWindow === null) {
     createWindow();
+  }
+});
+
+// Window control IPC handlers (for frameless window controls in renderer)
+ipcMain.handle("window-minimize", () => {
+  if (!mainWindow) {
+    return { success: false, error: "Main window not available" };
+  }
+  try {
+    mainWindow.minimize();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("window-maximize-toggle", () => {
+  if (!mainWindow) {
+    return { success: false, error: "Main window not available" };
+  }
+  try {
+    if (mainWindow.isMaximized()) {
+      mainWindow.unmaximize();
+    } else {
+      mainWindow.maximize();
+    }
+    return { success: true, maximized: mainWindow.isMaximized() };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
+  }
+});
+
+ipcMain.handle("window-close", () => {
+  if (!mainWindow) {
+    return { success: false, error: "Main window not available" };
+  }
+  try {
+    mainWindow.close();
+    return { success: true };
+  } catch (err) {
+    return { success: false, error: err instanceof Error ? err.message : String(err) };
   }
 });
 
@@ -723,30 +807,5 @@ function stringifyIniContent(content: Record<string, unknown>): string {
   return out;
 }
 
-const menu = Menu.buildFromTemplate([
-  {
-    label: "File",
-    submenu: [
-      {
-        label: "Exit",
-        accelerator: "CmdOrCtrl+Q",
-        click: () => {
-          app.quit();
-        },
-      },
-    ],
-  },
-  {
-    label: "Edit",
-    submenu: [
-      { label: "Undo", accelerator: "CmdOrCtrl+Z", role: "undo" },
-      { label: "Redo", accelerator: "Shift+CmdOrCtrl+Z", role: "redo" },
-      { type: "separator" },
-      { label: "Cut", accelerator: "CmdOrCtrl+X", role: "cut" },
-      { label: "Copy", accelerator: "CmdOrCtrl+C", role: "copy" },
-      { label: "Paste", accelerator: "CmdOrCtrl+V", role: "paste" },
-    ],
-  },
-]);
-
-Menu.setApplicationMenu(menu);
+// Remove the application menu so the app has no native top menu bar
+Menu.setApplicationMenu(null);
