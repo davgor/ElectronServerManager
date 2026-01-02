@@ -1,4 +1,4 @@
-import { promises as fs, Dirent } from "fs";
+import { promises as fs } from "fs";
 import path from "path";
 import { execSync } from "child_process";
 
@@ -255,8 +255,12 @@ export async function findInstalledServers(
   console.log(`Searching for servers in: ${steamPath}`);
 
   const libraryPaths = await parseLibraryFolders(steamPath);
+  // Filter out any falsy or non-string entries that can appear in test mocks
+  const safeLibraryPaths = libraryPaths.filter(
+    (p): p is string => typeof p === "string" && p.length > 0
+  );
   // eslint-disable-next-line no-console
-  console.log(`Library paths found: ${JSON.stringify(libraryPaths)}`);
+  console.log(`Library paths found: ${JSON.stringify(safeLibraryPaths)}`);
 
   const servers: SteamServer[] = [];
 
@@ -269,7 +273,7 @@ export async function findInstalledServers(
     const expectedFolderName = serverInfo.folderName;
     const appFolder = `${appId}`;
 
-    for (const libraryPath of libraryPaths) {
+    for (const libraryPath of safeLibraryPaths) {
       const commonPath = path.join(libraryPath, "common");
 
       // First check if manifest file exists - this confirms the app is installed
