@@ -16,4 +16,9 @@ contextBridge.exposeInMainWorld("electron", {
     invoke: (channel: string, ...args: Args): Promise<unknown> =>
       ipcRenderer.invoke(channel, ...(args as unknown[])),
   },
+  windowControls: {
+    minimize: async (): Promise<unknown> => ipcRenderer.invoke("window-minimize"),
+    toggleMaximize: async (): Promise<unknown> => ipcRenderer.invoke("window-maximize-toggle"),
+    close: async (): Promise<unknown> => ipcRenderer.invoke("window-close"),
+  },
 });

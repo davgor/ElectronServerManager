@@ -13,6 +13,11 @@ export interface ElectronAPI {
     once: (channel: string, func: (...args: unknown[]) => void) => void;
     invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
   };
+  windowControls?: {
+    minimize: () => Promise<void>;
+    toggleMaximize: () => Promise<{ success?: boolean; maximized?: boolean } | void>;
+    close: () => Promise<void>;
+  };
 }
 
 declare global {

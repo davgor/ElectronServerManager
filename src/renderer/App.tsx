@@ -4,6 +4,7 @@ import type { SteamServer } from "../types/electron";
 
 import "./App.css";
 import { ConfigEditor } from "./ConfigEditor";
+import TitleBar from "./TitleBar";
 
 function App(): JSX.Element {
   const [servers, setServers] = useState<SteamServer[]>([]);
@@ -409,6 +410,7 @@ function App(): JSX.Element {
 
   return (
     <div className="app">
+      <TitleBar />
       <div className="container">
         <h1>Steam Server Manager</h1>
 
