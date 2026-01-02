@@ -28,22 +28,22 @@ jobs:
           npm audit --json > audit.json || true
           cat audit.json
 
-        - name: Fail on moderate or higher vulnerabilities
+      - name: Fail on moderate or higher vulnerabilities
         run: |
-            python3 - <<'PY'
-            import json,sys
-            data=json.load(open('audit.json'))
-            advisories = data.get('advisories') or {}
-            vulns = []
-            for k,v in advisories.items():
-                severity = v.get('severity')
-                if severity in ('moderate','high','critical'):
-                    vulns.append((k,v.get('title'),severity))
-            if vulns:
-                print('\nFound vulnerabilities (moderate+):')
-                for v in vulns:
-                    print(f"- ID: {v[0]} | {v[1]} | severity={v[2]}")
-                print('\nAction required: resolve or upgrade affected dependencies before merging.')
-                sys.exit(1)
-                print('No moderate+ vulnerabilities found')
-                PY
+          python3 - <<'PY'
+          import json,sys
+          data = json.load(open('audit.json'))
+          advisories = data.get('advisories') or {}
+          vulns = []
+          for k, v in advisories.items():
+              severity = v.get('severity')
+              if severity in ('moderate', 'high', 'critical'):
+                  vulns.append((k, v.get('title'), severity))
+          if vulns:
+              print('\nFound vulnerabilities (moderate+):')
+              for v in vulns:
+                  print(f"- ID: {v[0]} | {v[1]} | severity={v[2]}")
+              print('\nAction required: resolve or upgrade affected dependencies before merging.')
+              sys.exit(1)
+          print('No moderate+ vulnerabilities found')
+          PY
