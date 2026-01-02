@@ -35,7 +35,8 @@ describe("App Component", () => {
 
   it("should render the title", () => {
     render(<App />);
-    expect(screen.getByText("Steam Server Manager")).toBeInTheDocument();
+    const title = screen.getByRole("heading", { name: "Steam Server Manager" });
+    expect(title).toBeInTheDocument();
   });
 
   it("should display servers when fetched successfully", async () => {
