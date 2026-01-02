@@ -664,7 +664,7 @@ function parseIniContent(content: string): Record<string, unknown> {
           continue;
         }
         if (ch === ')') {
-          if (parenDepth > 0) parenDepth -= 1;
+          if (parenDepth > 0) { parenDepth -= 1; }
           cur += ch;
           continue;
         }
