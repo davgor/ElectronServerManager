@@ -649,6 +649,7 @@ function parseIniContent(content: string): Record<string, unknown> {
     const parts: string[] = [];
     let cur = "";
     let inQuote = false;
+    let parenDepth = 0;
     for (let i = 0; i < s.length; i++) {
       const ch = s[i];
       if (ch === '"') {
@@ -656,9 +657,27 @@ function parseIniContent(content: string): Record<string, unknown> {
         cur += ch;
         continue;
       }
+      if (!inQuote) {
+        if (ch === '(') {
+          parenDepth += 1;
+          cur += ch;
+          continue;
+        }
+        if (ch === ')') {
+          if (parenDepth > 0) parenDepth -= 1;
+          cur += ch;
+          continue;
+        }
+      }
       if (ch === delim && !inQuote) {
-        parts.push(cur.trim());
-        cur = "";
+        // only split on delimiter when not inside quotes or nested parentheses
+        if (parenDepth === 0) {
+          parts.push(cur.trim());
+          cur = "";
+          continue;
+        }
+        // otherwise treat as literal delimiter inside nested structure
+        cur += ch;
       } else {
         cur += ch;
       }
@@ -789,12 +808,8 @@ function stringifyIniContent(content: Record<string, unknown>): string {
           for (const [k2, v2] of Object.entries(sv as Record<string, unknown>)) {
             let valStr: string;
             if (typeof v2 === 'string') {
-              // If the string already includes surrounding quotes, preserve it exactly as provided.
-              if (v2.startsWith('"') && v2.endsWith('"')) {
-                valStr = v2;
-              } else {
-                valStr = escapeIfNeeded(v2);
-              }
+              // Preserve child string values exactly as provided (do not auto-quote).
+              valStr = v2;
             } else {
               valStr = String(v2);
             }
