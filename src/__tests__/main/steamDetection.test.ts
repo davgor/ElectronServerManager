@@ -32,6 +32,7 @@ const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
 describe("steamDetection", () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    jest.resetAllMocks();
   });
 
   describe("findInstalledServers", () => {
