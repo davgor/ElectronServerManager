@@ -24,6 +24,7 @@
     "format": "prettier --write src",
     "format:check": "prettier --check src",
     "type-check": "tsc --noEmit",
+    "pretest": "npm run electron-build",
     "test": "jest",
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
