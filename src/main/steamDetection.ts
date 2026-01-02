@@ -245,7 +245,7 @@ export async function findInstalledServers(
     steamPath = await findSteamPath();
   }
 
-  if (!steamPath) {
+  if (steamPath === null || steamPath === "") {
     console.warn("Steam installation not found");
     return [];
   }
@@ -258,7 +258,9 @@ export async function findInstalledServers(
   console.log(`Library paths found: ${JSON.stringify(libraryPaths)}`);
 
   // Remove any falsy entries just in case mocked inputs produced them
-  const validLibraryPaths = (libraryPaths || []).filter((p) => typeof p === "string" && p);
+  const validLibraryPaths = libraryPaths.filter(
+    (p): p is string => typeof p === "string" && p.length > 0
+  );
 
   const servers: SteamServer[] = [];
 
@@ -290,8 +292,10 @@ export async function findInstalledServers(
       }
 
       // If manifest doesn't exist, skip unless we have a known folder name to search for
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (!manifestExists && expectedFolderName === null) {
+      if (
+        !manifestExists &&
+        (typeof expectedFolderName !== "string" || expectedFolderName.length === 0)
+      ) {
         continue;
       }
 
@@ -317,7 +321,7 @@ export async function findInstalledServers(
         );
 
         // Second try: expected folder name (for manually named folders)
-        if (matchedFolder === undefined && expectedFolderName) {
+        if (matchedFolder === undefined && typeof expectedFolderName === "string" && expectedFolderName.length > 0) {
           matchedFolder = dirents.find(
             (dirent) =>
               dirent.isDirectory() &&
