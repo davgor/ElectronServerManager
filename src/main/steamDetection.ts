@@ -294,6 +294,25 @@ export async function findInstalledServers(
       }
 
       try {
+        // Ensure the commonPath exists before attempting to read directory entries.
+        try {
+          await fs.stat(commonPath);
+        } catch {
+          // If manifest exists, but commonPath doesn't exist, consider it installing below
+          if (manifestExists) {
+            const coverArt = await fetchCoverArt(parseInt(appId));
+            servers.push({
+              name: serverName,
+              appId: parseInt(appId),
+              installPath: commonPath,
+              isRunning: false,
+              coverArt,
+            });
+          }
+          // Skip to next libraryPath
+          continue;
+        }
+
         const dirents = await fs.readdir(commonPath, {
           withFileTypes: true,
         });
