@@ -203,8 +203,8 @@ function App(): JSX.Element {
             return;
           }
 
-          // Enable auto-restart for this server
-          setAutoRestartServers((prev) => new Set(prev).add(appId));
+          // Do not automatically enable auto-restart when starting the server.
+          // Respect user's existing auto-restart setting.
 
           // Wait a bit for the process to fully start before checking status
           await new Promise((resolve) => setTimeout(resolve, 1000));
