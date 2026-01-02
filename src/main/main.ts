@@ -649,6 +649,7 @@ function parseIniContent(content: string): Record<string, unknown> {
     const parts: string[] = [];
     let cur = "";
     let inQuote = false;
+    let parenDepth = 0;
     for (let i = 0; i < s.length; i++) {
       const ch = s[i];
       if (ch === '"') {
@@ -656,9 +657,27 @@ function parseIniContent(content: string): Record<string, unknown> {
         cur += ch;
         continue;
       }
+      if (!inQuote) {
+        if (ch === '(') {
+          parenDepth += 1;
+          cur += ch;
+          continue;
+        }
+        if (ch === ')') {
+          if (parenDepth > 0) { parenDepth -= 1; }
+          cur += ch;
+          continue;
+        }
+      }
       if (ch === delim && !inQuote) {
-        parts.push(cur.trim());
-        cur = "";
+        // only split on delimiter when not inside quotes or nested parentheses
+        if (parenDepth === 0) {
+          parts.push(cur.trim());
+          cur = "";
+          continue;
+        }
+        // otherwise treat as literal delimiter inside nested structure
+        cur += ch;
       } else {
         cur += ch;
       }
@@ -720,7 +739,9 @@ function parseIniContent(content: string): Record<string, unknown> {
           }
           const sk = p.slice(0, eq).trim();
           const svRaw = p.slice(eq + 1).trim();
-          obj[sk] = parseTokenValue(svRaw);
+          // Preserve child property values exactly as strings (do not convert numbers/booleans)
+          // and keep any surrounding quotes the user added.
+          obj[sk] = svRaw;
         }
         if (currentSection) {
           const sec = result[currentSection] as Record<string, unknown>;
@@ -785,7 +806,13 @@ function stringifyIniContent(content: Record<string, unknown>): string {
         } else if (typeof sv === 'object' && sv !== null) {
           const pairs: string[] = [];
           for (const [k2, v2] of Object.entries(sv as Record<string, unknown>)) {
-            const valStr = typeof v2 === 'string' ? escapeIfNeeded(v2) : String(v2);
+            let valStr: string;
+            if (typeof v2 === 'string') {
+              // Preserve child string values exactly as provided (do not auto-quote).
+              valStr = v2;
+            } else {
+              valStr = String(v2);
+            }
             pairs.push(`${k2}=${valStr}`);
           }
           out += `${sk}=(${pairs.join(',')})\n`;
