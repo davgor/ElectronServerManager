@@ -275,7 +275,7 @@ export async function findInstalledServers(
       const commonPath = path.join(libraryPath, "common");
 
       // First check if manifest file exists - this confirms the app is installed
-      const manifestPath = libraryPath ? path.join(libraryPath, `appmanifest_${appId}.acf`) : undefined;
+      const manifestPath = path.join(libraryPath, `appmanifest_${appId}.acf`);
       let manifestExists = false;
 
       try {
