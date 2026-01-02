@@ -130,7 +130,7 @@ async function findSteamPath(): Promise<string | null> {
 /**
  * Parse a SteamApps libraryfolders.vdf file
  */
-async function parseLibraryFolders(steamPath: string): Promise<string[]> {
+export async function parseLibraryFolders(steamPath: string): Promise<string[]> {
   const libraryFile = path.join(steamPath, "steamapps/libraryfolders.vdf");
   const libraryPaths: string[] = [path.join(steamPath, "steamapps")];
 
@@ -156,7 +156,7 @@ async function parseLibraryFolders(steamPath: string): Promise<string[]> {
 /**
  * Fetch cover art for a Steam game from Steam CDN
  */
-async function fetchCoverArt(appId: number): Promise<string | undefined> {
+export async function fetchCoverArt(appId: number): Promise<string | undefined> {
   try {
     // Use Steam's CDN directly for app header images
     // Format: https://cdn.akamai.steamstatic.com/steam/apps/{appId}/header.jpg
@@ -180,7 +180,7 @@ async function fetchCoverArt(appId: number): Promise<string | undefined> {
 /**
  * Check if a process is running by name
  */
-function isProcessRunning(processName: string): boolean {
+export function isProcessRunning(processName: string): boolean {
   try {
     const platform = process.platform;
     let command: string;
