@@ -720,7 +720,9 @@ function parseIniContent(content: string): Record<string, unknown> {
           }
           const sk = p.slice(0, eq).trim();
           const svRaw = p.slice(eq + 1).trim();
-          obj[sk] = parseTokenValue(svRaw);
+          // Preserve child property values exactly as strings (do not convert numbers/booleans)
+          // and keep any surrounding quotes the user added.
+          obj[sk] = svRaw;
         }
         if (currentSection) {
           const sec = result[currentSection] as Record<string, unknown>;
@@ -785,7 +787,17 @@ function stringifyIniContent(content: Record<string, unknown>): string {
         } else if (typeof sv === 'object' && sv !== null) {
           const pairs: string[] = [];
           for (const [k2, v2] of Object.entries(sv as Record<string, unknown>)) {
-            const valStr = typeof v2 === 'string' ? escapeIfNeeded(v2) : String(v2);
+            let valStr: string;
+            if (typeof v2 === 'string') {
+              // If the string already includes surrounding quotes, preserve it exactly as provided.
+              if (v2.startsWith('"') && v2.endsWith('"')) {
+                valStr = v2;
+              } else {
+                valStr = escapeIfNeeded(v2);
+              }
+            } else {
+              valStr = String(v2);
+            }
             pairs.push(`${k2}=${valStr}`);
           }
           out += `${sk}=(${pairs.join(',')})\n`;
