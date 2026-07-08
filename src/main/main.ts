@@ -11,15 +11,10 @@ import {
   screen,
 } from "electron";
 
-import {
-  findInstalledServers,
-  backupServerSave,
-  STEAM_DEDICATED_SERVERS,
-  ServerInfo,
-} from "./steamDetection";
+import { findInstalledServers, backupServerSave } from "./steamDetection";
 import { getCommonSteamPaths } from "./driveUtils";
-import { parseIniContent, stringifyIniContent } from "./iniConfig";
 import { startServer, stopServer, autoUpdateServer } from "./serverProcess";
+import { getServerConfig, saveServerConfig } from "./serverConfig";
 
 const isDev = Boolean(
   process.env.NODE_ENV === "development" || process.env.ELECTRON_START_URL
@@ -321,66 +316,10 @@ ipcMain.handle("select-backup-folder", async () => {
   }
 });
 
-// Config file handlers using mapping from steamDetection
 ipcMain.handle(
   "get-server-config",
   async (_event, appId: number, installPath: string) => {
-    try {
-      const fs = await import("fs/promises");
-
-      // Ensure mapping exists for this appId
-      if (
-        !Object.prototype.hasOwnProperty.call(
-          STEAM_DEDICATED_SERVERS,
-          String(appId)
-        )
-      ) {
-        return { success: false, error: `No config mapping for app ${appId}` };
-      }
-
-      const serverInfo = STEAM_DEDICATED_SERVERS[
-        appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
-      ] as unknown as ServerInfo;
-      if (
-        serverInfo.configLocation === undefined ||
-        serverInfo.configLocation === ""
-      ) {
-        return { success: false, error: `No config mapping for app ${appId}` };
-      }
-
-      const configPath = path.join(installPath, serverInfo.configLocation);
-
-      try {
-        await fs.stat(configPath);
-      } catch {
-        return {
-          success: false,
-          error: `Config file not found: ${configPath}`,
-        };
-      }
-
-      const content = await fs.readFile(configPath, "utf-8");
-
-      // Detect format based on extension (json or ini)
-      const format = configPath.toLowerCase().endsWith(".json")
-        ? "json"
-        : "ini";
-
-      let parsed: Record<string, unknown> = {};
-      if (format === "json") {
-        parsed = JSON.parse(content) as Record<string, unknown>;
-      } else {
-        parsed = parseIniContent(content);
-      }
-
-      return { success: true, content: parsed, format, filePath: configPath };
-    } catch (err) {
-      console.error("Error reading server config:", err);
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      };
-    }
+    return getServerConfig(appId, installPath);
   }
 );
 
@@ -417,46 +356,7 @@ ipcMain.handle(
     content: Record<string, unknown>,
     format: "json" | "ini"
   ) => {
-    try {
-      const fs = await import("fs/promises");
-
-      if (
-        !Object.prototype.hasOwnProperty.call(
-          STEAM_DEDICATED_SERVERS,
-          String(appId)
-        )
-      ) {
-        return { success: false, error: `No config mapping for app ${appId}` };
-      }
-
-      const serverInfo = STEAM_DEDICATED_SERVERS[
-        appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
-      ] as unknown as ServerInfo;
-      if (
-        serverInfo.configLocation === undefined ||
-        serverInfo.configLocation === ""
-      ) {
-        return { success: false, error: `No config mapping for app ${appId}` };
-      }
-
-      const configPath = path.join(installPath, serverInfo.configLocation);
-
-      let fileContent = "";
-      if (format === "json") {
-        fileContent = JSON.stringify(content, null, 2);
-      } else {
-        fileContent = stringifyIniContent(content);
-      }
-
-      await fs.writeFile(configPath, fileContent, "utf-8");
-      return { success: true };
-    } catch (err) {
-      console.error("Error saving server config:", err);
-      return {
-        success: false,
-        error: err instanceof Error ? err.message : String(err),
-      };
-    }
+    return saveServerConfig(appId, installPath, content, format);
   }
 );
 
