@@ -24,7 +24,9 @@ export function ConfigEditor({
   const [saving, setSaving] = useState(false);
   // per-parent add fields are stored in `addFields`
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
-  const [addFields, setAddFields] = useState<Record<string, { key: string; value: string } | undefined>>({});
+  const [addFields, setAddFields] = useState<
+    Record<string, { key: string; value: string } | undefined>
+  >({});
 
   // Load config on mount
   useEffect(() => {
@@ -101,7 +103,11 @@ export function ConfigEditor({
     });
   };
 
-  const updateArrayAtPath = (pathArr: string[], index: number, value: unknown): void => {
+  const updateArrayAtPath = (
+    pathArr: string[],
+    index: number,
+    value: unknown
+  ): void => {
     setConfig((prev) => {
       if (!prev) {
         return prev;
@@ -120,7 +126,7 @@ export function ConfigEditor({
           cur[p] = arr;
           return next;
         }
-        if (typeof cur[p] !== 'object' || cur[p] === null) {
+        if (typeof cur[p] !== "object" || cur[p] === null) {
           cur[p] = {};
         }
         cur = cur[p] as Record<string, unknown>;
@@ -150,7 +156,7 @@ export function ConfigEditor({
           }
           return next;
         }
-        if (typeof cur[p] !== 'object' || cur[p] === null) {
+        if (typeof cur[p] !== "object" || cur[p] === null) {
           cur[p] = {};
         }
         cur = cur[p] as Record<string, unknown>;
@@ -160,7 +166,10 @@ export function ConfigEditor({
   };
 
   // Add array element with optional template (duplicate existing element structure)
-  const addArrayElementWithTemplate = (pathArr: string[], template?: unknown): void => {
+  const addArrayElementWithTemplate = (
+    pathArr: string[],
+    template?: unknown
+  ): void => {
     setConfig((prev) => {
       if (!prev) {
         return prev;
@@ -180,7 +189,7 @@ export function ConfigEditor({
           }
           return next;
         }
-        if (typeof cur[p] !== 'object' || cur[p] === null) {
+        if (typeof cur[p] !== "object" || cur[p] === null) {
           cur[p] = {};
         }
         cur = cur[p] as Record<string, unknown>;
@@ -219,10 +228,14 @@ export function ConfigEditor({
     });
   };
 
-  const updateAddField = (pathStr: string, keyOrVal: 'key' | 'value', val: string): void => {
+  const updateAddField = (
+    pathStr: string,
+    keyOrVal: "key" | "value",
+    val: string
+  ): void => {
     setAddFields((prev) => {
       const existing = prev[pathStr];
-      const base = existing ?? { key: '', value: '' };
+      const base = existing ?? { key: "", value: "" };
       return { ...prev, [pathStr]: { ...base, [keyOrVal]: val } };
     });
   };
@@ -230,7 +243,7 @@ export function ConfigEditor({
   const handleAddField = (pathArr: string[], pathStr: string): void => {
     const field = addFields[pathStr];
     if (!field || field.key.trim().length === 0) {
-      setError('Property name is required');
+      setError("Property name is required");
       return;
     }
 
@@ -247,85 +260,111 @@ export function ConfigEditor({
     depth = 0
   ): JSX.Element => {
     const fullPath = [...pathArr, key];
-    const pathStr = fullPath.join('.');
+    const pathStr = fullPath.join(".");
 
-    if (value !== null && value !== undefined && typeof value === 'object') {
+    if (value !== null && value !== undefined && typeof value === "object") {
       // Arrays: render each item (break down objects inside arrays)
       if (Array.isArray(value)) {
         const arr = value as unknown[];
         const isExpanded = expandedPaths.has(pathStr);
 
         return (
-          <div key={pathStr} className="property-group" style={{ paddingLeft: depth * 18 }}>
+          <div
+            key={pathStr}
+            className="property-group"
+            style={{ paddingLeft: depth * 18 }}
+          >
             <div
-              className={`property-group-title ${isExpanded ? 'expanded' : 'collapsed'}`}
+              className={`property-group-title ${isExpanded ? "expanded" : "collapsed"}`}
               onClick={() => toggleExpanded(pathStr)}
               role="button"
               tabIndex={0}
               onKeyDown={(e) => {
-                if (e.key === 'Enter' || e.key === ' ') {
+                if (e.key === "Enter" || e.key === " ") {
                   toggleExpanded(pathStr);
                 }
               }}
             >
-              <span className={`caret ${isExpanded ? 'rotated' : ''}`} />
-                <div className="property-name">{key} [Array({arr.length})]</div>
-                <button
-                  className="btn btn-plus"
-                  onClick={(e) => {
-                    e.stopPropagation();
-                    // If array has object items, duplicate the last object's structure, else add blank
-                    const last = arr.length > 0 ? arr[arr.length - 1] : undefined;
-                    if (last !== undefined && last !== null && typeof last === 'object') {
-                      addArrayElementWithTemplate(fullPath, last);
-                    } else {
-                      addArrayElement(fullPath);
-                    }
-                  }}
-                  title="Add item to array"
-                >
-                  +
-                </button>
+              <span className={`caret ${isExpanded ? "rotated" : ""}`} />
+              <div className="property-name">
+                {key} [Array({arr.length})]
+              </div>
+              <button
+                className="btn btn-plus"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  // If array has object items, duplicate the last object's structure, else add blank
+                  const last = arr.length > 0 ? arr[arr.length - 1] : undefined;
+                  if (
+                    last !== undefined &&
+                    last !== null &&
+                    typeof last === "object"
+                  ) {
+                    addArrayElementWithTemplate(fullPath, last);
+                  } else {
+                    addArrayElement(fullPath);
+                  }
+                }}
+                title="Add item to array"
+              >
+                +
+              </button>
             </div>
 
-              <div className={`properties-list nested ${isExpanded ? 'open' : 'closed'}`}>
+            <div
+              className={`properties-list nested ${isExpanded ? "open" : "closed"}`}
+            >
               {arr.map((item, idx) => {
                 const itemKey = String(idx);
-                if (item !== null && typeof item === 'object' && !Array.isArray(item)) {
+                if (
+                  item !== null &&
+                  typeof item === "object" &&
+                  !Array.isArray(item)
+                ) {
                   // Render object item as its own collapsible group with index label
                   const itemPath = [...fullPath, itemKey];
-                  const itemPathStr = itemPath.join('.');
+                  const itemPathStr = itemPath.join(".");
                   const itemExpanded = expandedPaths.has(itemPathStr);
 
                   return (
-                    <div key={itemPathStr} className="property-group" style={{ paddingLeft: (depth + 1) * 18 }}>
+                    <div
+                      key={itemPathStr}
+                      className="property-group"
+                      style={{ paddingLeft: (depth + 1) * 18 }}
+                    >
                       <div
-                        className={`property-group-title ${itemExpanded ? 'expanded' : 'collapsed'}`}
+                        className={`property-group-title ${itemExpanded ? "expanded" : "collapsed"}`}
                         onClick={() => toggleExpanded(itemPathStr)}
                         role="button"
                         tabIndex={0}
                         onKeyDown={(e) => {
-                          if (e.key === 'Enter' || e.key === ' ') {
+                          if (e.key === "Enter" || e.key === " ") {
                             toggleExpanded(itemPathStr);
                           }
                         }}
                       >
-                        <span className={`caret ${itemExpanded ? 'rotated' : ''}`} />
+                        <span
+                          className={`caret ${itemExpanded ? "rotated" : ""}`}
+                        />
                         <div className="property-name">[{idx}]</div>
-                          <button
-                            className="btn btn-plus"
-                            onClick={(e) => {
-                              e.stopPropagation();
-                              showAddField(itemPathStr);
-                            }}
-                            title="Add property"
-                          >
-                            +
-                          </button>
+                        <button
+                          className="btn btn-plus"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            showAddField(itemPathStr);
+                          }}
+                          title="Add property"
+                        >
+                          +
+                        </button>
                       </div>
 
-                      <div className={`properties-list nested ${itemExpanded ? 'open' : 'closed'}`}>
-                        {Object.entries(item as Record<string, unknown>).map(([k, v]) => renderProperty(k, v, itemPath, depth + 2))}
+                      <div
+                        className={`properties-list nested ${itemExpanded ? "open" : "closed"}`}
+                      >
+                        {Object.entries(item as Record<string, unknown>).map(
+                          ([k, v]) => renderProperty(k, v, itemPath, depth + 2)
+                        )}
                       </div>
 
                       <div className="group-end-divider" />
@@ -334,13 +373,29 @@ export function ConfigEditor({
                 }
 
                 return (
-                  <div key={`${pathStr}.${Date.now()}.${Math.random().toString(36).slice(2,9)}`} className="property-item two-column" style={{ paddingLeft: (depth + 1) * 18 }}>
+                  <div
+                    key={`${pathStr}.${Date.now()}.${Math.random().toString(36).slice(2, 9)}`}
+                    className="property-item two-column"
+                    style={{ paddingLeft: (depth + 1) * 18 }}
+                  >
                     <div className="property-name">[{idx}]</div>
-                    <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
+                    <div
+                      style={{
+                        display: "flex",
+                        justifyContent: "flex-end",
+                        gap: 8,
+                      }}
+                    >
                       <input
                         type="text"
-                        value={item === undefined || item === null ? '' : String(item)}
-                        onChange={(e) => updateArrayAtPath(fullPath, idx, e.target.value)}
+                        value={
+                          item === undefined || item === null
+                            ? ""
+                            : String(item)
+                        }
+                        onChange={(e) =>
+                          updateArrayAtPath(fullPath, idx, e.target.value)
+                        }
                         className="property-value-input"
                         style={{ maxWidth: 420 }}
                       />
@@ -361,19 +416,23 @@ export function ConfigEditor({
       const isExpanded = expandedPaths.has(pathStr);
 
       return (
-        <div key={pathStr} className="property-group" style={{ paddingLeft: depth * 18 }}>
+        <div
+          key={pathStr}
+          className="property-group"
+          style={{ paddingLeft: depth * 18 }}
+        >
           <div
-            className={`property-group-title ${isExpanded ? 'expanded' : 'collapsed'}`}
+            className={`property-group-title ${isExpanded ? "expanded" : "collapsed"}`}
             onClick={() => toggleExpanded(pathStr)}
             role="button"
             tabIndex={0}
             onKeyDown={(e) => {
-              if (e.key === 'Enter' || e.key === ' ') {
+              if (e.key === "Enter" || e.key === " ") {
                 toggleExpanded(pathStr);
               }
             }}
           >
-            <span className={`caret ${isExpanded ? 'rotated' : ''}`} />
+            <span className={`caret ${isExpanded ? "rotated" : ""}`} />
             <div className="property-name">{key}</div>
             <button
               className="btn btn-plus"
@@ -387,29 +446,50 @@ export function ConfigEditor({
             </button>
           </div>
 
-          <div className={`properties-list nested ${isExpanded ? 'open' : 'closed'}`}>
-            {Object.entries(obj).map(([k, v]) => renderProperty(k, v, fullPath, depth + 1))}
+          <div
+            className={`properties-list nested ${isExpanded ? "open" : "closed"}`}
+          >
+            {Object.entries(obj).map(([k, v]) =>
+              renderProperty(k, v, fullPath, depth + 1)
+            )}
 
             {addFields[pathStr] !== undefined ? (
-              <div className="add-inline-form" style={{ paddingLeft: (depth + 1) * 18 }}>
+              <div
+                className="add-inline-form"
+                style={{ paddingLeft: (depth + 1) * 18 }}
+              >
                 <input
                   type="text"
                   placeholder="Property name"
                   value={addFields[pathStr].key}
-                  onChange={(e) => updateAddField(pathStr, 'key', e.target.value)}
+                  onChange={(e) =>
+                    updateAddField(pathStr, "key", e.target.value)
+                  }
                   className="property-key-input"
                 />
                 <input
                   type="text"
                   placeholder="Property value"
                   value={addFields[pathStr].value}
-                  onChange={(e) => updateAddField(pathStr, 'value', e.target.value)}
+                  onChange={(e) =>
+                    updateAddField(pathStr, "value", e.target.value)
+                  }
                   className="property-value-input"
                 />
-                <button className="btn btn-small btn-save-inline" onClick={() => handleAddField(fullPath, pathStr)} title="Save">
+                <button
+                  className="btn btn-small btn-save-inline"
+                  onClick={() => handleAddField(fullPath, pathStr)}
+                  title="Save"
+                >
                   💾
                 </button>
-                <button className="btn btn-small btn-cancel-inline" onClick={() => hideAddField(pathStr)} title="Cancel">✕</button>
+                <button
+                  className="btn btn-small btn-cancel-inline"
+                  onClick={() => hideAddField(pathStr)}
+                  title="Cancel"
+                >
+                  ✕
+                </button>
               </div>
             ) : null}
           </div>
@@ -419,20 +499,24 @@ export function ConfigEditor({
       );
     }
 
-      return (
-        <div key={pathStr} className="property-item two-column" style={{ paddingLeft: depth * 14 }}>
-          <div className="property-name">{key}</div>
-          <div style={{ display: 'flex', justifyContent: 'flex-end', gap: 8 }}>
-            <input
-              type="text"
-              value={value === undefined || value === null ? '' : String(value)}
-              onChange={(e) => updateConfigAtPath(fullPath, e.target.value)}
-              className="property-value-input"
-              style={{ maxWidth: 420 }}
-            />
-          </div>
+    return (
+      <div
+        key={pathStr}
+        className="property-item two-column"
+        style={{ paddingLeft: depth * 14 }}
+      >
+        <div className="property-name">{key}</div>
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
+          <input
+            type="text"
+            value={value === undefined || value === null ? "" : String(value)}
+            onChange={(e) => updateConfigAtPath(fullPath, e.target.value)}
+            className="property-value-input"
+            style={{ maxWidth: 420 }}
+          />
         </div>
-      );
+      </div>
+    );
   };
 
   const handleSave = (): void => {
@@ -474,7 +558,7 @@ export function ConfigEditor({
     })();
   };
 
-  const topAdd = addFields[''];
+  const topAdd = addFields[""];
 
   if (loading) {
     return (
@@ -517,35 +601,53 @@ export function ConfigEditor({
           {config && Object.keys(config).length > 0 ? (
             <div className="properties-section">
               <div className="properties-header">
-                  <h3>Current Properties</h3>
-                  <button
-                    className="btn btn-plus"
-                    onClick={() => showAddField('')}
-                    title="Add top-level property"
-                  >
-                    +
-                  </button>
-                </div>
-                <div className="properties-list">
-                {Object.entries(config).map(([key, value]) => renderProperty(key, value, []))}
+                <h3>Current Properties</h3>
+                <button
+                  className="btn btn-plus"
+                  onClick={() => showAddField("")}
+                  title="Add top-level property"
+                >
+                  +
+                </button>
+              </div>
+              <div className="properties-list">
+                {Object.entries(config).map(([key, value]) =>
+                  renderProperty(key, value, [])
+                )}
                 {topAdd ? (
                   <div className="add-inline-form" style={{ paddingLeft: 0 }}>
                     <input
                       type="text"
                       placeholder="Property name"
                       value={topAdd.key}
-                      onChange={(e) => updateAddField('', 'key', e.target.value)}
+                      onChange={(e) =>
+                        updateAddField("", "key", e.target.value)
+                      }
                       className="property-key-input"
                     />
                     <input
                       type="text"
                       placeholder="Property value"
                       value={topAdd.value}
-                      onChange={(e) => updateAddField('', 'value', e.target.value)}
+                      onChange={(e) =>
+                        updateAddField("", "value", e.target.value)
+                      }
                       className="property-value-input"
                     />
-                    <button className="btn btn-small btn-save-inline" onClick={() => handleAddField([], '')} title="Save">💾</button>
-                    <button className="btn btn-small btn-cancel-inline" onClick={() => hideAddField('')} title="Cancel">✕</button>
+                    <button
+                      className="btn btn-small btn-save-inline"
+                      onClick={() => handleAddField([], "")}
+                      title="Save"
+                    >
+                      💾
+                    </button>
+                    <button
+                      className="btn btn-small btn-cancel-inline"
+                      onClick={() => hideAddField("")}
+                      title="Cancel"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ) : null}
               </div>
@@ -567,13 +669,15 @@ export function ConfigEditor({
               if (filePath === null || filePath === "") {
                 return;
               }
-              void window.electron.ipcRenderer.invoke("open-file-default", filePath).then((res) => {
-                const r = res as { success: boolean; error?: string };
-                if (!r.success) {
-                  // eslint-disable-next-line no-console
-                  console.error("Failed to open file:", r.error);
-                }
-              });
+              void window.electron.ipcRenderer
+                .invoke("open-file-default", filePath)
+                .then((res) => {
+                  const r = res as { success: boolean; error?: string };
+                  if (!r.success) {
+                    // eslint-disable-next-line no-console
+                    console.error("Failed to open file:", r.error);
+                  }
+                });
             }}
             disabled={filePath === null || filePath === ""}
           >

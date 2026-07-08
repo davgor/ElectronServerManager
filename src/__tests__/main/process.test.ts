@@ -16,12 +16,17 @@ describe("isProcessRunning", () => {
   it("returns true on Windows when tasklist contains exe name", (): void => {
     const original = Object.getOwnPropertyDescriptor(process, "platform");
     if (original) {
-      Object.defineProperty(process, "platform", { value: "win32", configurable: true });
+      Object.defineProperty(process, "platform", {
+        value: "win32",
+        configurable: true,
+      });
     }
 
     // Return a Buffer similar to execSync on Windows
     const mockedExec = jest.mocked(childProcess.execSync);
-    const windowsBuffer = Buffer.from("process.exe\n") as unknown as ReturnType<typeof childProcess.execSync>;
+    const windowsBuffer = Buffer.from("process.exe\n") as unknown as ReturnType<
+      typeof childProcess.execSync
+    >;
     mockedExec.mockReturnValueOnce(windowsBuffer);
 
     const result = isProcessRunning("process.exe");
@@ -36,7 +41,10 @@ describe("isProcessRunning", () => {
   it("returns false on non-windows when pgrep throws", (): void => {
     const original = Object.getOwnPropertyDescriptor(process, "platform");
     if (original) {
-      Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+      Object.defineProperty(process, "platform", {
+        value: "linux",
+        configurable: true,
+      });
     }
 
     const mockedExec2 = jest.mocked(childProcess.execSync);

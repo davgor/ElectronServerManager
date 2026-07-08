@@ -14,10 +14,10 @@ describe("parseLibraryFolders", () => {
   });
 
   it("parses multiple library paths from libraryfolders.vdf", async () => {
-      const fakeContent = `"path" "D:\\Games\\Steam"\n"path" "E:\\MoreSteam"`;
-      // @ts-expect-error mock fs.readFile - mocking file read in test
-      // Reason: replacing readFile with a test double
-      fs.readFile = jest.fn(() => Promise.resolve(fakeContent));
+    const fakeContent = `"path" "D:\\Games\\Steam"\n"path" "E:\\MoreSteam"`;
+    // @ts-expect-error mock fs.readFile - mocking file read in test
+    // Reason: replacing readFile with a test double
+    fs.readFile = jest.fn(() => Promise.resolve(fakeContent));
 
     const result = await parseLibraryFolders("C:\\Program Files (x86)\\Steam");
 

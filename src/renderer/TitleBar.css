@@ -6,7 +6,11 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0; /* flush to edges */
-  background: linear-gradient(180deg, #0f232b, #0b1b20); /* dark grey-blue like Steam */
+  background: linear-gradient(
+    180deg,
+    #0f232b,
+    #0b1b20
+  ); /* dark grey-blue like Steam */
   color: #e6f0ff;
   position: fixed;
   top: 0;
@@ -67,10 +71,13 @@
   cursor: pointer;
   font-size: 14px;
   line-height: 1;
-  color: rgba(255,255,255,0.9);
+  color: rgba(255, 255, 255, 0.9);
   background: transparent;
   border: none;
-  transition: background 120ms ease, transform 80ms ease, color 120ms ease;
+  transition:
+    background 120ms ease,
+    transform 80ms ease,
+    color 120ms ease;
 }
 
 .titlebar-icon:focus {
@@ -78,11 +85,11 @@
 }
 
 .titlebar-icon:hover {
-  background: rgba(255,255,255,0.06);
+  background: rgba(255, 255, 255, 0.06);
 }
 
 .titlebar-icon.close:hover {
-  background: rgba(255,77,79,0.95);
+  background: rgba(255, 77, 79, 0.95);
   color: #fff;
 }
 

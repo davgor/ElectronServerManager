@@ -40,7 +40,8 @@ export interface ServerInfo {
 }
 
 // Re-export the mapping with a typed shape for callers
-export const STEAM_DEDICATED_SERVERS_TYPED: Record<number, ServerInfo> = STEAM_DEDICATED_SERVERS as unknown as Record<number, ServerInfo>;
+export const STEAM_DEDICATED_SERVERS_TYPED: Record<number, ServerInfo> =
+  STEAM_DEDICATED_SERVERS as unknown as Record<number, ServerInfo>;
 
 /**
  * Find the Steam installation directory on a specific drive (Windows)
@@ -130,7 +131,9 @@ async function findSteamPath(): Promise<string | null> {
 /**
  * Parse a SteamApps libraryfolders.vdf file
  */
-export async function parseLibraryFolders(steamPath: string): Promise<string[]> {
+export async function parseLibraryFolders(
+  steamPath: string
+): Promise<string[]> {
   const libraryFile = path.join(steamPath, "steamapps/libraryfolders.vdf");
   const libraryPaths: string[] = [path.join(steamPath, "steamapps")];
 
@@ -156,7 +159,9 @@ export async function parseLibraryFolders(steamPath: string): Promise<string[]> 
 /**
  * Fetch cover art for a Steam game from Steam CDN
  */
-export async function fetchCoverArt(appId: number): Promise<string | undefined> {
+export async function fetchCoverArt(
+  appId: number
+): Promise<string | undefined> {
   try {
     // Use Steam's CDN directly for app header images
     // Format: https://cdn.akamai.steamstatic.com/steam/apps/{appId}/header.jpg
@@ -213,7 +218,9 @@ export function isProcessRunning(processName: string): boolean {
     return false;
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`Error checking process: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(
+      `Error checking process: ${err instanceof Error ? err.message : String(err)}`
+    );
     return false;
   }
 }
@@ -313,7 +320,9 @@ export async function findInstalledServers(
             coverArt,
           });
           // eslint-disable-next-line no-console
-          console.log(`✓ Found ${serverName} (numeric folder) at ${numericAppPath}`);
+          console.log(
+            `✓ Found ${serverName} (numeric folder) at ${numericAppPath}`
+          );
           break;
         } catch {
           // numeric folder doesn't exist, continue
@@ -333,7 +342,9 @@ export async function findInstalledServers(
               coverArt,
             });
             // eslint-disable-next-line no-console
-            console.log(`✓ Found ${serverName} (expected folder) at ${expectedPath}`);
+            console.log(
+              `✓ Found ${serverName} (expected folder) at ${expectedPath}`
+            );
             break;
           } catch {
             // expected folder doesn't exist, continue
@@ -420,7 +431,9 @@ export async function getServerBuildId(
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`Error checking buildid for app ${appId}: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(
+      `Error checking buildid for app ${appId}: ${err instanceof Error ? err.message : String(err)}`
+    );
     return null;
   }
 }
@@ -462,7 +475,9 @@ export async function backupServerSave(
       await fs.mkdir(backupDir, { recursive: true });
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`Failed to create backup directory: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(
+        `Failed to create backup directory: ${err instanceof Error ? err.message : String(err)}`
+      );
       return null;
     }
 
@@ -495,12 +510,16 @@ export async function backupServerSave(
       return backupFile;
     } catch (err) {
       // eslint-disable-next-line no-console
-      console.error(`Failed to create backup: ${err instanceof Error ? err.message : String(err)}`);
+      console.error(
+        `Failed to create backup: ${err instanceof Error ? err.message : String(err)}`
+      );
       return null;
     }
   } catch (err) {
     // eslint-disable-next-line no-console
-    console.error(`Error during backup: ${err instanceof Error ? err.message : String(err)}`);
+    console.error(
+      `Error during backup: ${err instanceof Error ? err.message : String(err)}`
+    );
     return null;
   }
 }

@@ -2,7 +2,15 @@ import path from "path";
 import { existsSync } from "fs";
 import { spawn, execSync } from "child_process";
 
-import { app, BrowserWindow, Menu, ipcMain, dialog, shell, screen } from "electron";
+import {
+  app,
+  BrowserWindow,
+  Menu,
+  ipcMain,
+  dialog,
+  shell,
+  screen,
+} from "electron";
 
 import {
   findInstalledServers,
@@ -12,6 +20,7 @@ import {
   ServerInfo,
 } from "./steamDetection";
 import { getCommonSteamPaths } from "./driveUtils";
+import { parseIniContent, stringifyIniContent } from "./iniConfig";
 
 const isDev = Boolean(
   process.env.NODE_ENV === "development" || process.env.ELECTRON_START_URL
@@ -55,7 +64,7 @@ function createWindow(): void {
       try {
         const dims = (await mainWindow!.webContents.executeJavaScript(
           // return content width/height
-          '({w: Math.max(document.documentElement.clientWidth, document.body.scrollWidth || 0), h: Math.max(document.documentElement.clientHeight, document.body.scrollHeight || 0)})'
+          "({w: Math.max(document.documentElement.clientWidth, document.body.scrollWidth || 0), h: Math.max(document.documentElement.clientHeight, document.body.scrollHeight || 0)})"
         )) as { w: number; h: number } | null;
 
         if (dims && typeof dims.w === "number" && typeof dims.h === "number") {
@@ -109,7 +118,10 @@ ipcMain.handle("window-minimize", () => {
     mainWindow.minimize();
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 });
 
@@ -125,7 +137,10 @@ ipcMain.handle("window-maximize-toggle", () => {
     }
     return { success: true, maximized: mainWindow.isMaximized() };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 });
 
@@ -137,7 +152,10 @@ ipcMain.handle("window-close", () => {
     mainWindow.close();
     return { success: true };
   } catch (err) {
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 });
 
@@ -148,7 +166,7 @@ ipcMain.handle("get-app-version", () => {
 
 ipcMain.handle("check-diagnostics", () => {
   const diagnostics: Record<string, boolean | string | string[]> = {};
-  
+
   // Check if we can execute processes
   try {
     execSync("echo test", { encoding: "utf8" });
@@ -156,10 +174,10 @@ ipcMain.handle("check-diagnostics", () => {
   } catch {
     diagnostics.canExecuteProcesses = false;
   }
-  
+
   // Check platform
   diagnostics.platform = process.platform;
-  
+
   // Check if Steam is installed
   try {
     const steamPaths = getCommonSteamPaths();
@@ -167,9 +185,10 @@ ipcMain.handle("check-diagnostics", () => {
     diagnostics.steamPaths = steamPaths;
   } catch (err) {
     diagnostics.steamFound = false;
-    diagnostics.steamError = err instanceof Error ? err.message : "Unknown error";
+    diagnostics.steamError =
+      err instanceof Error ? err.message : "Unknown error";
   }
-  
+
   return diagnostics;
 });
 
@@ -203,8 +222,14 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
     console.log(`Starting server ${appId} at: ${installPath}`);
 
     // Lookup executable from STEAM_DEDICATED_SERVERS
-    const mappingEntry = (STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>)[String(appId)];
-    if (!mappingEntry || typeof mappingEntry.executable !== "string" || mappingEntry.executable.length === 0) {
+    const mappingEntry = (
+      STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>
+    )[String(appId)];
+    if (
+      !mappingEntry ||
+      typeof mappingEntry.executable !== "string" ||
+      mappingEntry.executable.length === 0
+    ) {
       return {
         success: false,
         error: `Unknown server app ID or executable not defined: ${appId}`,
@@ -212,7 +237,7 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
     }
 
     const serverExePath = path.join(installPath, mappingEntry.executable);
-    
+
     // Verify the executable exists before attempting to launch
     if (!existsSync(serverExePath)) {
       // eslint-disable-next-line no-console
@@ -222,7 +247,7 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
         error: `Server executable not found at: ${serverExePath}. Please verify the installation path.`,
       };
     }
-    
+
     // Verify the install directory exists
     if (!existsSync(installPath)) {
       // eslint-disable-next-line no-console
@@ -236,7 +261,7 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
     // Launch the server executable detached from this process
     // Quote the path in case it contains spaces
     const quotedPath = `"${serverExePath}"`;
-    
+
     // eslint-disable-next-line no-console
     console.log(`Attempting to spawn: ${quotedPath} from ${installPath}`);
 
@@ -253,7 +278,9 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
     // Handle errors from the spawned process
     serverProcess.on("error", (err: NodeJS.ErrnoException) => {
       // eslint-disable-next-line no-console
-      console.error(`Spawn error for ${mappingEntry.executable}: ${err.message} (code: ${err.code})`);
+      console.error(
+        `Spawn error for ${mappingEntry.executable}: ${err.message} (code: ${err.code})`
+      );
     });
 
     // Capture stderr to log startup errors
@@ -262,7 +289,7 @@ ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
       // eslint-disable-next-line no-console
       console.error(`Server stderr: ${data.toString()}`);
     });
-    
+
     // Capture stdout for debugging
     serverProcess.stdout.on("data", (data: Buffer) => {
       // eslint-disable-next-line no-console
@@ -300,8 +327,14 @@ ipcMain.handle("stop-server", (_event, appId: number, installPath: string) => {
     // eslint-disable-next-line no-console
     console.log(`Stopping server ${appId} at: ${installPath}`);
 
-    const mappingEntry = (STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>)[String(appId)];
-    if (!mappingEntry || typeof mappingEntry.executable !== "string" || mappingEntry.executable.length === 0) {
+    const mappingEntry = (
+      STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>
+    )[String(appId)];
+    if (
+      !mappingEntry ||
+      typeof mappingEntry.executable !== "string" ||
+      mappingEntry.executable.length === 0
+    ) {
       return {
         success: false,
         error: `Unknown server app ID or executable not defined: ${appId}`,
@@ -309,7 +342,10 @@ ipcMain.handle("stop-server", (_event, appId: number, installPath: string) => {
     }
 
     const platform = process.platform;
-    const exeName = path.basename(mappingEntry.executable, path.extname(mappingEntry.executable));
+    const exeName = path.basename(
+      mappingEntry.executable,
+      path.extname(mappingEntry.executable)
+    );
     let killCommand: string;
 
     // Determine kill command based on platform
@@ -346,8 +382,14 @@ ipcMain.handle(
       // eslint-disable-next-line no-console
       console.log(`Starting auto-update for server ${appId}`);
 
-      const mappingEntry = (STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>)[String(appId)];
-      if (!mappingEntry || typeof mappingEntry.executable !== "string" || mappingEntry.executable.length === 0) {
+      const mappingEntry = (
+        STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>
+      )[String(appId)];
+      if (
+        !mappingEntry ||
+        typeof mappingEntry.executable !== "string" ||
+        mappingEntry.executable.length === 0
+      ) {
         return {
           success: false,
           error: `Unknown server app ID or executable not defined: ${appId}`,
@@ -361,7 +403,10 @@ ipcMain.handle(
 
       // Step 1: Stop the server if it's running
       const platform = process.platform;
-      const exeName = path.basename(mappingEntry.executable, path.extname(mappingEntry.executable));
+      const exeName = path.basename(
+        mappingEntry.executable,
+        path.extname(mappingEntry.executable)
+      );
       let killCommand: string;
 
       if (platform === "win32") {
@@ -405,7 +450,9 @@ ipcMain.handle(
       const serverExePath = path.join(installPath, mappingEntry.executable);
 
       // eslint-disable-next-line no-console
-      console.log(`Attempting to spawn updated server: "${serverExePath}" from ${installPath}`);
+      console.log(
+        `Attempting to spawn updated server: "${serverExePath}" from ${installPath}`
+      );
 
       const quotedPath = `"${serverExePath}"`;
       const serverProcess = spawn(quotedPath, [], {
@@ -417,7 +464,9 @@ ipcMain.handle(
 
       serverProcess.on("error", (err: NodeJS.ErrnoException) => {
         // eslint-disable-next-line no-console
-        console.error(`Spawn error after update for ${mappingEntry.executable}: ${err.message} (code: ${err.code})`);
+        console.error(
+          `Spawn error after update for ${mappingEntry.executable}: ${err.message} (code: ${err.code})`
+        );
       });
 
       serverProcess.stderr.on("data", (data: Buffer) => {
@@ -427,13 +476,17 @@ ipcMain.handle(
 
       serverProcess.on("exit", (code, signal) => {
         // eslint-disable-next-line no-console
-        console.log(`Updated server process exited with code ${code}, signal ${signal}`);
+        console.log(
+          `Updated server process exited with code ${code}, signal ${signal}`
+        );
       });
 
       serverProcess.unref();
 
       // eslint-disable-next-line no-console
-      console.log(`Updated server spawn called for: ${mappingEntry.executable}`);
+      console.log(
+        `Updated server spawn called for: ${mappingEntry.executable}`
+      );
 
       // eslint-disable-next-line no-console
       console.log(`Server ${appId} restarted after update`);
@@ -548,12 +601,22 @@ ipcMain.handle(
       const fs = await import("fs/promises");
 
       // Ensure mapping exists for this appId
-      if (!Object.prototype.hasOwnProperty.call(STEAM_DEDICATED_SERVERS, String(appId))) {
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          STEAM_DEDICATED_SERVERS,
+          String(appId)
+        )
+      ) {
         return { success: false, error: `No config mapping for app ${appId}` };
       }
 
-      const serverInfo = STEAM_DEDICATED_SERVERS[appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS] as unknown as ServerInfo;
-      if (serverInfo.configLocation === undefined || serverInfo.configLocation === "") {
+      const serverInfo = STEAM_DEDICATED_SERVERS[
+        appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
+      ] as unknown as ServerInfo;
+      if (
+        serverInfo.configLocation === undefined ||
+        serverInfo.configLocation === ""
+      ) {
         return { success: false, error: `No config mapping for app ${appId}` };
       }
 
@@ -562,13 +625,18 @@ ipcMain.handle(
       try {
         await fs.stat(configPath);
       } catch {
-        return { success: false, error: `Config file not found: ${configPath}` };
+        return {
+          success: false,
+          error: `Config file not found: ${configPath}`,
+        };
       }
 
       const content = await fs.readFile(configPath, "utf-8");
 
       // Detect format based on extension (json or ini)
-      const format = configPath.toLowerCase().endsWith(".json") ? "json" : "ini";
+      const format = configPath.toLowerCase().endsWith(".json")
+        ? "json"
+        : "ini";
 
       let parsed: Record<string, unknown> = {};
       if (format === "json") {
@@ -580,7 +648,10 @@ ipcMain.handle(
       return { success: true, content: parsed, format, filePath: configPath };
     } catch (err) {
       console.error("Error reading server config:", err);
-      return { success: false, error: err instanceof Error ? err.message : String(err) };
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
     }
   }
 );
@@ -602,23 +673,41 @@ ipcMain.handle("open-file-default", async (_event, filePath: string) => {
   } catch (err) {
     // eslint-disable-next-line no-console
     console.error("Error opening file:", err);
-    return { success: false, error: err instanceof Error ? err.message : String(err) };
+    return {
+      success: false,
+      error: err instanceof Error ? err.message : String(err),
+    };
   }
 });
 
 ipcMain.handle(
   "save-server-config",
-  async (_event, appId: number, installPath: string, content: Record<string, unknown>, format: "json" | "ini") => {
+  async (
+    _event,
+    appId: number,
+    installPath: string,
+    content: Record<string, unknown>,
+    format: "json" | "ini"
+  ) => {
     try {
       const fs = await import("fs/promises");
 
-
-      if (!Object.prototype.hasOwnProperty.call(STEAM_DEDICATED_SERVERS, String(appId))) {
+      if (
+        !Object.prototype.hasOwnProperty.call(
+          STEAM_DEDICATED_SERVERS,
+          String(appId)
+        )
+      ) {
         return { success: false, error: `No config mapping for app ${appId}` };
       }
 
-      const serverInfo = STEAM_DEDICATED_SERVERS[appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS] as unknown as ServerInfo;
-      if (serverInfo.configLocation === undefined || serverInfo.configLocation === "") {
+      const serverInfo = STEAM_DEDICATED_SERVERS[
+        appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
+      ] as unknown as ServerInfo;
+      if (
+        serverInfo.configLocation === undefined ||
+        serverInfo.configLocation === ""
+      ) {
         return { success: false, error: `No config mapping for app ${appId}` };
       }
 
@@ -635,204 +724,13 @@ ipcMain.handle(
       return { success: true };
     } catch (err) {
       console.error("Error saving server config:", err);
-      return { success: false, error: err instanceof Error ? err.message : String(err) };
+      return {
+        success: false,
+        error: err instanceof Error ? err.message : String(err),
+      };
     }
   }
 );
-
-// INI helpers
-function parseIniContent(content: string): Record<string, unknown> {
-  const result: Record<string, unknown> = {};
-  let currentSection = "";
-
-  function splitRespectingQuotes(s: string, delim = ",") {
-    const parts: string[] = [];
-    let cur = "";
-    let inQuote = false;
-    let parenDepth = 0;
-    for (let i = 0; i < s.length; i++) {
-      const ch = s[i];
-      if (ch === '"') {
-        inQuote = !inQuote;
-        cur += ch;
-        continue;
-      }
-      if (!inQuote) {
-        if (ch === '(') {
-          parenDepth += 1;
-          cur += ch;
-          continue;
-        }
-        if (ch === ')') {
-          if (parenDepth > 0) { parenDepth -= 1; }
-          cur += ch;
-          continue;
-        }
-      }
-      if (ch === delim && !inQuote) {
-        // only split on delimiter when not inside quotes or nested parentheses
-        if (parenDepth === 0) {
-          parts.push(cur.trim());
-          cur = "";
-          continue;
-        }
-        // otherwise treat as literal delimiter inside nested structure
-        cur += ch;
-      } else {
-        cur += ch;
-      }
-    }
-    if (cur.trim() !== "") {
-      parts.push(cur.trim());
-    }
-    return parts;
-  }
-
-  function parseTokenValue(token: string): unknown {
-    const t = token.trim();
-    if (t === "") {
-      return "";
-    }
-    if (t.startsWith('"') && t.endsWith('"')) {
-      return t.slice(1, -1);
-    }
-    if (/^[-+]?\d+\.?\d*$/.test(t)) {
-      return Number(t);
-    }
-    if (/^(true|false)$/i.test(t)) {
-      return t.toLowerCase() === "true";
-    }
-    return t;
-  }
-
-  const lines = content.split(/\r?\n/);
-  for (const raw of lines) {
-    const line = raw.trim();
-    if (!line || line.startsWith(";") || line.startsWith("#")) {
-      continue;
-    }
-
-    if (line.startsWith("[") && line.endsWith("]")) {
-      currentSection = line.slice(1, -1);
-      result[currentSection] = {};
-      continue;
-    }
-
-    const idx = line.indexOf("=");
-    if (idx === -1) {
-      continue;
-    }
-    const key = line.slice(0, idx).trim();
-    const value = line.slice(idx + 1).trim();
-
-    // Handle parenthesized values: either arrays like (a,b,c) or key=value pairs (k=v,...)
-    if (value.startsWith("(") && value.endsWith(")")) {
-      const inner = value.slice(1, -1).trim();
-      // if inner contains '=' then it's a map-like structure
-      if (inner.includes("=")) {
-        const obj: Record<string, unknown> = {};
-        const pairs = splitRespectingQuotes(inner, ',');
-        for (const p of pairs) {
-          const eq = p.indexOf('=');
-          if (eq === -1) {
-            continue;
-          }
-          const sk = p.slice(0, eq).trim();
-          const svRaw = p.slice(eq + 1).trim();
-          // Preserve child property values exactly as strings (do not convert numbers/booleans)
-          // and keep any surrounding quotes the user added.
-          obj[sk] = svRaw;
-        }
-        if (currentSection) {
-          const sec = result[currentSection] as Record<string, unknown>;
-          sec[key] = obj;
-        } else {
-          result[key] = obj;
-        }
-        continue;
-      }
-
-      // Otherwise treat as simple array
-      const items = splitRespectingQuotes(inner, ',').map((it) => parseTokenValue(it));
-      if (currentSection) {
-        const sec = result[currentSection] as Record<string, unknown>;
-        sec[key] = items;
-      } else {
-        result[key] = items;
-      }
-      continue;
-    }
-
-    // plain primitive value
-    const parsed = parseTokenValue(value);
-    if (currentSection) {
-      const sec = result[currentSection] as Record<string, unknown>;
-      sec[key] = parsed;
-    } else {
-      result[key] = parsed;
-    }
-  }
-
-  return result;
-}
-
-function stringifyIniContent(content: Record<string, unknown>): string {
-  const escapeIfNeeded = (s: string) => {
-    if (s === "") {
-      return '""';
-    }
-    if (s.includes(' ') || s.includes(',') || s.includes('"')) {
-      return `"${s.replace(/"/g, '\\"')}"`;
-    }
-    return s;
-  };
-
-  let out = "";
-  for (const [k, v] of Object.entries(content)) {
-    // sections (objects) produce [section] blocks
-    if (typeof v === 'object' && v !== null && !Array.isArray(v)) {
-      out += `[${k}]\n`;
-      const section = v as Record<string, unknown>;
-      for (const [sk, sv] of Object.entries(section)) {
-        // If the section value is an object or array, serialize as parenthesized tuple or key=value list
-        if (Array.isArray(sv)) {
-          const items = sv.map((it) => {
-            if (typeof it === 'string') {
-              return escapeIfNeeded(it);
-            }
-            return String(it);
-          });
-          out += `${sk}=(${items.join(',')})\n`;
-        } else if (typeof sv === 'object' && sv !== null) {
-          const pairs: string[] = [];
-          for (const [k2, v2] of Object.entries(sv as Record<string, unknown>)) {
-            let valStr: string;
-            if (typeof v2 === 'string') {
-              // Preserve child string values exactly as provided (do not auto-quote).
-              valStr = v2;
-            } else {
-              valStr = String(v2);
-            }
-            pairs.push(`${k2}=${valStr}`);
-          }
-          out += `${sk}=(${pairs.join(',')})\n`;
-        } else {
-          out += `${sk}=${String(sv)}\n`;
-        }
-      }
-      out += "\n";
-    } else {
-      // top-level primitive or array
-      if (Array.isArray(v)) {
-        const items = v.map((it) => (typeof it === 'string' ? escapeIfNeeded(it) : String(it)));
-        out += `${k}=(${items.join(',')})\n`;
-      } else {
-        out += `${k}=${String(v)}\n`;
-      }
-    }
-  }
-  return out;
-}
 
 // Remove the application menu so the app has no native top menu bar
 Menu.setApplicationMenu(null);

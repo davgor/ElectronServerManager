@@ -146,7 +146,7 @@
 }
 
 .property-group-title:hover {
-  background-color: rgba(255,255,255,0.02);
+  background-color: rgba(255, 255, 255, 0.02);
 }
 
 .property-group-title {
@@ -154,8 +154,8 @@
 }
 
 .property-group-title.expanded {
-  background-color: rgba(0,168,255,0.06);
-  border-color: rgba(0,168,255,0.12);
+  background-color: rgba(0, 168, 255, 0.06);
+  border-color: rgba(0, 168, 255, 0.12);
 }
 
 .property-group-title .property-name {
@@ -167,7 +167,7 @@
   position: relative;
   padding: 6px 8px;
   background: transparent;
-  border: 1px solid rgba(255,255,255,0.06);
+  border: 1px solid rgba(255, 255, 255, 0.06);
   color: #9fcffb;
   border-radius: 8px;
   cursor: pointer;
@@ -181,7 +181,7 @@
 }
 
 .btn-plus:hover {
-  background: rgba(255,255,255,0.03);
+  background: rgba(255, 255, 255, 0.03);
 }
 
 .property-group-title > .btn-plus {
@@ -264,7 +264,7 @@
 .btn-cancel-inline {
   background: transparent;
   color: #c7d5e0;
-  border: 1px solid rgba(255,255,255,0.04);
+  border: 1px solid rgba(255, 255, 255, 0.04);
 }
 
 /* Make inputs in add-inline-form expand, especially the value input */
@@ -278,7 +278,11 @@
 
 .group-end-divider {
   height: 2px;
-  background: linear-gradient(90deg, rgba(255,255,255,0.02), rgba(0,168,255,0.06));
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.02),
+    rgba(0, 168, 255, 0.06)
+  );
   margin: 10px 6px 10px 6px;
   border-radius: 2px;
 }
@@ -300,7 +304,7 @@
 }
 
 .property-item:hover {
-  box-shadow: 0 4px 12px rgba(0,0,0,0.35);
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.35);
 }
 
 .property-name {
@@ -323,7 +327,7 @@
   border: 1px solid #4a5a7c;
   border-radius: 6px;
   font-size: 14px;
-  font-family: 'Monaco', 'Courier New', monospace;
+  font-family: "Monaco", "Courier New", monospace;
 }
 
 .property-value-input:focus {
