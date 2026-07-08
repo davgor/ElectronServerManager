@@ -1,6 +1,5 @@
 import path from "path";
-import { existsSync } from "fs";
-import { spawn, execSync } from "child_process";
+import { execSync } from "child_process";
 
 import {
   app,
@@ -14,13 +13,13 @@ import {
 
 import {
   findInstalledServers,
-  getServerBuildId,
   backupServerSave,
   STEAM_DEDICATED_SERVERS,
   ServerInfo,
 } from "./steamDetection";
 import { getCommonSteamPaths } from "./driveUtils";
 import { parseIniContent, stringifyIniContent } from "./iniConfig";
+import { startServer, stopServer, autoUpdateServer } from "./serverProcess";
 
 const isDev = Boolean(
   process.env.NODE_ENV === "development" || process.env.ELECTRON_START_URL
@@ -217,288 +216,17 @@ ipcMain.handle("get-steam-servers", async (_event, path?: string) => {
 });
 
 ipcMain.handle("run-server", (_event, appId: number, installPath: string) => {
-  try {
-    // eslint-disable-next-line no-console
-    console.log(`Starting server ${appId} at: ${installPath}`);
-
-    // Lookup executable from STEAM_DEDICATED_SERVERS
-    const mappingEntry = (
-      STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>
-    )[String(appId)];
-    if (
-      !mappingEntry ||
-      typeof mappingEntry.executable !== "string" ||
-      mappingEntry.executable.length === 0
-    ) {
-      return {
-        success: false,
-        error: `Unknown server app ID or executable not defined: ${appId}`,
-      };
-    }
-
-    const serverExePath = path.join(installPath, mappingEntry.executable);
-
-    // Verify the executable exists before attempting to launch
-    if (!existsSync(serverExePath)) {
-      // eslint-disable-next-line no-console
-      console.error(`Server executable not found: ${serverExePath}`);
-      return {
-        success: false,
-        error: `Server executable not found at: ${serverExePath}. Please verify the installation path.`,
-      };
-    }
-
-    // Verify the install directory exists
-    if (!existsSync(installPath)) {
-      // eslint-disable-next-line no-console
-      console.error(`Install directory not found: ${installPath}`);
-      return {
-        success: false,
-        error: `Install directory not found: ${installPath}`,
-      };
-    }
-
-    // Launch the server executable detached from this process
-    // Quote the path in case it contains spaces
-    const quotedPath = `"${serverExePath}"`;
-
-    // eslint-disable-next-line no-console
-    console.log(`Attempting to spawn: ${quotedPath} from ${installPath}`);
-
-    const serverProcess = spawn(quotedPath, [], {
-      cwd: installPath,
-      detached: true,
-      stdio: ["ignore", "pipe", "pipe"],
-      shell: true,
-    });
-
-    let errorOutput = "";
-
-    // Attach listeners BEFORE unreffing
-    // Handle errors from the spawned process
-    serverProcess.on("error", (err: NodeJS.ErrnoException) => {
-      // eslint-disable-next-line no-console
-      console.error(
-        `Spawn error for ${mappingEntry.executable}: ${err.message} (code: ${err.code})`
-      );
-    });
-
-    // Capture stderr to log startup errors
-    serverProcess.stderr.on("data", (data: Buffer) => {
-      errorOutput += data.toString();
-      // eslint-disable-next-line no-console
-      console.error(`Server stderr: ${data.toString()}`);
-    });
-
-    // Capture stdout for debugging
-    serverProcess.stdout.on("data", (data: Buffer) => {
-      // eslint-disable-next-line no-console
-      console.log(`Server stdout: ${data.toString()}`);
-    });
-
-    // Exit handler for debugging
-    serverProcess.on("exit", (code, signal) => {
-      // eslint-disable-next-line no-console
-      console.log(`Server process exited with code ${code}, signal ${signal}`);
-      if (code !== 0 && errorOutput) {
-        // eslint-disable-next-line no-console
-        console.error(`Server error output: ${errorOutput}`);
-      }
-    });
-
-    // Unref the process so it doesn't keep the parent alive
-    serverProcess.unref();
-
-    // eslint-disable-next-line no-console
-    console.log(`Server spawn called for: ${mappingEntry.executable}`);
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error starting server:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to start server",
-    };
-  }
+  return startServer(appId, installPath);
 });
 
 ipcMain.handle("stop-server", (_event, appId: number, installPath: string) => {
-  try {
-    // eslint-disable-next-line no-console
-    console.log(`Stopping server ${appId} at: ${installPath}`);
-
-    const mappingEntry = (
-      STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>
-    )[String(appId)];
-    if (
-      !mappingEntry ||
-      typeof mappingEntry.executable !== "string" ||
-      mappingEntry.executable.length === 0
-    ) {
-      return {
-        success: false,
-        error: `Unknown server app ID or executable not defined: ${appId}`,
-      };
-    }
-
-    const platform = process.platform;
-    const exeName = path.basename(
-      mappingEntry.executable,
-      path.extname(mappingEntry.executable)
-    );
-    let killCommand: string;
-
-    // Determine kill command based on platform
-    if (platform === "win32") {
-      killCommand = `taskkill /F /IM ${exeName}.exe 2>nul || exit /b 0`;
-    } else {
-      killCommand = `pkill -f "${exeName}" || true`;
-    }
-
-    // Execute the kill command
-    try {
-      execSync(killCommand);
-    } catch (err) {
-      // Command might fail if process not found, which is ok
-    }
-
-    // eslint-disable-next-line no-console
-    console.log(`Stop command sent for server ${appId}`);
-
-    return { success: true };
-  } catch (error) {
-    console.error("Error stopping server:", error);
-    return {
-      success: false,
-      error: error instanceof Error ? error.message : "Failed to stop server",
-    };
-  }
+  return stopServer(appId, installPath);
 });
 
 ipcMain.handle(
   "auto-update-server",
   async (_event, appId: number, installPath: string, steamPath: string) => {
-    try {
-      // eslint-disable-next-line no-console
-      console.log(`Starting auto-update for server ${appId}`);
-
-      const mappingEntry = (
-        STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>
-      )[String(appId)];
-      if (
-        !mappingEntry ||
-        typeof mappingEntry.executable !== "string" ||
-        mappingEntry.executable.length === 0
-      ) {
-        return {
-          success: false,
-          error: `Unknown server app ID or executable not defined: ${appId}`,
-        };
-      }
-
-      // Get current buildid before potential update
-      const currentBuildId = await getServerBuildId(appId, steamPath);
-      // eslint-disable-next-line no-console
-      console.log(`Current buildid for app ${appId}: ${currentBuildId}`);
-
-      // Step 1: Stop the server if it's running
-      const platform = process.platform;
-      const exeName = path.basename(
-        mappingEntry.executable,
-        path.extname(mappingEntry.executable)
-      );
-      let killCommand: string;
-
-      if (platform === "win32") {
-        killCommand = `taskkill /F /IM ${exeName}.exe 2>nul || exit /b 0`;
-      } else {
-        killCommand = `pkill -f "${exeName}" || true`;
-      }
-
-      try {
-        execSync(killCommand);
-        // eslint-disable-next-line no-console
-        console.log(`Stopped server ${appId} for update`);
-      } catch (err) {
-        // Process might already be stopped
-      }
-
-      // Step 2: Wait for Steam to update (Steam background process handles this)
-      // In practice, Steam will automatically download and install updates
-      // eslint-disable-next-line no-console
-      console.log(`Waiting for Steam update to complete...`);
-
-      // Wait 10 seconds to allow Steam to detect and download update
-      await new Promise((resolve) => setTimeout(resolve, 10000));
-
-      // Check if buildid has changed (indicating an update was applied)
-      const newBuildId = await getServerBuildId(appId, steamPath);
-      // eslint-disable-next-line no-console
-      console.log(`Buildid after update check for app ${appId}: ${newBuildId}`);
-
-      if (newBuildId === null || newBuildId === currentBuildId) {
-        // No update was available or update hasn't been applied yet
-        // eslint-disable-next-line no-console
-        console.log(`No update available for server ${appId}`);
-        return { success: false, error: "No update available" };
-      }
-
-      // Step 3: Buildid changed, so update was applied. Restart the server
-      // eslint-disable-next-line no-console
-      console.log(`Update detected for server ${appId}, restarting...`);
-
-      const serverExePath = path.join(installPath, mappingEntry.executable);
-
-      // eslint-disable-next-line no-console
-      console.log(
-        `Attempting to spawn updated server: "${serverExePath}" from ${installPath}`
-      );
-
-      const quotedPath = `"${serverExePath}"`;
-      const serverProcess = spawn(quotedPath, [], {
-        cwd: installPath,
-        detached: true,
-        stdio: ["ignore", "pipe", "pipe"],
-        shell: true,
-      });
-
-      serverProcess.on("error", (err: NodeJS.ErrnoException) => {
-        // eslint-disable-next-line no-console
-        console.error(
-          `Spawn error after update for ${mappingEntry.executable}: ${err.message} (code: ${err.code})`
-        );
-      });
-
-      serverProcess.stderr.on("data", (data: Buffer) => {
-        // eslint-disable-next-line no-console
-        console.error(`Server stderr after update: ${data.toString()}`);
-      });
-
-      serverProcess.on("exit", (code, signal) => {
-        // eslint-disable-next-line no-console
-        console.log(
-          `Updated server process exited with code ${code}, signal ${signal}`
-        );
-      });
-
-      serverProcess.unref();
-
-      // eslint-disable-next-line no-console
-      console.log(
-        `Updated server spawn called for: ${mappingEntry.executable}`
-      );
-
-      // eslint-disable-next-line no-console
-      console.log(`Server ${appId} restarted after update`);
-
-      return { success: true };
-    } catch (error) {
-      console.error("Error during auto-update:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Auto-update failed",
-      };
-    }
+    return autoUpdateServer(appId, installPath, steamPath);
   }
 );
 
