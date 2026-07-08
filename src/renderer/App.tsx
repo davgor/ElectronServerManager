@@ -27,9 +27,15 @@ function App(): JSX.Element {
   const [lastAutoUpdateTime, setLastAutoUpdateTime] = useState<
     Record<number, number>
   >({}); // Track when auto-update was last triggered per server
-  const [editingServerAppId, setEditingServerAppId] = useState<number | null>(null);
-  const [editingServerInstallPath, setEditingServerInstallPath] = useState<string | null>(null);
-  const [editingServerName, setEditingServerName] = useState<string | null>(null);
+  const [editingServerAppId, setEditingServerAppId] = useState<number | null>(
+    null
+  );
+  const [editingServerInstallPath, setEditingServerInstallPath] = useState<
+    string | null
+  >(null);
+  const [editingServerName, setEditingServerName] = useState<string | null>(
+    null
+  );
 
   const fetchAvailablePaths = useCallback(async (): Promise<void> => {
     try {
@@ -184,7 +190,13 @@ function App(): JSX.Element {
         setLoading(false);
       }
     },
-    [selectedPath, servers, autoRestartServers, autoUpdateServers, lastAutoUpdateTime]
+    [
+      selectedPath,
+      servers,
+      autoRestartServers,
+      autoUpdateServers,
+      lastAutoUpdateTime,
+    ]
   );
 
   const handleRunServer = useCallback(
@@ -602,21 +614,24 @@ function App(): JSX.Element {
                 </div>
               ))}
             </div>
-            {editingServerAppId !== null && editingServerInstallPath !== null && editingServerInstallPath !== "" && editingServerName !== null && (
-              <ConfigEditor
-                appId={editingServerAppId}
-                serverName={editingServerName}
-                installPath={editingServerInstallPath}
-                onClose={() => {
-                  setEditingServerAppId(null);
-                  setEditingServerInstallPath(null);
-                  setEditingServerName(null);
-                }}
-                onSave={() => {
-                  void fetchServers(selectedPath);
-                }}
-              />
-            )}
+            {editingServerAppId !== null &&
+              editingServerInstallPath !== null &&
+              editingServerInstallPath !== "" &&
+              editingServerName !== null && (
+                <ConfigEditor
+                  appId={editingServerAppId}
+                  serverName={editingServerName}
+                  installPath={editingServerInstallPath}
+                  onClose={() => {
+                    setEditingServerAppId(null);
+                    setEditingServerInstallPath(null);
+                    setEditingServerName(null);
+                  }}
+                  onSave={() => {
+                    void fetchServers(selectedPath);
+                  }}
+                />
+              )}
           </div>
         )}
       </div>

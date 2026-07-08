@@ -1,72 +1,55 @@
 import fs from "fs";
 import path from "path";
 
+function readCompiled(relativePath: string): string {
+  const filePath = path.join(__dirname, "../../../dist/main", relativePath);
+  expect(fs.existsSync(filePath)).toBe(true);
+  return fs.readFileSync(filePath, "utf-8");
+}
+
 describe("Main Process Build", () => {
   it("should compile main.ts to CommonJS without errors", () => {
-    // This test verifies that the main process compiles to CommonJS format
-    // Required for Electron to load the main process without ES module errors
-    const mainJsPath = path.join(__dirname, "../../../dist/main/main.js");
-
-    expect(fs.existsSync(mainJsPath)).toBe(true);
+    expect(
+      fs.existsSync(path.join(__dirname, "../../../dist/main/main.js"))
+    ).toBe(true);
   });
 
   it("should produce CommonJS output (uses require, not import)", () => {
-    // Verify that the compiled main.js uses CommonJS format (require/exports)
-    // This prevents "Cannot use import statement outside a module" errors
-    const mainJsPath = path.join(__dirname, "../../../dist/main/main.js");
+    const content = readCompiled("main.js");
 
-    const content = fs.readFileSync(mainJsPath, "utf-8");
-
-    // Should use require() for imports
     expect(content).toContain('require("');
-
-    // Should not use import statement at the top level
     expect(content).not.toMatch(/^import\s+/m);
-
-    // Should use exports or module.exports
     expect(content).toContain("exports");
   });
 
   it("should not use import.meta.url in compiled output", () => {
-    // import.meta.url is ESM-only and causes errors in CommonJS
-    // The main.ts should use process.env checks instead
-    const mainJsPath = path.join(__dirname, "../../../dist/main/main.js");
-
-    const content = fs.readFileSync(mainJsPath, "utf-8");
-
-    // Should not have import.meta.url which only works in ESM
+    const content = readCompiled("main.js");
     expect(content).not.toContain("import.meta.url");
   });
 
-  it("should use process.env for development detection", () => {
-    // Instead of using electron-is-dev (ESM module),
-    // main.ts should check process.env.NODE_ENV
-    const mainJsPath = path.join(__dirname, "../../../dist/main/main.js");
-
-    const content = fs.readFileSync(mainJsPath, "utf-8");
-
-    // Should check process.env for development mode
+  it("should use process.env for development detection in bootstrap", () => {
+    const content = readCompiled("main.js");
     expect(content).toContain("process.env.NODE_ENV");
   });
 
-  it("should declare __dirname for CommonJS compatibility", () => {
-    // In CommonJS, __dirname is available globally
-    // The main.ts should declare it for TypeScript compatibility
-    const mainJsPath = path.join(__dirname, "../../../dist/main/main.js");
+  it("should bootstrap app lifecycle and IPC registration only", () => {
+    const content = readCompiled("main.js");
 
-    const content = fs.readFileSync(mainJsPath, "utf-8");
+    expect(content).toContain("registerAppLifecycle");
+    expect(content).toContain("registerIpcHandlers");
+    expect(content).toContain("setApplicationMenu(null)");
+  });
 
-    // Should have __dirname variable or global reference
+  it("should use __dirname in appWindow for preload and renderer paths", () => {
+    const content = readCompiled("appWindow.js");
     expect(content).toContain("__dirname");
   });
 
-  it("should compile all steam detection imports", () => {
-    // Verify that steamDetection.ts is properly imported in the compiled output
-    const mainJsPath = path.join(__dirname, "../../../dist/main/main.js");
+  it("should compile steam detection into the IPC module graph", () => {
+    const registerContent = readCompiled("registerIpcHandlers.js");
+    const steamIpcContent = readCompiled("steamIpc.js");
 
-    const content = fs.readFileSync(mainJsPath, "utf-8");
-
-    // Should require steamDetection module
-    expect(content).toContain("steamDetection");
+    expect(registerContent).toContain("steamIpc");
+    expect(steamIpcContent).toContain("steamDetection");
   });
 });

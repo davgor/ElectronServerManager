@@ -26,7 +26,9 @@ describe("findInstalledServers additional", () => {
       return Promise.reject(new Error("ENOENT"));
     }) as unknown as typeof fs.stat;
 
-    const servers = await findInstalledServers("C:\\Program Files (x86)\\Steam");
+    const servers = await findInstalledServers(
+      "C:\\Program Files (x86)\\Steam"
+    );
     expect(servers.length).toBeGreaterThanOrEqual(0);
     if (servers.length > 0) {
       expect(typeof servers[0].appId).toBe("number");

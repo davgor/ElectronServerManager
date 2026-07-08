@@ -17,9 +17,15 @@ describe("backupServerSave success", () => {
 
   it("creates backup successfully on windows", async () => {
     // ensure platform does NOT trigger zip/powershell branch so execSync is not called
-    const originalPlatform = Object.getOwnPropertyDescriptor(process, "platform");
+    const originalPlatform = Object.getOwnPropertyDescriptor(
+      process,
+      "platform"
+    );
     if (originalPlatform) {
-      Object.defineProperty(process, "platform", { value: "aix", configurable: true });
+      Object.defineProperty(process, "platform", {
+        value: "aix",
+        configurable: true,
+      });
     }
 
     // make fs.stat succeed for savePath
@@ -27,7 +33,11 @@ describe("backupServerSave success", () => {
     fs.stat = jest.fn((p: string) => Promise.resolve({} as fs.Stats));
     // @ts-expect-error mock fs.mkdir - simulate creating directory
     fs.mkdir = jest.fn(() => Promise.resolve());
-    const result = await backupServerSave(2278520, path.join("C:", "Games", "EnshroudedServer"), "C:\\Backups");
+    const result = await backupServerSave(
+      2278520,
+      path.join("C:", "Games", "EnshroudedServer"),
+      "C:\\Backups"
+    );
     expect(result === null || typeof result === "string").toBe(true);
 
     // restore platform

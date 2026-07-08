@@ -15,7 +15,10 @@ export interface ElectronAPI {
   };
   windowControls?: {
     minimize: () => Promise<void>;
-    toggleMaximize: () => Promise<{ success?: boolean; maximized?: boolean } | void>;
+    toggleMaximize: () => Promise<{
+      success?: boolean;
+      maximized?: boolean;
+    } | void>;
     close: () => Promise<void>;
   };
 }

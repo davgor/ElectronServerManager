@@ -73,8 +73,14 @@ describe("backupServerSave", () => {
 
   it("creates backup successfully on Linux using zip command", async (): Promise<void> => {
     // Simulate Linux platform
-    const originalPlatform = Object.getOwnPropertyDescriptor(process, "platform");
-    Object.defineProperty(process, "platform", { value: "linux", configurable: true });
+    const originalPlatform = Object.getOwnPropertyDescriptor(
+      process,
+      "platform"
+    );
+    Object.defineProperty(process, "platform", {
+      value: "linux",
+      configurable: true,
+    });
 
     mockFs.stat.mockResolvedValueOnce({} as never);
     mockFs.mkdir.mockResolvedValueOnce(undefined as never);
