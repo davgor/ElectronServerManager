@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react";
 import "./ConfigEditor.css";
 
+import type { ConfigFormat } from "../types/ipc";
+
 export interface ConfigEditorProps {
   appId: number;
   serverName: string;
@@ -17,7 +19,7 @@ export function ConfigEditor({
   onSave,
 }: ConfigEditorProps): JSX.Element {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
-  const [format, setFormat] = useState<"json" | "ini" | null>(null);
+  const [format, setFormat] = useState<ConfigFormat | null>(null);
   const [filePath, setFilePath] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -35,18 +37,10 @@ export function ConfigEditor({
         setLoading(true);
         setError(null);
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        const result = (await window.electron.ipcRenderer.invoke(
-          "get-server-config",
+        const result = await window.electron.getServerConfig(
           appId,
           installPath
-        )) as {
-          success: boolean;
-          content?: Record<string, unknown>;
-          format?: "json" | "ini";
-          error?: string;
-          filePath?: string;
-        };
+        );
 
         if (!result.success) {
           setError(result.error ?? "Failed to load config");
@@ -530,14 +524,12 @@ export function ConfigEditor({
         setSaving(true);
         setError(null);
 
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        const result = (await window.electron.ipcRenderer.invoke(
-          "save-server-config",
+        const result = await window.electron.saveServerConfig(
           appId,
           installPath,
           config,
           format
-        )) as { success: boolean; error?: string };
+        );
 
         if (!result.success) {
           setError(result.error ?? "Failed to save config");
@@ -669,15 +661,11 @@ export function ConfigEditor({
               if (filePath === null || filePath === "") {
                 return;
               }
-              void window.electron.ipcRenderer
-                .invoke("open-file-default", filePath)
-                .then((res) => {
-                  const r = res as { success: boolean; error?: string };
-                  if (!r.success) {
-                    // eslint-disable-next-line no-console
-                    console.error("Failed to open file:", r.error);
-                  }
-                });
+              void window.electron.openFileDefault(filePath).then((res) => {
+                if (!res.success) {
+                  console.error("Failed to open file:", res.error);
+                }
+              });
             }}
             disabled={filePath === null || filePath === ""}
           >

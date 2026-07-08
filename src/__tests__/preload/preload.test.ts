@@ -1,114 +1,258 @@
-import type { ElectronAPI } from "../../types/electron";
+import type { ElectronAPI } from "../../types/ipc";
+import {
+  ALLOWED_CHANNELS,
+  invokeIpc,
+  isAllowedChannel,
+} from "../../preload/preload";
 
-describe("Preload Module", () => {
-  it("should be able to load the preload module", () => {
-    // This test verifies the preload module syntax is correct
-    // The actual functionality is tested at runtime in the main process
-    expect(true).toBe(true);
+const mockIpcInvoke = jest.fn();
+
+jest.mock("electron", () => ({
+  contextBridge: {
+    exposeInMainWorld: jest.fn(),
+  },
+  ipcRenderer: {
+    invoke: (...args: unknown[]): unknown => mockIpcInvoke(...args),
+  },
+}));
+
+interface ElectronModuleMock {
+  contextBridge: { exposeInMainWorld: jest.Mock };
+}
+
+function getExposeMock(): jest.Mock {
+  const electronMock: ElectronModuleMock = jest.requireMock("electron");
+  return electronMock.contextBridge.exposeInMainWorld;
+}
+
+function getExposedApi(): ElectronAPI {
+  const exposeMock = getExposeMock();
+  expect(exposeMock).toHaveBeenCalledWith("electron", expect.any(Object));
+  const calls = exposeMock.mock.calls as [string, ElectronAPI][];
+  return calls[0][1];
+}
+
+describe("Preload IPC bridge", () => {
+  beforeEach(() => {
+    mockIpcInvoke.mockReset();
+    mockIpcInvoke.mockResolvedValue({ success: true });
   });
 
-  it("should export electron context bridge correctly", () => {
-    // Preload module exposes electron API through context bridge
-    // This ensures the module structure is valid
-    expect(true).toBe(true);
+  describe("channel whitelist", () => {
+    it("lists every channel registered in the main process", () => {
+      const registeredChannels = [
+        "get-app-version",
+        "check-diagnostics",
+        "get-steam-paths",
+        "get-steam-servers",
+        "run-server",
+        "stop-server",
+        "auto-update-server",
+        "backup-server-save",
+        "select-backup-folder",
+        "get-server-config",
+        "open-file-default",
+        "save-server-config",
+        "window-minimize",
+        "window-maximize-toggle",
+        "window-close",
+      ];
+
+      expect([...ALLOWED_CHANNELS].sort()).toEqual(
+        [...registeredChannels].sort()
+      );
+    });
+
+    it("accepts allowed channels and rejects unknown ones", () => {
+      expect(isAllowedChannel("get-steam-servers")).toBe(true);
+      expect(isAllowedChannel("window-close")).toBe(true);
+      expect(isAllowedChannel("evil-channel")).toBe(false);
+      expect(isAllowedChannel("")).toBe(false);
+    });
+
+    it("invokes allowed channels through ipcRenderer", async () => {
+      mockIpcInvoke.mockResolvedValue(["/opt/steam"]);
+
+      const result = await invokeIpc("get-steam-paths");
+
+      expect(mockIpcInvoke).toHaveBeenCalledWith("get-steam-paths");
+      expect(result).toEqual(["/opt/steam"]);
+    });
+
+    it("throws on disallowed channels without touching ipcRenderer", async () => {
+      // Bypass compile-time channel checking to exercise the runtime guard
+      const unsafeInvoke = invokeIpc as unknown as (
+        channel: string
+      ) => Promise<unknown>;
+
+      await expect(unsafeInvoke("not-a-real-channel")).rejects.toThrow(
+        /not-a-real-channel/
+      );
+
+      expect(mockIpcInvoke).not.toHaveBeenCalled();
+    });
   });
 
-  it("should have correct ElectronAPI type signature for send method", () => {
-    // Verify the type signature for ipcRenderer.send
-    const mockApi: ElectronAPI = {
-      ipcRenderer: {
-        send: (_channel: string, ..._args: unknown[]): void => {
-          // Method should return void
-        },
-        on: (_channel: string, _func: (...args: unknown[]) => void): void => {
-          // Method should return void
-        },
-        once: (_channel: string, _func: (...args: unknown[]) => void): void => {
-          // Method should return void
-        },
-        invoke: (_channel: string, ..._args: unknown[]): Promise<unknown> =>
-          Promise.resolve(undefined),
-      },
-    };
+  describe("exposed API", () => {
+    it("exposes the electron API exactly once via the context bridge", () => {
+      const exposeMock = getExposeMock();
+      expect(exposeMock).toHaveBeenCalledTimes(1);
+      const calls = exposeMock.mock.calls as [string, ElectronAPI][];
+      expect(calls[0][0]).toBe("electron");
+    });
 
-    expect(mockApi.ipcRenderer.send).toBeDefined();
-    expect(typeof mockApi.ipcRenderer.send).toBe("function");
-  });
+    it("does not expose a generic invoke/send/on surface", () => {
+      const api = getExposedApi() as unknown as Record<string, unknown>;
 
-  it("should have correct ElectronAPI type signature for on method", () => {
-    // Verify the type signature for ipcRenderer.on - must return void, not IpcRendererEvent
-    const mockApi: ElectronAPI = {
-      ipcRenderer: {
-        send: (_channel: string, ..._args: unknown[]): void => {
-          // noop
-        },
-        on: (_channel: string, _func: (...args: unknown[]) => void): void => {
-          // Method should return void, not IpcRendererEvent
-        },
-        once: (_channel: string, _func: (...args: unknown[]) => void): void => {
-          // noop
-        },
-        invoke: (_channel: string, ..._args: unknown[]): Promise<unknown> =>
-          Promise.resolve(undefined),
-      },
-    };
+      expect(api.ipcRenderer).toBeUndefined();
+      expect(api.invoke).toBeUndefined();
+      expect(api.send).toBeUndefined();
+      expect(api.on).toBeUndefined();
+      expect(api.once).toBeUndefined();
+    });
 
-    expect(mockApi.ipcRenderer.on).toBeDefined();
-    expect(typeof mockApi.ipcRenderer.on).toBe("function");
-  });
+    it("invokes get-app-version for getAppVersion", async () => {
+      mockIpcInvoke.mockResolvedValue("1.0.11");
+      await expect(getExposedApi().getAppVersion()).resolves.toBe("1.0.11");
+      expect(mockIpcInvoke).toHaveBeenCalledWith("get-app-version");
+    });
 
-  it("should have correct ElectronAPI type signature for once method", () => {
-    // Verify the type signature for ipcRenderer.once - must return void
-    const mockApi: ElectronAPI = {
-      ipcRenderer: {
-        send: (_channel: string, ..._args: unknown[]): void => {
-          // noop
-        },
-        on: (_channel: string, _func: (...args: unknown[]) => void): void => {
-          // noop
-        },
-        once: (_channel: string, _func: (...args: unknown[]) => void): void => {
-          // Method should return void
-        },
-        invoke: (_channel: string, ..._args: unknown[]): Promise<unknown> =>
-          Promise.resolve(undefined),
-      },
-    };
+    it("invokes check-diagnostics for checkDiagnostics", async () => {
+      mockIpcInvoke.mockResolvedValue({ platform: "linux" });
+      await expect(getExposedApi().checkDiagnostics()).resolves.toEqual({
+        platform: "linux",
+      });
+      expect(mockIpcInvoke).toHaveBeenCalledWith("check-diagnostics");
+    });
 
-    expect(mockApi.ipcRenderer.once).toBeDefined();
-    expect(typeof mockApi.ipcRenderer.once).toBe("function");
-  });
+    it("invokes get-steam-paths for getSteamPaths", async () => {
+      mockIpcInvoke.mockResolvedValue(["/opt/steam"]);
+      await expect(getExposedApi().getSteamPaths()).resolves.toEqual([
+        "/opt/steam",
+      ]);
+      expect(mockIpcInvoke).toHaveBeenCalledWith("get-steam-paths");
+    });
 
-  it("should have correct ElectronAPI type signature for invoke method", () => {
-    // Verify the type signature for ipcRenderer.invoke - must return Promise
-    const mockApi: ElectronAPI = {
-      ipcRenderer: {
-        send: (_channel: string, ..._args: unknown[]): void => {
-          // noop
-        },
-        on: (_channel: string, _func: (...args: unknown[]) => void): void => {
-          // noop
-        },
-        once: (_channel: string, _func: (...args: unknown[]) => void): void => {
-          // noop
-        },
-        invoke: (_channel: string, ..._args: unknown[]): Promise<unknown> =>
-          Promise.resolve(undefined),
-      },
-    };
+    it("invokes get-steam-servers with the optional path", async () => {
+      mockIpcInvoke.mockResolvedValue({ success: true, servers: [] });
 
-    expect(mockApi.ipcRenderer.invoke).toBeDefined();
-    expect(typeof mockApi.ipcRenderer.invoke).toBe("function");
-  });
+      await getExposedApi().getSteamServers("/opt/steam");
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "get-steam-servers",
+        "/opt/steam"
+      );
 
-  it("should safely expose IPC renderer", () => {
-    // The ipcRenderer is safely exposed to the renderer process
-    // through the electron object on window
-    expect(true).toBe(true);
-  });
+      await getExposedApi().getSteamServers();
+      expect(mockIpcInvoke).toHaveBeenLastCalledWith(
+        "get-steam-servers",
+        undefined
+      );
+    });
 
-  it("should not expose sensitive APIs", () => {
-    // Only specific IPC methods are exposed, not the full ipcRenderer
-    expect(true).toBe(true);
+    it("invokes run-server with appId and installPath", async () => {
+      await getExposedApi().runServer(1396110, "/steam/valheim");
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "run-server",
+        1396110,
+        "/steam/valheim"
+      );
+    });
+
+    it("invokes stop-server with appId and installPath", async () => {
+      await getExposedApi().stopServer(1396110, "/steam/valheim");
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "stop-server",
+        1396110,
+        "/steam/valheim"
+      );
+    });
+
+    it("invokes auto-update-server with appId, installPath and steamPath", async () => {
+      await getExposedApi().autoUpdateServer(
+        1396110,
+        "/steam/valheim",
+        "/opt/steam"
+      );
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "auto-update-server",
+        1396110,
+        "/steam/valheim",
+        "/opt/steam"
+      );
+    });
+
+    it("invokes backup-server-save with backup path", async () => {
+      await getExposedApi().backupServerSave(
+        1396110,
+        "/steam/valheim",
+        "/backups"
+      );
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "backup-server-save",
+        1396110,
+        "/steam/valheim",
+        "/backups"
+      );
+    });
+
+    it("invokes select-backup-folder for selectBackupFolder", async () => {
+      mockIpcInvoke.mockResolvedValue({ success: true, path: "/backups" });
+      await expect(getExposedApi().selectBackupFolder()).resolves.toEqual({
+        success: true,
+        path: "/backups",
+      });
+      expect(mockIpcInvoke).toHaveBeenCalledWith("select-backup-folder");
+    });
+
+    it("invokes get-server-config for getServerConfig", async () => {
+      await getExposedApi().getServerConfig(1396110, "/steam/valheim");
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "get-server-config",
+        1396110,
+        "/steam/valheim"
+      );
+    });
+
+    it("invokes open-file-default for openFileDefault", async () => {
+      await getExposedApi().openFileDefault("/steam/valheim/config.ini");
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "open-file-default",
+        "/steam/valheim/config.ini"
+      );
+    });
+
+    it("invokes save-server-config with content and format", async () => {
+      const content = { ServerSettings: { MaxPlayers: 10 } };
+      await getExposedApi().saveServerConfig(
+        1396110,
+        "/steam/valheim",
+        content,
+        "ini"
+      );
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "save-server-config",
+        1396110,
+        "/steam/valheim",
+        content,
+        "ini"
+      );
+    });
+
+    it("exposes typed window controls hitting the window-* channels", async () => {
+      const { windowControls } = getExposedApi();
+
+      await windowControls.minimize();
+      expect(mockIpcInvoke).toHaveBeenCalledWith("window-minimize");
+
+      mockIpcInvoke.mockResolvedValue({ success: true, maximized: true });
+      await expect(windowControls.toggleMaximize()).resolves.toEqual({
+        success: true,
+        maximized: true,
+      });
+      expect(mockIpcInvoke).toHaveBeenCalledWith("window-maximize-toggle");
+
+      await windowControls.close();
+      expect(mockIpcInvoke).toHaveBeenCalledWith("window-close");
+    });
   });
 });

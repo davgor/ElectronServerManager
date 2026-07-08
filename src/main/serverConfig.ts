@@ -1,21 +1,18 @@
 import path from "path";
 import { promises as fs } from "fs";
 
+import type {
+  ConfigFormat,
+  GetServerConfigResponse,
+  IpcActionResult,
+} from "../types/ipc";
+
 import { STEAM_DEDICATED_SERVERS, ServerInfo } from "./steamDetection";
 import { parseIniContent, stringifyIniContent } from "./iniConfig";
 
-interface ConfigReadResult {
-  success: boolean;
-  content?: Record<string, unknown>;
-  format?: "json" | "ini";
-  filePath?: string;
-  error?: string;
-}
+type ConfigReadResult = GetServerConfigResponse;
 
-interface ConfigWriteResult {
-  success: boolean;
-  error?: string;
-}
+type ConfigWriteResult = IpcActionResult;
 
 type ConfiguredServerInfo = ServerInfo & { configLocation: string };
 
@@ -88,7 +85,7 @@ export async function saveServerConfig(
   appId: number,
   installPath: string,
   content: Record<string, unknown>,
-  format: "json" | "ini"
+  format: ConfigFormat
 ): Promise<ConfigWriteResult> {
   try {
     const serverInfo = getServerConfigInfo(appId);

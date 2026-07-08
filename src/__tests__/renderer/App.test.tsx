@@ -2,34 +2,57 @@ import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import App from "../../renderer/App";
+import type { ElectronAPI } from "../../types/ipc";
 
-// Mock the electron API
-const mockInvoke = jest.fn();
+// Mock the typed electron API exposed by the preload script
+const mockGetSteamPaths = jest.fn();
+const mockGetSteamServers = jest.fn();
+const mockRunServer = jest.fn();
+const mockStopServer = jest.fn();
+const mockAutoUpdateServer = jest.fn();
+const mockBackupServerSave = jest.fn();
+const mockSelectBackupFolder = jest.fn();
+const mockGetServerConfig = jest.fn();
+const mockSaveServerConfig = jest.fn();
+const mockOpenFileDefault = jest.fn();
+
+const mockElectronApi: ElectronAPI = {
+  getAppVersion: jest.fn().mockResolvedValue("0.0.0-test"),
+  checkDiagnostics: jest.fn().mockResolvedValue({}),
+  getSteamPaths: mockGetSteamPaths,
+  getSteamServers: mockGetSteamServers,
+  runServer: mockRunServer,
+  stopServer: mockStopServer,
+  autoUpdateServer: mockAutoUpdateServer,
+  backupServerSave: mockBackupServerSave,
+  selectBackupFolder: mockSelectBackupFolder,
+  getServerConfig: mockGetServerConfig,
+  saveServerConfig: mockSaveServerConfig,
+  openFileDefault: mockOpenFileDefault,
+  windowControls: {
+    minimize: jest.fn().mockResolvedValue({ success: true }),
+    toggleMaximize: jest
+      .fn()
+      .mockResolvedValue({ success: true, maximized: true }),
+    close: jest.fn().mockResolvedValue({ success: true }),
+  },
+};
 
 Object.defineProperty(window, "electron", {
-  value: {
-    ipcRenderer: {
-      invoke: mockInvoke,
-    },
-  },
+  value: mockElectronApi,
   writable: true,
 });
 
 describe("App Component", () => {
   beforeEach(() => {
     jest.clearAllMocks();
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      // Default response for "get-steam-servers"
-      return Promise.resolve({
-        success: true,
-        servers: [],
-      });
+    mockGetSteamPaths.mockResolvedValue([
+      "C:\\Program Files\\Steam",
+      "D:\\SteamLibrary",
+    ]);
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: [],
     });
   });
 
@@ -55,17 +78,9 @@ describe("App Component", () => {
       },
     ];
 
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      return Promise.resolve({
-        success: true,
-        servers: mockServers,
-      });
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: mockServers,
     });
 
     render(<App />);
@@ -98,17 +113,9 @@ describe("App Component", () => {
       },
     ];
 
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      return Promise.resolve({
-        success: true,
-        servers: mockServers,
-      });
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: mockServers,
     });
 
     render(<App />);
@@ -120,18 +127,10 @@ describe("App Component", () => {
 
   it("should display error message when fetch fails", async () => {
     const errorMessage = "Failed to detect Steam servers";
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      return Promise.resolve({
-        success: false,
-        servers: [],
-        error: errorMessage,
-      });
+    mockGetSteamServers.mockResolvedValue({
+      success: false,
+      servers: [],
+      error: errorMessage,
     });
 
     render(<App />);
@@ -142,15 +141,7 @@ describe("App Component", () => {
   });
 
   it("should display error message when exception is thrown", async () => {
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      return Promise.reject(new Error("Network error"));
-    });
+    mockGetSteamServers.mockRejectedValue(new Error("Network error"));
 
     render(<App />);
 
@@ -160,15 +151,7 @@ describe("App Component", () => {
   });
 
   it("should handle unknown errors gracefully", async () => {
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      return Promise.reject("Unknown error");
-    });
+    mockGetSteamServers.mockRejectedValue("Unknown error");
 
     render(<App />);
 
@@ -195,17 +178,9 @@ describe("App Component", () => {
       },
     ];
 
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      return Promise.resolve({
-        success: true,
-        servers: mockServers,
-      });
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: mockServers,
     });
 
     render(<App />);
@@ -228,17 +203,9 @@ describe("App Component", () => {
       },
     ];
 
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      return Promise.resolve({
-        success: true,
-        servers: mockServers,
-      });
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: mockServers,
     });
 
     render(<App />);
@@ -251,18 +218,10 @@ describe("App Component", () => {
 
   it("should call fetchServers when retry button is clicked", async () => {
     const user = userEvent.setup();
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      return Promise.resolve({
-        success: false,
-        servers: [],
-        error: "Test error",
-      });
+    mockGetSteamServers.mockResolvedValue({
+      success: false,
+      servers: [],
+      error: "Test error",
     });
 
     render(<App />);
@@ -274,8 +233,64 @@ describe("App Component", () => {
     const retryButton = screen.getByText("Retry");
     await user.click(retryButton);
 
-    // First call for get-steam-paths on mount, second for get-steam-servers on mount, third for get-steam-servers on retry
-    expect(mockInvoke).toHaveBeenCalledTimes(3);
+    // Once for the mount fetch, once for the retry
+    expect(mockGetSteamServers).toHaveBeenCalledTimes(2);
+  });
+
+  it("should call runServer via the typed API when Run Server is clicked", async () => {
+    const user = userEvent.setup();
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: [
+        {
+          name: "Stopped Server",
+          appId: 42,
+          installPath: "/path/42",
+          isRunning: false,
+        },
+      ],
+    });
+    mockRunServer.mockResolvedValue({ success: true });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Run Server")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Run Server"));
+
+    await waitFor(() => {
+      expect(mockRunServer).toHaveBeenCalledWith(42, "/path/42");
+    });
+  });
+
+  it("should call stopServer via the typed API when Stop Server is clicked", async () => {
+    const user = userEvent.setup();
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: [
+        {
+          name: "Running Server",
+          appId: 43,
+          installPath: "/path/43",
+          isRunning: true,
+        },
+      ],
+    });
+    mockStopServer.mockResolvedValue({ success: true });
+
+    render(<App />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Stop Server")).toBeInTheDocument();
+    });
+
+    await user.click(screen.getByText("Stop Server"));
+
+    await waitFor(() => {
+      expect(mockStopServer).toHaveBeenCalledWith(43, "/path/43");
+    });
   });
 
   it("should handle singular and plural server text", async () => {
@@ -288,17 +303,9 @@ describe("App Component", () => {
       },
     ];
 
-    mockInvoke.mockImplementation((channel) => {
-      if (channel === "get-steam-paths") {
-        return Promise.resolve([
-          "C:\\Program Files\\Steam",
-          "D:\\SteamLibrary",
-        ]);
-      }
-      return Promise.resolve({
-        success: true,
-        servers: mockServers,
-      });
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: mockServers,
     });
 
     render(<App />);

@@ -1,16 +1,13 @@
+import type {
+  BackupServerSaveResponse,
+  SelectBackupFolderResponse,
+} from "../types/ipc";
+
 import { backupServerSave as steamBackupServerSave } from "./steamDetection";
 
-interface BackupResult {
-  success: boolean;
-  backupPath?: string;
-  error?: string;
-}
+type BackupResult = BackupServerSaveResponse;
 
-interface BackupFolderResult {
-  success: boolean;
-  path: string | null;
-  error?: string;
-}
+type BackupFolderResult = SelectBackupFolderResponse;
 
 interface BackupFolderDialog {
   showOpenDialog(

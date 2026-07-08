@@ -2,16 +2,15 @@ import path from "path";
 import { existsSync } from "fs";
 import { spawn, execSync } from "child_process";
 
+import type { IpcActionResult } from "../types/ipc";
+
 import {
   STEAM_DEDICATED_SERVERS,
   ServerInfo,
   getServerBuildId,
 } from "./steamDetection";
 
-interface ServerActionResult {
-  success: boolean;
-  error?: string;
-}
+type ServerActionResult = IpcActionResult;
 
 function getServerMapping(appId: number): ServerInfo | null {
   const mappingEntry = (

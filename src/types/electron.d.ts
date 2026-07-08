@@ -1,27 +1,6 @@
-export interface SteamServer {
-  name: string;
-  appId: number;
-  installPath: string;
-  isRunning: boolean;
-  coverArt?: string;
-}
+import type { ElectronAPI, SteamServer } from "./ipc";
 
-export interface ElectronAPI {
-  ipcRenderer: {
-    send: (channel: string, ...args: unknown[]) => void;
-    on: (channel: string, func: (...args: unknown[]) => void) => void;
-    once: (channel: string, func: (...args: unknown[]) => void) => void;
-    invoke: (channel: string, ...args: unknown[]) => Promise<unknown>;
-  };
-  windowControls?: {
-    minimize: () => Promise<void>;
-    toggleMaximize: () => Promise<{
-      success?: boolean;
-      maximized?: boolean;
-    } | void>;
-    close: () => Promise<void>;
-  };
-}
+export type { ElectronAPI, SteamServer };
 
 declare global {
   interface Window {

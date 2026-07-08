@@ -2,14 +2,17 @@ import { execSync } from "child_process";
 
 import { shell } from "electron";
 
+import type {
+  CheckDiagnosticsResponse,
+  GetSteamServersResponse,
+  IpcActionResult,
+} from "../types/ipc";
+
 import { findInstalledServers } from "./steamDetection";
 import { getCommonSteamPaths } from "./driveUtils";
 
-export function collectDiagnostics(): Record<
-  string,
-  boolean | string | string[]
-> {
-  const diagnostics: Record<string, boolean | string | string[]> = {};
+export function collectDiagnostics(): CheckDiagnosticsResponse {
+  const diagnostics: CheckDiagnosticsResponse = {};
 
   try {
     execSync("echo test", { encoding: "utf8" });
@@ -42,11 +45,9 @@ export function listSteamPaths(): string[] {
   }
 }
 
-export async function fetchSteamServers(path?: string): Promise<{
-  success: boolean;
-  servers?: Awaited<ReturnType<typeof findInstalledServers>>;
-  error?: string;
-}> {
+export async function fetchSteamServers(
+  path?: string
+): Promise<GetSteamServersResponse> {
   try {
     const servers = await findInstalledServers(path);
     return { success: true, servers };
@@ -62,7 +63,7 @@ export async function fetchSteamServers(path?: string): Promise<{
 
 export async function openFileDefault(
   filePath: string
-): Promise<{ success: boolean; error?: string }> {
+): Promise<IpcActionResult> {
   try {
     if (!filePath || typeof filePath !== "string") {
       return { success: false, error: "Invalid file path" };
