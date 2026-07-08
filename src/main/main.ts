@@ -11,10 +11,11 @@ import {
   screen,
 } from "electron";
 
-import { findInstalledServers, backupServerSave } from "./steamDetection";
+import { findInstalledServers } from "./steamDetection";
 import { getCommonSteamPaths } from "./driveUtils";
 import { startServer, stopServer, autoUpdateServer } from "./serverProcess";
 import { getServerConfig, saveServerConfig } from "./serverConfig";
+import { backupServerSaveHandler, selectBackupFolder } from "./serverBackup";
 
 const isDev = Boolean(
   process.env.NODE_ENV === "development" || process.env.ELECTRON_START_URL
@@ -228,92 +229,12 @@ ipcMain.handle(
 ipcMain.handle(
   "backup-server-save",
   async (_event, appId: number, installPath: string, backupPath: string) => {
-    try {
-      // eslint-disable-next-line no-console
-      console.log(`Backing up server ${appId} to ${backupPath}`);
-
-      const backupFile = await backupServerSave(appId, installPath, backupPath);
-
-      if (backupFile === null) {
-        return {
-          success: false,
-          error: "Failed to create backup",
-        };
-      }
-
-      // eslint-disable-next-line no-console
-      console.log(`Backup completed: ${backupFile}`);
-
-      return { success: true, backupPath: backupFile };
-    } catch (error) {
-      console.error("Error creating backup:", error);
-      return {
-        success: false,
-        error: error instanceof Error ? error.message : "Backup failed",
-      };
-    }
+    return backupServerSaveHandler(appId, installPath, backupPath);
   }
 );
 
-ipcMain.handle("set-backup-location", async (_event, backupPath: string) => {
-  try {
-    // Validate that the path is accessible
-    const fs = await import("fs/promises");
-    try {
-      await fs.mkdir(backupPath, { recursive: true });
-      // eslint-disable-next-line no-console
-      console.log(`Backup location set to: ${backupPath}`);
-      return { success: true };
-    } catch (err) {
-      return {
-        success: false,
-        error: `Cannot create backup directory: ${err instanceof Error ? err.message : String(err)}`,
-      };
-    }
-  } catch (error) {
-    console.error("Error setting backup location:", error);
-    return {
-      success: false,
-      error:
-        error instanceof Error
-          ? error.message
-          : "Failed to set backup location",
-    };
-  }
-});
-
 ipcMain.handle("select-backup-folder", async () => {
-  try {
-    if (!mainWindow) {
-      return {
-        success: false,
-        path: null,
-        error: "Main window not available",
-      };
-    }
-
-    const result = await dialog.showOpenDialog(mainWindow, {
-      properties: ["openDirectory"],
-      title: "Select Backup Location",
-    });
-
-    if (result.canceled) {
-      return { success: false, path: null };
-    }
-
-    const selectedPath = result.filePaths[0];
-    // eslint-disable-next-line no-console
-    console.log(`Backup folder selected: ${selectedPath}`);
-
-    return { success: true, path: selectedPath };
-  } catch (error) {
-    console.error("Error selecting backup folder:", error);
-    return {
-      success: false,
-      path: null,
-      error: error instanceof Error ? error.message : "Failed to select folder",
-    };
-  }
+  return selectBackupFolder(() => mainWindow, dialog);
 });
 
 ipcMain.handle(
