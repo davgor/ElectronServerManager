@@ -8,7 +8,7 @@ export function getMainWindow(): BrowserWindow | null {
   return mainWindow;
 }
 
-export function createWindow(isDev: boolean): void {
+function createWindow(isDev: boolean): void {
   mainWindow = new BrowserWindow({
     width: 1220,
     height: 900,

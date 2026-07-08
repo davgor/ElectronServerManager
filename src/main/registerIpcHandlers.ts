@@ -11,7 +11,7 @@ import { startServer, stopServer, autoUpdateServer } from "./serverProcess";
 import { getServerConfig, saveServerConfig } from "./serverConfig";
 import { backupServerSaveHandler, selectBackupFolder } from "./serverBackup";
 
-export interface IpcRegistrationDeps {
+interface IpcRegistrationDeps {
   getMainWindow: () => BrowserWindow | null;
   dialogApi: Pick<typeof dialog, "showOpenDialog">;
 }

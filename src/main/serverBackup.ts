@@ -1,18 +1,18 @@
 import { backupServerSave as steamBackupServerSave } from "./steamDetection";
 
-export interface BackupResult {
+interface BackupResult {
   success: boolean;
   backupPath?: string;
   error?: string;
 }
 
-export interface BackupFolderResult {
+interface BackupFolderResult {
   success: boolean;
   path: string | null;
   error?: string;
 }
 
-export interface BackupFolderDialog {
+interface BackupFolderDialog {
   showOpenDialog(
     parent: unknown,
     options: { properties: string[]; title: string }

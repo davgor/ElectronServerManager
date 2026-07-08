@@ -10,7 +10,7 @@ type WC = {
   close?: () => Promise<void>;
 };
 
-export function TitleBar(): JSX.Element {
+function TitleBar(): JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false);
 
   useEffect(() => {

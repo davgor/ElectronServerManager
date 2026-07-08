@@ -4,7 +4,7 @@ import { promises as fs } from "fs";
 import { STEAM_DEDICATED_SERVERS, ServerInfo } from "./steamDetection";
 import { parseIniContent, stringifyIniContent } from "./iniConfig";
 
-export interface ConfigReadResult {
+interface ConfigReadResult {
   success: boolean;
   content?: Record<string, unknown>;
   format?: "json" | "ini";
@@ -12,7 +12,7 @@ export interface ConfigReadResult {
   error?: string;
 }
 
-export interface ConfigWriteResult {
+interface ConfigWriteResult {
   success: boolean;
   error?: string;
 }

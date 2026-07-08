@@ -8,7 +8,7 @@ import {
   getServerBuildId,
 } from "./steamDetection";
 
-export interface ServerActionResult {
+interface ServerActionResult {
   success: boolean;
   error?: string;
 }
