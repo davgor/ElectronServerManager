@@ -4,7 +4,7 @@ import type { ServerPersistedSettings, SteamServer } from "../../types/ipc";
 
 const DEFAULT_BACKUP_INTERVAL_SECONDS = 3600;
 
-export interface UseServerBackupsOptions {
+interface UseServerBackupsOptions {
   servers: SteamServer[];
   /**
    * Persisted per-server settings keyed by stringified appId. Values are
@@ -16,7 +16,7 @@ export interface UseServerBackupsOptions {
   onError: (message: string) => void;
 }
 
-export interface UseServerBackupsResult {
+interface UseServerBackupsResult {
   lastBackups: Record<number, string>;
   backupNow: (appId: number, installPath: string) => void;
   selectBackupFolder: (appId: number) => void;

@@ -7,7 +7,7 @@ const DEFAULT_SERVER_SETTINGS: ServerPersistedSettings = {
   autoUpdate: false,
 };
 
-export interface UseServerSettingsResult {
+interface UseServerSettingsResult {
   settings: AppSettings;
   settingsLoaded: boolean;
   setAutoRestart: (appId: number, enabled: boolean) => void;

@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { SteamServer } from "../../types/ipc";
 
-export interface UseSteamServersOptions {
+interface UseSteamServersOptions {
   /** appIds with auto-restart enabled. Read via ref; changing it must not restart polling. */
   autoRestartAppIds?: ReadonlySet<number>;
   /** appIds with auto-update enabled. Read via ref; changing it must not restart polling. */
@@ -13,7 +13,7 @@ export interface UseSteamServersOptions {
   pathPollIntervalMs?: number;
 }
 
-export interface UseSteamServersResult {
+interface UseSteamServersResult {
   servers: SteamServer[];
   loading: boolean;
   error: string | null;

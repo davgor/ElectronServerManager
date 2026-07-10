@@ -1,4 +1,4 @@
-export interface SteamPathSelectorProps {
+interface SteamPathSelectorProps {
   paths: string[];
   selectedPath: string;
   onSelect: (path: string) => void;
