@@ -7,16 +7,17 @@ import type {
   IpcActionResult,
 } from "../types/ipc";
 
-import { STEAM_DEDICATED_SERVERS, ServerInfo } from "./steamDetection";
+import {
+  STEAM_DEDICATED_SERVERS,
+  resolveServerConfigLocation,
+} from "./steamDetection";
 import { parseIniContent, stringifyIniContent } from "./iniConfig";
 
 type ConfigReadResult = GetServerConfigResponse;
 
 type ConfigWriteResult = IpcActionResult;
 
-type ConfiguredServerInfo = ServerInfo & { configLocation: string };
-
-function getServerConfigInfo(appId: number): ConfiguredServerInfo | null {
+function getServerConfigLocation(appId: number): string | null {
   if (
     !Object.prototype.hasOwnProperty.call(
       STEAM_DEDICATED_SERVERS,
@@ -26,18 +27,17 @@ function getServerConfigInfo(appId: number): ConfiguredServerInfo | null {
     return null;
   }
 
-  const serverInfo = STEAM_DEDICATED_SERVERS[
-    appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
-  ] as unknown as ServerInfo;
+  const serverInfo =
+    STEAM_DEDICATED_SERVERS[
+      appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
+    ];
 
-  if (
-    serverInfo.configLocation === undefined ||
-    serverInfo.configLocation === ""
-  ) {
+  const configLocation = resolveServerConfigLocation(serverInfo);
+  if (configLocation === undefined || configLocation === "") {
     return null;
   }
 
-  return serverInfo as ConfiguredServerInfo;
+  return configLocation;
 }
 
 export async function getServerConfig(
@@ -45,12 +45,12 @@ export async function getServerConfig(
   installPath: string
 ): Promise<ConfigReadResult> {
   try {
-    const serverInfo = getServerConfigInfo(appId);
-    if (!serverInfo) {
+    const configLocation = getServerConfigLocation(appId);
+    if (configLocation === null) {
       return { success: false, error: `No config mapping for app ${appId}` };
     }
 
-    const configPath = path.join(installPath, serverInfo.configLocation);
+    const configPath = path.join(installPath, configLocation);
 
     try {
       await fs.stat(configPath);
@@ -88,12 +88,12 @@ export async function saveServerConfig(
   format: ConfigFormat
 ): Promise<ConfigWriteResult> {
   try {
-    const serverInfo = getServerConfigInfo(appId);
-    if (!serverInfo) {
+    const configLocation = getServerConfigLocation(appId);
+    if (configLocation === null) {
       return { success: false, error: `No config mapping for app ${appId}` };
     }
 
-    const configPath = path.join(installPath, serverInfo.configLocation);
+    const configPath = path.join(installPath, configLocation);
 
     let fileContent = "";
     if (format === "json") {

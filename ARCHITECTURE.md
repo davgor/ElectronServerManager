@@ -129,7 +129,9 @@ User opens app
     │   ├─ Find Steam installation path
     │   ├─ Determine current platform (Windows/macOS/Linux)
     │   ├─ Load library folder locations
-    │   ├─ Loop through 15 known server app IDs
+    │   ├─ Loop through the STEAM_DEDICATED_SERVERS catalog
+    │   │   (currently 2 entries: Enshrouded, Palworld —
+    │   │    see docs/ADDING_SERVERS.md to add more)
     │   ├─ Check if appmanifest file exists
     │   ├─ Check if process is running
     │   └─ Build SteamServer[] array
@@ -274,7 +276,7 @@ src/
 Initial Scan:
   ├─ Steam path lookup: ~100ms
   ├─ Library folder parsing: ~50ms
-  ├─ Manifest file checks (15 apps): ~500ms
+  ├─ Manifest file checks (per catalog entry): ~100ms
   ├─ Process detection: ~300ms
   └─ Total: ~1-2 seconds (typical)
 

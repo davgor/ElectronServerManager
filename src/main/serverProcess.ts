@@ -8,6 +8,7 @@ import {
   STEAM_DEDICATED_SERVERS,
   ServerInfo,
   getServerBuildId,
+  resolveServerExecutable,
 } from "./steamDetection";
 
 type ServerActionResult = IpcActionResult;
@@ -111,7 +112,8 @@ export function startServer(
       };
     }
 
-    const serverExePath = path.join(installPath, mappingEntry.executable);
+    const executable = resolveServerExecutable(mappingEntry);
+    const serverExePath = path.join(installPath, executable);
 
     if (!existsSync(serverExePath)) {
       // eslint-disable-next-line no-console
@@ -131,7 +133,7 @@ export function startServer(
       };
     }
 
-    spawnServerDetached(installPath, mappingEntry.executable);
+    spawnServerDetached(installPath, executable);
 
     return { success: true };
   } catch (error) {
@@ -159,7 +161,7 @@ export function stopServer(
       };
     }
 
-    killServerProcess(mappingEntry.executable);
+    killServerProcess(resolveServerExecutable(mappingEntry));
 
     // eslint-disable-next-line no-console
     console.log(`Stop command sent for server ${appId}`);
@@ -191,11 +193,13 @@ export async function autoUpdateServer(
       };
     }
 
+    const executable = resolveServerExecutable(mappingEntry);
+
     const currentBuildId = await getServerBuildId(appId, steamPath);
     // eslint-disable-next-line no-console
     console.log(`Current buildid for app ${appId}: ${currentBuildId}`);
 
-    killServerProcess(mappingEntry.executable);
+    killServerProcess(executable);
     // eslint-disable-next-line no-console
     console.log(`Stopped server ${appId} for update`);
 
@@ -216,13 +220,13 @@ export async function autoUpdateServer(
     // eslint-disable-next-line no-console
     console.log(`Update detected for server ${appId}, restarting...`);
 
-    const serverExePath = path.join(installPath, mappingEntry.executable);
+    const serverExePath = path.join(installPath, executable);
     // eslint-disable-next-line no-console
     console.log(
       `Attempting to spawn updated server: "${serverExePath}" from ${installPath}`
     );
 
-    spawnServerDetached(installPath, mappingEntry.executable);
+    spawnServerDetached(installPath, executable);
 
     // eslint-disable-next-line no-console
     console.log(`Server ${appId} restarted after update`);

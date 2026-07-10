@@ -128,6 +128,30 @@ describe("serverProcess", () => {
         })
       );
     });
+
+    it("spawns the linux-resolved executable for Palworld on linux", () => {
+      const original = Object.getOwnPropertyDescriptor(process, "platform");
+      Object.defineProperty(process, "platform", {
+        value: "linux",
+        configurable: true,
+      });
+
+      mockExistsSync.mockReturnValue(true);
+
+      const result = startServer(1623730, "/opt/steam/PalServer");
+
+      expect(result).toEqual({ success: true });
+      expect(mockExistsSync).toHaveBeenCalledWith(
+        expect.stringContaining("PalServer.sh")
+      );
+      const spawnCall = mockSpawn.mock.calls[0];
+      expect(spawnCall[0]).toContain("PalServer.sh");
+      expect(spawnCall[0]).not.toContain("PalServer.exe");
+
+      if (original) {
+        Object.defineProperty(process, "platform", original);
+      }
+    });
   });
 
   describe("stopServer", () => {
@@ -153,6 +177,23 @@ describe("serverProcess", () => {
       expect(mockExecSync).toHaveBeenCalledWith(
         "taskkill /F /IM enshrouded_server.exe 2>nul || exit /b 0"
       );
+
+      if (original) {
+        Object.defineProperty(process, "platform", original);
+      }
+    });
+
+    it("kills the linux-resolved executable for Palworld on linux", () => {
+      const original = Object.getOwnPropertyDescriptor(process, "platform");
+      Object.defineProperty(process, "platform", {
+        value: "linux",
+        configurable: true,
+      });
+
+      const result = stopServer(1623730, "/opt/steam/PalServer");
+
+      expect(result).toEqual({ success: true });
+      expect(mockExecSync).toHaveBeenCalledWith('pkill -f "PalServer" || true');
 
       if (original) {
         Object.defineProperty(process, "platform", original);
