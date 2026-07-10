@@ -39,9 +39,7 @@ function App(): JSX.Element {
 
   const fetchAvailablePaths = useCallback(async (): Promise<void> => {
     try {
-      const paths = (await window.electron.ipcRenderer.invoke(
-        "get-steam-paths"
-      )) as string[];
+      const paths = await window.electron.getSteamPaths();
       if (paths.length > 0) {
         setSelectedPath(paths[0]);
       }
@@ -80,10 +78,7 @@ function App(): JSX.Element {
       setError(null);
 
       try {
-        const result = (await window.electron.ipcRenderer.invoke(
-          "get-steam-servers",
-          path
-        )) as { success: boolean; servers: SteamServer[]; error?: string };
+        const result = await window.electron.getSteamServers(path);
 
         if (result.success === true) {
           // Check for crashed servers that should auto-restart
@@ -104,11 +99,10 @@ function App(): JSX.Element {
               );
               // Restart the server
               void (async (): Promise<void> => {
-                const restartResult = (await window.electron.ipcRenderer.invoke(
-                  "run-server",
+                const restartResult = await window.electron.runServer(
                   newServer.appId,
                   newServer.installPath
-                )) as { success: boolean; error?: string };
+                );
 
                 if (!restartResult.success) {
                   setError(
@@ -141,13 +135,11 @@ function App(): JSX.Element {
 
                 // Trigger auto-update
                 void (async (): Promise<void> => {
-                  const updateResult =
-                    (await window.electron.ipcRenderer.invoke(
-                      "auto-update-server",
-                      newServer.appId,
-                      newServer.installPath,
-                      path
-                    )) as { success: boolean; error?: string };
+                  const updateResult = await window.electron.autoUpdateServer(
+                    newServer.appId,
+                    newServer.installPath,
+                    path
+                  );
 
                   if (!updateResult.success) {
                     setError(
@@ -203,12 +195,7 @@ function App(): JSX.Element {
     (appId: number, installPath: string): void => {
       void (async (): Promise<void> => {
         try {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-          const result = (await window.electron.ipcRenderer.invoke(
-            "run-server",
-            appId,
-            installPath
-          )) as { success: boolean; error?: string };
+          const result = await window.electron.runServer(appId, installPath);
 
           if (!result.success && result.error !== undefined) {
             setError(result.error);
@@ -245,12 +232,7 @@ function App(): JSX.Element {
             return next;
           });
 
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-          const result = (await window.electron.ipcRenderer.invoke(
-            "stop-server",
-            appId,
-            installPath
-          )) as { success: boolean; error?: string };
+          const result = await window.electron.stopServer(appId, installPath);
 
           if (!result.success && result.error !== undefined) {
             setError(result.error);
@@ -280,13 +262,11 @@ function App(): JSX.Element {
 
       void (async (): Promise<void> => {
         try {
-          // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-          const result = (await window.electron.ipcRenderer.invoke(
-            "backup-server-save",
+          const result = await window.electron.backupServerSave(
             appId,
             installPath,
             serverBackupLocation
-          )) as { success: boolean; backupPath?: string; error?: string };
+          );
 
           if (!result.success && result.error !== undefined) {
             setError(result.error);
@@ -317,15 +297,13 @@ function App(): JSX.Element {
   const handleSelectBackupFolder = useCallback((appId: number): void => {
     void (async (): Promise<void> => {
       try {
-        // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-        const result = (await window.electron.ipcRenderer.invoke(
-          "select-backup-folder"
-        )) as { success: boolean; path?: string; error?: string };
+        const result = await window.electron.selectBackupFolder();
 
-        if (result.success && result.path !== undefined) {
+        if (result.success && result.path !== null) {
+          const selectedPath = result.path;
           setBackupLocations((prev) => ({
             ...prev,
-            [appId]: result.path!,
+            [appId]: selectedPath,
           }));
         } else if (result.error !== undefined) {
           setError(result.error);
@@ -390,13 +368,11 @@ function App(): JSX.Element {
           console.log(`Auto-backing up ${server.name}...`);
           void (async (): Promise<void> => {
             try {
-              // eslint-disable-next-line @typescript-eslint/no-unsafe-call
-              const result = (await window.electron.ipcRenderer.invoke(
-                "backup-server-save",
+              const result = await window.electron.backupServerSave(
                 server.appId,
                 server.installPath,
                 serverBackupLocation
-              )) as { success: boolean; backupPath?: string };
+              );
 
               if (result.success && result.backupPath !== undefined) {
                 setLastBackups((prev) => ({
@@ -452,11 +428,7 @@ function App(): JSX.Element {
                 <div key={server.appId} className="server-card">
                   {server.coverArt !== undefined && (
                     <div className="server-cover">
-                      <img
-                        // eslint-disable-next-line @typescript-eslint/no-unsafe-assignment
-                        src={server.coverArt}
-                        alt={server.name}
-                      />
+                      <img src={server.coverArt} alt={server.name} />
                     </div>
                   )}
                   <div className="server-header">

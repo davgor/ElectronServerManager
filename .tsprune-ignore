@@ -2,4 +2,3 @@
 # These entries were flagged by ts-prune but are currently used dynamically or are types
 src/main/driveUtils.ts:8 - getAvailableDrives
 src/main/steamDetection.ts:43 - STEAM_DEDICATED_SERVERS_TYPED
-src/renderer/ConfigEditor.tsx:4 - ConfigEditorProps

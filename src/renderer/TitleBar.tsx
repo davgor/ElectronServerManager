@@ -1,31 +1,12 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import "./TitleBar.css";
-
-type WC = {
-  minimize?: () => Promise<void>;
-  toggleMaximize?: () => Promise<{
-    success?: boolean;
-    maximized?: boolean;
-  } | void>;
-  close?: () => Promise<void>;
-};
 
 function TitleBar(): JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false);
 
-  useEffect(() => {
-    const handle = async (): Promise<void> => {
-      // No-op for now; we could subscribe to events if needed
-    };
-    void handle();
-  }, []);
-
   const minimize = async (): Promise<void> => {
     try {
-      const wc = window.electron.windowControls as WC | undefined;
-      if (wc !== undefined && typeof wc.minimize === "function") {
-        await wc.minimize();
-      }
+      await window.electron.windowControls.minimize();
     } catch (err) {
       console.error("Failed to minimize window", err);
     }
@@ -33,18 +14,9 @@ function TitleBar(): JSX.Element {
 
   const toggleMaximize = async (): Promise<void> => {
     try {
-      const wc = window.electron.windowControls as WC | undefined;
-      if (wc !== undefined && typeof wc.toggleMaximize === "function") {
-        const res = (await wc.toggleMaximize()) as {
-          success?: boolean;
-          maximized?: boolean;
-        } | void;
-        if (
-          res &&
-          typeof (res as { maximized?: unknown }).maximized === "boolean"
-        ) {
-          setIsMaximized((res as { maximized?: boolean }).maximized as boolean);
-        }
+      const res = await window.electron.windowControls.toggleMaximize();
+      if (typeof res.maximized === "boolean") {
+        setIsMaximized(res.maximized);
       }
     } catch (err) {
       console.error("Failed to toggle maximize", err);
@@ -53,10 +25,7 @@ function TitleBar(): JSX.Element {
 
   const close = async (): Promise<void> => {
     try {
-      const wc = window.electron.windowControls as WC | undefined;
-      if (wc !== undefined && typeof wc.close === "function") {
-        await wc.close();
-      }
+      await window.electron.windowControls.close();
     } catch (err) {
       console.error("Failed to close window", err);
     }
