@@ -1,6 +1,6 @@
 import type { ElectronAPI, SteamServer } from "./ipc";
 
-export type { ElectronAPI, SteamServer };
+export type { SteamServer };
 
 declare global {
   interface Window {

@@ -2,11 +2,13 @@ import type {
   BackupServerSaveResponse,
   CheckDiagnosticsResponse,
   ConfigFormat,
+  ElectronWindowControls,
   GetServerConfigResponse,
   GetSteamServersResponse,
   IpcActionResult,
   IpcChannel,
   IpcInvokeArgs,
+  IpcInvokeMap,
   IpcInvokeResult,
   SelectBackupFolderResponse,
   SteamServer,
@@ -47,6 +49,21 @@ describe("IPC types", () => {
   it("covers every registered IPC channel", () => {
     expect(expectedAreChannels).toHaveLength(15);
     expect(channelsAreExpected).toHaveLength(0);
+  });
+
+  it("exposes args/result entries through IpcInvokeMap", () => {
+    const versionEntry: IpcInvokeMap["get-app-version"] = {
+      args: [],
+      result: "1.0.11",
+    };
+    const runEntry: IpcInvokeMap["run-server"] = {
+      args: [1396110, "/steam/valheim"],
+      result: { success: true },
+    };
+
+    expect(versionEntry.result).toBe("1.0.11");
+    expect(runEntry.args[0]).toBe(1396110);
+    expect(runEntry.result.success).toBe(true);
   });
 
   it("types get-steam-servers request and response", () => {
@@ -177,9 +194,15 @@ describe("IPC types", () => {
       success: false,
       error: "Main window not available",
     };
+    const windowControls: ElectronWindowControls = {
+      minimize: () => Promise.resolve(minimizeResponse),
+      toggleMaximize: () => Promise.resolve(toggleResponse),
+      close: () => Promise.resolve(closeResponse),
+    };
 
     expect(minimizeResponse.success).toBe(true);
     expect(toggleResponse.maximized).toBe(true);
     expect(closeResponse.error).toBe("Main window not available");
+    expect(typeof windowControls.toggleMaximize).toBe("function");
   });
 });

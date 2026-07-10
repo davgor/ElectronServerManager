@@ -3,7 +3,7 @@ import "./ConfigEditor.css";
 
 import type { ConfigFormat } from "../types/ipc";
 
-export interface ConfigEditorProps {
+interface ConfigEditorProps {
   appId: number;
   serverName: string;
   installPath: string;
