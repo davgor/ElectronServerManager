@@ -12,6 +12,24 @@ jest.mock("fs", () => ({
 
 const mockFs = fs as jest.Mocked<typeof fs>;
 
+async function withPlatform(
+  platform: NodeJS.Platform,
+  run: () => Promise<void>
+): Promise<void> {
+  const original = Object.getOwnPropertyDescriptor(process, "platform");
+  Object.defineProperty(process, "platform", {
+    value: platform,
+    configurable: true,
+  });
+  try {
+    await run();
+  } finally {
+    if (original) {
+      Object.defineProperty(process, "platform", original);
+    }
+  }
+}
+
 describe("serverConfig", () => {
   beforeEach(() => {
     jest.resetAllMocks();
@@ -79,6 +97,31 @@ TickRate=30`;
         },
       });
     });
+
+    it("resolves Palworld config under WindowsServer on win32", async () => {
+      await withPlatform("win32", async () => {
+        mockFs.stat.mockResolvedValueOnce({} as never);
+        mockFs.readFile.mockResolvedValueOnce("" as never);
+
+        const result = await getServerConfig(1623730, "C:\\Games\\PalServer");
+
+        expect(result.success).toBe(true);
+        expect(result.filePath).toContain("WindowsServer");
+      });
+    });
+
+    it("resolves Palworld config under LinuxServer on linux", async () => {
+      await withPlatform("linux", async () => {
+        mockFs.stat.mockResolvedValueOnce({} as never);
+        mockFs.readFile.mockResolvedValueOnce("" as never);
+
+        const result = await getServerConfig(1623730, "/opt/steam/PalServer");
+
+        expect(result.success).toBe(true);
+        expect(result.filePath).toContain("LinuxServer");
+        expect(result.filePath).not.toContain("WindowsServer");
+      });
+    });
   });
 
   describe("saveServerConfig", () => {
@@ -135,6 +178,22 @@ TickRate=30`;
       expect(String(writeCall[1])).toContain("[ServerSettings]");
       expect(String(writeCall[1])).toContain("ServerName=Saved World");
       expect(String(writeCall[1])).toContain("TickRate=60");
+    });
+
+    it("writes Palworld config under LinuxServer on linux", async () => {
+      await withPlatform("linux", async () => {
+        const result = await saveServerConfig(
+          1623730,
+          "/opt/steam/PalServer",
+          { ServerSettings: { ServerName: "Linux World" } },
+          "ini"
+        );
+
+        expect(result).toEqual({ success: true });
+        const writeCall = mockFs.writeFile.mock.calls[0];
+        expect(writeCall[0]).toContain("LinuxServer");
+        expect(writeCall[0]).not.toContain("WindowsServer");
+      });
     });
   });
 });

@@ -10,11 +10,30 @@ export interface SteamServer {
   coverArt?: string;
 }
 
+export interface ServerInfo {
+  name: string;
+  folderName?: string | null;
+  /** Default executable, used when no platform-specific override matches */
+  executable: string;
+  /** Per-platform executable overrides (e.g. PalServer.sh on linux) */
+  executables?: Partial<Record<NodeJS.Platform, string>>;
+  /** Default save location, relative to the install path */
+  saveLocation?: string;
+  /** Per-platform save location overrides */
+  saveLocations?: Partial<Record<NodeJS.Platform, string>>;
+  /** Default config location, relative to the install path */
+  configLocation?: string;
+  /** Per-platform config location overrides */
+  configLocations?: Partial<Record<NodeJS.Platform, string>>;
+}
+
 /**
- * Known Steam dedicated server applications
- * Format: { appId: number, name: string }
+ * Known Steam dedicated server applications, keyed by Steam app ID.
+ * See docs/ADDING_SERVERS.md for how to add a new entry.
  */
-export const STEAM_DEDICATED_SERVERS = {
+export const STEAM_DEDICATED_SERVERS: Record<number, ServerInfo> = {
+  // Enshrouded ships a Windows-only server binary; on Linux it is typically
+  // run through Wine/Proton against the same .exe, so no override is defined.
   2278520: {
     name: "Enshrouded Dedicated Server",
     folderName: "EnshroudedServer",
@@ -26,22 +45,53 @@ export const STEAM_DEDICATED_SERVERS = {
     name: "Palworld Dedicated Server",
     folderName: "PalServer",
     executable: "PalServer.exe",
+    executables: {
+      linux: "PalServer.sh",
+    },
     saveLocation: "Pal/Saved/SaveGames",
     configLocation: "Pal/Saved/Config/WindowsServer/PalWorldSettings.ini",
+    configLocations: {
+      linux: "Pal/Saved/Config/LinuxServer/PalWorldSettings.ini",
+    },
   },
 };
 
-export interface ServerInfo {
-  name: string;
-  folderName?: string | null;
-  executable: string;
-  saveLocation?: string;
-  configLocation?: string;
-}
-
 // Re-export the mapping with a typed shape for callers
 export const STEAM_DEDICATED_SERVERS_TYPED: Record<number, ServerInfo> =
-  STEAM_DEDICATED_SERVERS as unknown as Record<number, ServerInfo>;
+  STEAM_DEDICATED_SERVERS;
+
+/**
+ * Resolve the executable for a server on the given platform,
+ * falling back to the default executable when no override exists.
+ */
+export function resolveServerExecutable(
+  serverInfo: ServerInfo,
+  platform: NodeJS.Platform = process.platform
+): string {
+  return serverInfo.executables?.[platform] ?? serverInfo.executable;
+}
+
+/**
+ * Resolve the config file location for a server on the given platform,
+ * falling back to the default config location when no override exists.
+ */
+export function resolveServerConfigLocation(
+  serverInfo: ServerInfo,
+  platform: NodeJS.Platform = process.platform
+): string | undefined {
+  return serverInfo.configLocations?.[platform] ?? serverInfo.configLocation;
+}
+
+/**
+ * Resolve the save location for a server on the given platform,
+ * falling back to the default save location when no override exists.
+ */
+export function resolveServerSaveLocation(
+  serverInfo: ServerInfo,
+  platform: NodeJS.Platform = process.platform
+): string | undefined {
+  return serverInfo.saveLocations?.[platform] ?? serverInfo.saveLocation;
+}
 
 /**
  * Find the Steam installation directory on a specific drive (Windows)
@@ -276,6 +326,7 @@ export async function findInstalledServers(
       STEAM_DEDICATED_SERVERS[
         appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
       ];
+    const resolvedExecutable = resolveServerExecutable(serverInfo);
     const serverName = serverInfo.name;
     const expectedFolderName = serverInfo.folderName;
     const appFolder = `${appId}`;
@@ -299,8 +350,10 @@ export async function findInstalledServers(
       }
 
       // If manifest doesn't exist, skip unless we have a known folder name to search for
-      // eslint-disable-next-line @typescript-eslint/no-unnecessary-condition
-      if (!manifestExists && expectedFolderName === null) {
+      if (
+        !manifestExists &&
+        (expectedFolderName === null || expectedFolderName === undefined)
+      ) {
         continue;
       }
 
@@ -316,7 +369,7 @@ export async function findInstalledServers(
             name: serverName,
             appId: parseInt(appId),
             installPath: numericAppPath,
-            isRunning: isProcessRunning(serverInfo.executable),
+            isRunning: isProcessRunning(resolvedExecutable),
             coverArt,
           });
           // eslint-disable-next-line no-console
@@ -329,7 +382,11 @@ export async function findInstalledServers(
         }
 
         // Next, check the expected folder name if provided
-        if (expectedFolderName) {
+        if (
+          expectedFolderName !== null &&
+          expectedFolderName !== undefined &&
+          expectedFolderName !== ""
+        ) {
           const expectedPath = path.join(commonPath, expectedFolderName);
           try {
             await fs.stat(expectedPath);
@@ -338,7 +395,7 @@ export async function findInstalledServers(
               name: serverName,
               appId: parseInt(appId),
               installPath: expectedPath,
-              isRunning: isProcessRunning(serverInfo.executable),
+              isRunning: isProcessRunning(resolvedExecutable),
               coverArt,
             });
             // eslint-disable-next-line no-console
@@ -456,8 +513,15 @@ export async function backupServerSave(
         appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
       ];
 
+    const saveLocation = resolveServerSaveLocation(serverInfo);
+    if (saveLocation === undefined || saveLocation === "") {
+      // eslint-disable-next-line no-console
+      console.error(`No save location defined for app ${appId}`);
+      return null;
+    }
+
     // Create the save location path
-    const savePath = path.join(installPath, serverInfo.saveLocation);
+    const savePath = path.join(installPath, saveLocation);
 
     // Check if save directory exists
     try {
