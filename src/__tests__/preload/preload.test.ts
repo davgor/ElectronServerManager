@@ -53,6 +53,8 @@ describe("Preload IPC bridge", () => {
         "get-server-config",
         "open-file-default",
         "save-server-config",
+        "get-settings",
+        "save-settings",
         "window-minimize",
         "window-maximize-toggle",
         "window-close",
@@ -236,6 +238,29 @@ describe("Preload IPC bridge", () => {
         content,
         "ini"
       );
+    });
+
+    it("invokes get-settings for getSettings", async () => {
+      mockIpcInvoke.mockResolvedValue({
+        success: true,
+        settings: { servers: {} },
+      });
+      await expect(getExposedApi().getSettings()).resolves.toEqual({
+        success: true,
+        settings: { servers: {} },
+      });
+      expect(mockIpcInvoke).toHaveBeenCalledWith("get-settings");
+    });
+
+    it("invokes save-settings with the settings object", async () => {
+      const settings = {
+        selectedSteamPath: "/opt/steam",
+        servers: {
+          "1396110": { autoRestart: true, autoUpdate: false },
+        },
+      };
+      await getExposedApi().saveSettings(settings);
+      expect(mockIpcInvoke).toHaveBeenCalledWith("save-settings", settings);
     });
 
     it("exposes typed window controls hitting the window-* channels", async () => {

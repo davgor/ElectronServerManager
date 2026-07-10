@@ -1,6 +1,7 @@
 import { contextBridge, ipcRenderer } from "electron";
 
 import type {
+  AppSettings,
   ElectronAPI,
   IpcChannel,
   IpcInvokeArgs,
@@ -29,6 +30,8 @@ export const ALLOWED_CHANNELS: readonly IpcChannel[] = [
   "get-server-config",
   "open-file-default",
   "save-server-config",
+  "get-settings",
+  "save-settings",
   "window-minimize",
   "window-maximize-toggle",
   "window-close",
@@ -74,6 +77,8 @@ const electronApi: ElectronAPI = {
     content: Record<string, unknown>,
     format: "json" | "ini"
   ) => invokeIpc("save-server-config", appId, installPath, content, format),
+  getSettings: () => invokeIpc("get-settings"),
+  saveSettings: (settings: AppSettings) => invokeIpc("save-settings", settings),
   windowControls: {
     minimize: () => invokeIpc("window-minimize"),
     toggleMaximize: () => invokeIpc("window-maximize-toggle"),

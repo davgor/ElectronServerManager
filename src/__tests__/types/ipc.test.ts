@@ -1,4 +1,5 @@
 import type {
+  AppSettings,
   BackupServerSaveResponse,
   CheckDiagnosticsResponse,
   ConfigFormat,
@@ -33,6 +34,8 @@ const EXPECTED_CHANNELS = [
   "get-server-config",
   "open-file-default",
   "save-server-config",
+  "get-settings",
+  "save-settings",
   "window-minimize",
   "window-maximize-toggle",
   "window-close",
@@ -47,7 +50,7 @@ const channelsAreExpected: readonly ExpectedChannel[] = [] as IpcChannel[];
 
 describe("IPC types", () => {
   it("covers every registered IPC channel", () => {
-    expect(expectedAreChannels).toHaveLength(15);
+    expect(expectedAreChannels).toHaveLength(17);
     expect(channelsAreExpected).toHaveLength(0);
   });
 
@@ -180,6 +183,30 @@ describe("IPC types", () => {
     expect(version).toBe("1.0.11");
     expect(diagnostics.platform).toBe("linux");
     expect(paths).toHaveLength(1);
+  });
+
+  it("types settings channels", () => {
+    const settings: AppSettings = {
+      selectedSteamPath: "/opt/steam",
+      servers: {
+        "1396110": {
+          autoRestart: true,
+          autoUpdate: false,
+          backupPath: "/backups",
+          backupIntervalSeconds: 3600,
+        },
+      },
+    };
+    const getResponse: IpcInvokeResult<"get-settings"> = {
+      success: true,
+      settings,
+    };
+    const saveArgs: IpcInvokeArgs<"save-settings"> = [settings];
+    const saveResponse: IpcInvokeResult<"save-settings"> = { success: true };
+
+    expect(getResponse.settings.selectedSteamPath).toBe("/opt/steam");
+    expect(saveArgs[0].servers["1396110"].autoRestart).toBe(true);
+    expect(saveResponse.success).toBe(true);
   });
 
   it("types window control channels", () => {
