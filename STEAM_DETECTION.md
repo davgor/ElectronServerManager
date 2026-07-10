@@ -19,7 +19,7 @@ Your Electron application now automatically detects Steam dedicated servers inst
 - **Features**:
   - Cross-platform support (Windows via Registry, macOS/Linux via file paths)
   - Handles multiple Steam library locations
-  - Detects 15+ popular Steam dedicated servers
+  - Detects every server in the `STEAM_DEDICATED_SERVERS` catalog (currently 2 entries)
   - Checks if each server is currently running
 
 ### 2. **Modified Files**
@@ -109,43 +109,19 @@ Your Electron application now automatically detects Steam dedicated servers inst
 
 ## Supported Steam Servers
 
-The app detects these dedicated servers (15 total):
+The app detects the dedicated servers defined in the `STEAM_DEDICATED_SERVERS`
+catalog in `src/main/steamDetection.ts` (currently 2 entries):
 
-| Server                                | App ID           |
-| ------------------------------------- | ---------------- |
-| Valheim Server                        | 1391110, 1319690 |
-| Palworld Dedicated Server             | 1672970          |
-| Arma 3 Server                         | 380870           |
-| Killing Floor 2 Server                | 570940           |
-| Garry's Mod Server                    | 4940             |
-| Team Fortress 2 Server                | 258550           |
-| Left 4 Dead 2 Server                  | 8980             |
-| Source SDK Base 2013 Dedicated Server | 232290           |
-| SCP: Secret Laboratory Server         | 214420           |
-| Half-Life 2 Server                    | 90               |
-| Unreal Tournament Server              | 304130           |
-| S.T.A.L.K.E.R. Server                 | 211480           |
-| Mordhau Server                        | 755790           |
-| Enshrouded Dedicated Server           | 1304830          |
-| Project Zomboid Server                | 552520           |
+| Server                      | App ID  |
+| --------------------------- | ------- |
+| Enshrouded Dedicated Server | 2278520 |
+| Palworld Dedicated Server   | 1623730 |
 
 ## Adding New Servers
 
-To add support for additional Steam servers:
-
-1. Open `src/main/steamDetection.ts`
-2. Find the `STEAM_DEDICATED_SERVERS` object
-3. Add a new entry: `YOUR_APP_ID: "Server Name"`
-4. Recompile with `npm run electron-build`
-
-Example:
-
-```typescript
-const STEAM_DEDICATED_SERVERS = {
-  1234567: "New Server Name",
-  // ... existing servers
-};
-```
+See [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md) for the catalog schema
+(including per-platform executable and config path overrides), a step-by-step
+guide, and an example entry template.
 
 ## Error Handling
 
