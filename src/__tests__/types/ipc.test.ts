@@ -1,5 +1,7 @@
 import type {
   AppSettings,
+  AutoUpdateServerResponse,
+  AutoUpdateStage,
   BackupServerSaveResponse,
   CheckDiagnosticsResponse,
   ConfigFormat,
@@ -119,6 +121,35 @@ describe("IPC types", () => {
     expect(failed.error).toBe("Executable not found");
   });
 
+  it("types the structured auto-update response with stage info", () => {
+    const completeStage: AutoUpdateStage = "complete";
+    const updated: IpcInvokeResult<"auto-update-server"> = {
+      success: true,
+      stage: completeStage,
+      updated: true,
+      previousBuildId: "100",
+      newBuildId: "101",
+    };
+    const noUpdate: AutoUpdateServerResponse = {
+      success: true,
+      stage: "no-update",
+      updated: false,
+      previousBuildId: "100",
+      newBuildId: "100",
+    };
+    const missingSteamCmd: AutoUpdateServerResponse = {
+      success: false,
+      stage: "resolving-steamcmd",
+      updated: false,
+      error: "steamcmd was not found on this system.",
+    };
+
+    expect(updated.stage).toBe("complete");
+    expect(updated.updated).toBe(true);
+    expect(noUpdate.updated).toBe(false);
+    expect(missingSteamCmd.success).toBe(false);
+  });
+
   it("types backup channels", () => {
     const backupArgs: IpcInvokeArgs<"backup-server-save"> = [
       1396110,
@@ -188,6 +219,7 @@ describe("IPC types", () => {
   it("types settings channels", () => {
     const settings: AppSettings = {
       selectedSteamPath: "/opt/steam",
+      steamCmdPath: "/usr/bin/steamcmd",
       servers: {
         "1396110": {
           autoRestart: true,

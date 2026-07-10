@@ -59,6 +59,32 @@ p {
   font-size: 0.95em;
 }
 
+.steamcmd-path-input {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 20px;
+  padding: 10px;
+  background: #3d495c;
+  border-radius: 5px;
+}
+
+.steamcmd-path-input label {
+  font-weight: 600;
+  color: #00a8ff;
+  white-space: nowrap;
+}
+
+.steamcmd-path-input input {
+  flex: 1;
+  padding: 6px 10px;
+  background: #2c3648;
+  color: #e0e0e0;
+  border: 1px solid #4a5a72;
+  border-radius: 4px;
+  font-size: 0.95em;
+}
+
 .error {
   background: #3d2a2a;
   border: 1px solid #a85a5a;
