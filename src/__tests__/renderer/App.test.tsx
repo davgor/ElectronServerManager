@@ -15,6 +15,8 @@ const mockSelectBackupFolder = jest.fn();
 const mockGetServerConfig = jest.fn();
 const mockSaveServerConfig = jest.fn();
 const mockOpenFileDefault = jest.fn();
+const mockGetSettings = jest.fn();
+const mockSaveSettings = jest.fn();
 
 const mockElectronApi: ElectronAPI = {
   getAppVersion: jest.fn().mockResolvedValue("0.0.0-test"),
@@ -29,6 +31,8 @@ const mockElectronApi: ElectronAPI = {
   getServerConfig: mockGetServerConfig,
   saveServerConfig: mockSaveServerConfig,
   openFileDefault: mockOpenFileDefault,
+  getSettings: mockGetSettings,
+  saveSettings: mockSaveSettings,
   windowControls: {
     minimize: jest.fn().mockResolvedValue({ success: true }),
     toggleMaximize: jest
@@ -54,6 +58,11 @@ describe("App Component", () => {
       success: true,
       servers: [],
     });
+    mockGetSettings.mockResolvedValue({
+      success: true,
+      settings: { servers: {} },
+    });
+    mockSaveSettings.mockResolvedValue({ success: true });
   });
 
   it("should render the title", () => {
@@ -312,6 +321,47 @@ describe("App Component", () => {
 
     await waitFor(() => {
       expect(screen.getByText("Found 1 server")).toBeInTheDocument();
+    });
+  });
+
+  it("should list all Steam library paths and refetch on selection", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const selector = await screen.findByLabelText("Steam Library:");
+    expect(
+      screen.getByRole("option", { name: "C:\\Program Files\\Steam" })
+    ).toBeInTheDocument();
+    expect(
+      screen.getByRole("option", { name: "D:\\SteamLibrary" })
+    ).toBeInTheDocument();
+
+    await waitFor(() => {
+      expect(mockGetSteamServers).toHaveBeenCalledWith(
+        "C:\\Program Files\\Steam"
+      );
+    });
+
+    await user.selectOptions(selector, "D:\\SteamLibrary");
+
+    await waitFor(() => {
+      expect(mockGetSteamServers).toHaveBeenCalledWith("D:\\SteamLibrary");
+    });
+  });
+
+  it("should persist the selected Steam library path", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const selector = await screen.findByLabelText("Steam Library:");
+    await user.selectOptions(selector, "D:\\SteamLibrary");
+
+    await waitFor(() => {
+      expect(mockSaveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ selectedSteamPath: "D:\\SteamLibrary" })
+      );
     });
   });
 

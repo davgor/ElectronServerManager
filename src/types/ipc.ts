@@ -50,6 +50,23 @@ export interface WindowMaximizeToggleResponse extends IpcActionResult {
   maximized?: boolean;
 }
 
+export interface ServerPersistedSettings {
+  autoRestart: boolean;
+  autoUpdate: boolean;
+  backupPath?: string;
+  backupIntervalSeconds?: number;
+}
+
+export interface AppSettings {
+  selectedSteamPath?: string;
+  /** Keyed by Steam appId (stringified number). */
+  servers: Record<string, ServerPersistedSettings>;
+}
+
+export interface GetSettingsResponse extends IpcActionResult {
+  settings: AppSettings;
+}
+
 /**
  * Request/response contract for every `ipcRenderer.invoke` channel.
  * `args` is the tuple of arguments after the channel name; `result` is the
@@ -94,6 +111,8 @@ export interface IpcInvokeMap {
     ];
     result: IpcActionResult;
   };
+  "get-settings": { args: []; result: GetSettingsResponse };
+  "save-settings": { args: [settings: AppSettings]; result: IpcActionResult };
   "window-minimize": { args: []; result: IpcActionResult };
   "window-maximize-toggle": {
     args: [];
@@ -144,5 +163,7 @@ export interface ElectronAPI {
     content: Record<string, unknown>,
     format: ConfigFormat
   ) => Promise<IpcActionResult>;
+  getSettings: () => Promise<GetSettingsResponse>;
+  saveSettings: (settings: AppSettings) => Promise<IpcActionResult>;
   windowControls: ElectronWindowControls;
 }

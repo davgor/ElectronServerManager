@@ -1,5 +1,7 @@
 import { app, ipcMain, dialog, BrowserWindow } from "electron";
 
+import type { AppSettings } from "../types/ipc";
+
 import { registerWindowControlHandlers } from "./windowControls";
 import {
   collectDiagnostics,
@@ -10,6 +12,7 @@ import {
 import { startServer, stopServer, autoUpdateServer } from "./serverProcess";
 import { getServerConfig, saveServerConfig } from "./serverConfig";
 import { backupServerSaveHandler, selectBackupFolder } from "./serverBackup";
+import { getSettings, saveSettings } from "./settingsStore";
 
 interface IpcRegistrationDeps {
   getMainWindow: () => BrowserWindow | null;
@@ -83,4 +86,10 @@ export function registerIpcHandlers(deps: IpcRegistrationDeps): void {
       return saveServerConfig(appId, installPath, content, format);
     }
   );
+
+  ipcMain.handle("get-settings", () => getSettings());
+
+  ipcMain.handle("save-settings", (_event, settings: AppSettings) => {
+    return saveSettings(settings);
+  });
 }
