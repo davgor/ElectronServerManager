@@ -1,6 +1,6 @@
 {
   "name": "electron-server-manager",
-  "version": "1.0.13",
+  "version": "1.0.14",
   "description": "Electron Server Manager Application",
   "main": "dist/main/main.js",
   "homepage": "./",
