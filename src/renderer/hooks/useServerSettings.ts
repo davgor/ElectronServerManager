@@ -15,6 +15,7 @@ interface UseServerSettingsResult {
   setBackupPath: (appId: number, path: string) => void;
   setBackupInterval: (appId: number, seconds: number) => void;
   setSelectedSteamPath: (path: string) => void;
+  setSteamCmdPath: (path: string) => void;
 }
 
 function persistSettings(settings: AppSettings): void {
@@ -118,6 +119,16 @@ export function useServerSettings(): UseServerSettingsResult {
     [updateSettings]
   );
 
+  const setSteamCmdPath = useCallback(
+    (path: string) => {
+      updateSettings((previous) => ({
+        ...previous,
+        steamCmdPath: path,
+      }));
+    },
+    [updateSettings]
+  );
+
   return {
     settings,
     settingsLoaded,
@@ -126,5 +137,6 @@ export function useServerSettings(): UseServerSettingsResult {
     setBackupPath,
     setBackupInterval,
     setSelectedSteamPath,
+    setSteamCmdPath,
   };
 }

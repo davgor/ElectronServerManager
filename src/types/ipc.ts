@@ -50,6 +50,26 @@ export interface WindowMaximizeToggleResponse extends IpcActionResult {
   maximized?: boolean;
 }
 
+/** Stage of the auto-update state machine a result refers to. */
+export type AutoUpdateStage =
+  | "validating"
+  | "resolving-steamcmd"
+  | "stopping"
+  | "updating"
+  | "verifying"
+  | "restarting"
+  | "no-update"
+  | "complete";
+
+export interface AutoUpdateServerResponse extends IpcActionResult {
+  /** Stage the update finished at (or failed in, when success is false). */
+  stage: AutoUpdateStage;
+  /** True when a new build was downloaded and the server was restarted. */
+  updated: boolean;
+  previousBuildId?: string | null;
+  newBuildId?: string | null;
+}
+
 export interface ServerPersistedSettings {
   autoRestart: boolean;
   autoUpdate: boolean;
@@ -59,6 +79,8 @@ export interface ServerPersistedSettings {
 
 export interface AppSettings {
   selectedSteamPath?: string;
+  /** Path to the steamcmd executable used for forced server updates. */
+  steamCmdPath?: string;
   /** Keyed by Steam appId (stringified number). */
   servers: Record<string, ServerPersistedSettings>;
 }
@@ -90,7 +112,7 @@ export interface IpcInvokeMap {
   };
   "auto-update-server": {
     args: [appId: number, installPath: string, steamPath: string];
-    result: IpcActionResult;
+    result: AutoUpdateServerResponse;
   };
   "backup-server-save": {
     args: [appId: number, installPath: string, backupPath: string];
@@ -145,7 +167,7 @@ export interface ElectronAPI {
     appId: number,
     installPath: string,
     steamPath: string
-  ) => Promise<IpcActionResult>;
+  ) => Promise<AutoUpdateServerResponse>;
   backupServerSave: (
     appId: number,
     installPath: string,

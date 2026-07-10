@@ -6,6 +6,7 @@ import type { ServerPersistedSettings } from "../types/ipc";
 import "./App.css";
 import { ConfigEditor } from "./ConfigEditor";
 import { ServerCard } from "./ServerCard";
+import { SteamCmdPathInput } from "./SteamCmdPathInput";
 import { SteamPathSelector } from "./SteamPathSelector";
 import TitleBar from "./TitleBar";
 import { useServerBackups } from "./hooks/useServerBackups";
@@ -36,6 +37,7 @@ function App(): JSX.Element {
     setBackupPath,
     setBackupInterval,
     setSelectedSteamPath,
+    setSteamCmdPath,
   } = useServerSettings();
 
   const autoRestartAppIds = useMemo(
@@ -151,6 +153,11 @@ function App(): JSX.Element {
           paths={availablePaths}
           selectedPath={selectedPath}
           onSelect={handleSelectPath}
+        />
+
+        <SteamCmdPathInput
+          value={settings.steamCmdPath ?? ""}
+          onChange={setSteamCmdPath}
         />
 
         {displayedError !== null && (

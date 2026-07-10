@@ -365,6 +365,36 @@ describe("App Component", () => {
     });
   });
 
+  it("should persist the steamcmd path entered in settings", async () => {
+    const user = userEvent.setup();
+
+    render(<App />);
+
+    const input = await screen.findByLabelText("SteamCMD Path:");
+    await user.type(input, "/usr/bin/steamcmd");
+    await user.tab();
+
+    await waitFor(() => {
+      expect(mockSaveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ steamCmdPath: "/usr/bin/steamcmd" })
+      );
+    });
+  });
+
+  it("should show the persisted steamcmd path", async () => {
+    mockGetSettings.mockResolvedValue({
+      success: true,
+      settings: { steamCmdPath: "C:\\steamcmd\\steamcmd.exe", servers: {} },
+    });
+
+    render(<App />);
+
+    const input = await screen.findByLabelText("SteamCMD Path:");
+    await waitFor(() => {
+      expect(input).toHaveValue("C:\\steamcmd\\steamcmd.exe");
+    });
+  });
+
   it("should render app container", () => {
     render(<App />);
     const appContainer = screen.getByRole("heading", {

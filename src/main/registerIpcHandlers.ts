@@ -9,7 +9,8 @@ import {
   fetchSteamServers,
   openFileDefault,
 } from "./steamIpc";
-import { startServer, stopServer, autoUpdateServer } from "./serverProcess";
+import { startServer, stopServer } from "./serverProcess";
+import { autoUpdateServer } from "./autoUpdate";
 import { getServerConfig, saveServerConfig } from "./serverConfig";
 import { backupServerSaveHandler, selectBackupFolder } from "./serverBackup";
 import { getSettings, saveSettings } from "./settingsStore";
@@ -48,7 +49,8 @@ export function registerIpcHandlers(deps: IpcRegistrationDeps): void {
   ipcMain.handle(
     "auto-update-server",
     async (_event, appId: number, installPath: string, steamPath: string) => {
-      return autoUpdateServer(appId, installPath, steamPath);
+      const steamCmdPath = getSettings().settings.steamCmdPath;
+      return autoUpdateServer(appId, installPath, steamPath, { steamCmdPath });
     }
   );
 

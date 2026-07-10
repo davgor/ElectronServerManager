@@ -86,6 +86,26 @@ describe("useServerSettings", () => {
     expect(result.current.settings).toEqual(expected);
   });
 
+  it("persists the steamcmd path via setSteamCmdPath", async () => {
+    const mock = installElectronMock({ servers: {} });
+
+    const { result } = renderHook(() => useServerSettings());
+    await waitFor(() => {
+      expect(result.current.settingsLoaded).toBe(true);
+    });
+
+    act(() => {
+      result.current.setSteamCmdPath("/usr/bin/steamcmd");
+    });
+
+    const expected: AppSettings = {
+      steamCmdPath: "/usr/bin/steamcmd",
+      servers: {},
+    };
+    expect(mock.saveSettings).toHaveBeenCalledWith(expected);
+    expect(result.current.settings).toEqual(expected);
+  });
+
   it("preserves other servers' entries when updating one server", async () => {
     const persisted: AppSettings = {
       servers: {
