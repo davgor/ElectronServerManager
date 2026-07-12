@@ -364,6 +364,22 @@
   transition: background-color 0.15s;
 }
 
+.btn-remove.btn-small {
+  padding: 4px 8px;
+  font-size: 12px;
+  flex: 0 0 auto;
+}
+
+.property-group-title > .btn-remove {
+  margin-left: 4px;
+}
+
+.property-value-checkbox {
+  width: auto;
+  max-width: none;
+  accent-color: #00a8ff;
+}
+
 .btn-remove:hover {
   background-color: #8a3a3a;
 }
