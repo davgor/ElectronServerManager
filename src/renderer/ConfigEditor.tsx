@@ -11,6 +11,24 @@ interface ConfigEditorProps {
   onSave: () => void;
 }
 
+function coerceEditedValue(
+  original: unknown,
+  inputValue: string,
+  checked?: boolean
+): unknown {
+  if (typeof original === "boolean") {
+    return Boolean(checked);
+  }
+  if (typeof original === "number") {
+    if (inputValue === "") {
+      return 0;
+    }
+    const parsed = Number(inputValue);
+    return Number.isNaN(parsed) ? original : parsed;
+  }
+  return inputValue;
+}
+
 export function ConfigEditor({
   appId,
   serverName,
@@ -24,13 +42,11 @@ export function ConfigEditor({
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
-  // per-parent add fields are stored in `addFields`
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
   const [addFields, setAddFields] = useState<
     Record<string, { key: string; value: string } | undefined>
   >({});
 
-  // Load config on mount
   useEffect(() => {
     void (async (): Promise<void> => {
       try {
@@ -49,7 +65,6 @@ export function ConfigEditor({
 
         setConfig(result.content ?? {});
         setFormat(result.format ?? "json");
-        // store filePath for open-in-default action
         if (typeof result.filePath === "string") {
           setFilePath(result.filePath);
         } else {
@@ -65,17 +80,28 @@ export function ConfigEditor({
     })();
   }, [appId, installPath]);
 
-  // global add helper removed; use per-parent inline add fields instead
-
-  // removed unused: handleRemoveProperty, handlePropertyChange
-
-  // Helpers for nested properties
   const deepClone = (obj: unknown): unknown => {
     try {
       return JSON.parse(JSON.stringify(obj));
     } catch {
       return obj;
     }
+  };
+
+  const navigateToParent = (
+    root: Record<string, unknown>,
+    pathArr: string[]
+  ): Record<string, unknown> | null => {
+    let cur: Record<string, unknown> = root;
+    for (let i = 0; i < pathArr.length - 1; i++) {
+      const p = pathArr[i];
+      const next = cur[p];
+      if (typeof next !== "object" || next === null) {
+        return null;
+      }
+      cur = next as Record<string, unknown>;
+    }
+    return cur;
   };
 
   const updateConfigAtPath = (pathArr: string[], value: unknown): void => {
@@ -97,6 +123,36 @@ export function ConfigEditor({
     });
   };
 
+  const deleteConfigAtPath = (pathArr: string[]): void => {
+    setConfig((prev) => {
+      if (!prev || pathArr.length === 0) {
+        return prev;
+      }
+      const next = deepClone(prev) as Record<string, unknown>;
+      const parent = navigateToParent(next, pathArr);
+      if (!parent) {
+        return next;
+      }
+      const lastKey = pathArr[pathArr.length - 1];
+      // eslint-disable-next-line @typescript-eslint/no-dynamic-delete
+      delete parent[lastKey];
+      return next;
+    });
+  };
+
+  const handleDeleteProperty = (
+    pathArr: string[],
+    key: string,
+    isTopLevel: boolean
+  ): void => {
+    if (isTopLevel) {
+      if (!window.confirm(`Delete property "${key}"?`)) {
+        return;
+      }
+    }
+    deleteConfigAtPath(pathArr);
+  };
+
   const updateArrayAtPath = (
     pathArr: string[],
     index: number,
@@ -111,7 +167,6 @@ export function ConfigEditor({
       for (let i = 0; i < pathArr.length; i++) {
         const p = pathArr[i];
         if (i === pathArr.length - 1) {
-          // last segment should be array
           const arr = cur[p] as unknown[] | undefined;
           if (!Array.isArray(arr)) {
             return next;
@@ -144,7 +199,6 @@ export function ConfigEditor({
           if (!Array.isArray(existing)) {
             cur[p] = [""];
           } else {
-            // default push empty string
             arr.push("");
             cur[p] = arr;
           }
@@ -159,7 +213,6 @@ export function ConfigEditor({
     });
   };
 
-  // Add array element with optional template (duplicate existing element structure)
   const addArrayElementWithTemplate = (
     pathArr: string[],
     template?: unknown
@@ -241,11 +294,73 @@ export function ConfigEditor({
       return;
     }
 
-    // Insert new property under parent path
     const targetPath = [...pathArr, field.key.trim()];
     updateConfigAtPath(targetPath, field.value);
     hideAddField(pathStr);
   };
+
+  const renderLeafControl = (
+    label: string,
+    value: unknown,
+    onChange: (next: unknown) => void
+  ): JSX.Element => {
+    if (typeof value === "boolean") {
+      return (
+        <input
+          type="checkbox"
+          checked={value}
+          onChange={(e) =>
+            onChange(coerceEditedValue(value, "", e.target.checked))
+          }
+          aria-label={label}
+          className="property-value-input property-value-checkbox"
+        />
+      );
+    }
+
+    if (typeof value === "number") {
+      return (
+        <input
+          type="number"
+          value={Number.isFinite(value) ? value : ""}
+          onChange={(e) => onChange(coerceEditedValue(value, e.target.value))}
+          aria-label={label}
+          className="property-value-input"
+          style={{ maxWidth: 420 }}
+        />
+      );
+    }
+
+    return (
+      <input
+        type="text"
+        value={value === undefined || value === null ? "" : String(value)}
+        onChange={(e) => onChange(coerceEditedValue(value, e.target.value))}
+        aria-label={label}
+        className="property-value-input"
+        style={{ maxWidth: 420 }}
+      />
+    );
+  };
+
+  const renderDeleteButton = (
+    pathArr: string[],
+    key: string,
+    isTopLevel: boolean
+  ): JSX.Element => (
+    <button
+      type="button"
+      className="btn btn-remove btn-small"
+      onClick={(e) => {
+        e.stopPropagation();
+        handleDeleteProperty(pathArr, key, isTopLevel);
+      }}
+      aria-label={`Delete ${key}`}
+      title={`Delete ${key}`}
+    >
+      ✕
+    </button>
+  );
 
   const renderProperty = (
     key: string,
@@ -255,9 +370,9 @@ export function ConfigEditor({
   ): JSX.Element => {
     const fullPath = [...pathArr, key];
     const pathStr = fullPath.join(".");
+    const isTopLevel = pathArr.length === 0;
 
     if (value !== null && value !== undefined && typeof value === "object") {
-      // Arrays: render each item (break down objects inside arrays)
       if (Array.isArray(value)) {
         const arr = value as unknown[];
         const isExpanded = expandedPaths.has(pathStr);
@@ -284,10 +399,10 @@ export function ConfigEditor({
                 {key} [Array({arr.length})]
               </div>
               <button
+                type="button"
                 className="btn btn-plus"
                 onClick={(e) => {
                   e.stopPropagation();
-                  // If array has object items, duplicate the last object's structure, else add blank
                   const last = arr.length > 0 ? arr[arr.length - 1] : undefined;
                   if (
                     last !== undefined &&
@@ -303,6 +418,7 @@ export function ConfigEditor({
               >
                 +
               </button>
+              {renderDeleteButton(fullPath, key, isTopLevel)}
             </div>
 
             <div
@@ -315,7 +431,6 @@ export function ConfigEditor({
                   typeof item === "object" &&
                   !Array.isArray(item)
                 ) {
-                  // Render object item as its own collapsible group with index label
                   const itemPath = [...fullPath, itemKey];
                   const itemPathStr = itemPath.join(".");
                   const itemExpanded = expandedPaths.has(itemPathStr);
@@ -342,6 +457,7 @@ export function ConfigEditor({
                         />
                         <div className="property-name">[{idx}]</div>
                         <button
+                          type="button"
                           className="btn btn-plus"
                           onClick={(e) => {
                             e.stopPropagation();
@@ -366,9 +482,12 @@ export function ConfigEditor({
                   );
                 }
 
+                // Index keys are intentional (007.1): primitives lack stable ids;
+                // pathStr + idx avoids remount flicker from Date.now()/Math.random().
                 return (
                   <div
-                    key={`${pathStr}.${Date.now()}.${Math.random().toString(36).slice(2, 9)}`}
+                    // eslint-disable-next-line react/no-array-index-key -- 007.1 stable index keys
+                    key={`${pathStr}.${idx}`}
                     className="property-item two-column"
                     style={{ paddingLeft: (depth + 1) * 18 }}
                   >
@@ -380,24 +499,13 @@ export function ConfigEditor({
                         gap: 8,
                       }}
                     >
-                      <input
-                        type="text"
-                        value={
-                          item === undefined || item === null
-                            ? ""
-                            : String(item)
-                        }
-                        onChange={(e) =>
-                          updateArrayAtPath(fullPath, idx, e.target.value)
-                        }
-                        className="property-value-input"
-                        style={{ maxWidth: 420 }}
-                      />
+                      {renderLeafControl(String(item), item, (next) =>
+                        updateArrayAtPath(fullPath, idx, next)
+                      )}
                     </div>
                   </div>
                 );
               })}
-              {/* array-controls removed - use header + to add items */}
             </div>
 
             <div className="group-end-divider" />
@@ -405,7 +513,6 @@ export function ConfigEditor({
         );
       }
 
-      // Plain object
       const obj = value as Record<string, unknown>;
       const isExpanded = expandedPaths.has(pathStr);
 
@@ -429,6 +536,7 @@ export function ConfigEditor({
             <span className={`caret ${isExpanded ? "rotated" : ""}`} />
             <div className="property-name">{key}</div>
             <button
+              type="button"
               className="btn btn-plus"
               onClick={(e) => {
                 e.stopPropagation();
@@ -438,6 +546,7 @@ export function ConfigEditor({
             >
               +
             </button>
+            {renderDeleteButton(fullPath, key, isTopLevel)}
           </div>
 
           <div
@@ -471,6 +580,7 @@ export function ConfigEditor({
                   className="property-value-input"
                 />
                 <button
+                  type="button"
                   className="btn btn-small btn-save-inline"
                   onClick={() => handleAddField(fullPath, pathStr)}
                   title="Save"
@@ -478,6 +588,7 @@ export function ConfigEditor({
                   💾
                 </button>
                 <button
+                  type="button"
                   className="btn btn-small btn-cancel-inline"
                   onClick={() => hideAddField(pathStr)}
                   title="Cancel"
@@ -501,13 +612,10 @@ export function ConfigEditor({
       >
         <div className="property-name">{key}</div>
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          <input
-            type="text"
-            value={value === undefined || value === null ? "" : String(value)}
-            onChange={(e) => updateConfigAtPath(fullPath, e.target.value)}
-            className="property-value-input"
-            style={{ maxWidth: 420 }}
-          />
+          {renderLeafControl(key, value, (next) =>
+            updateConfigAtPath(fullPath, next)
+          )}
+          {renderDeleteButton(fullPath, key, isTopLevel)}
         </div>
       </div>
     );
@@ -558,7 +666,7 @@ export function ConfigEditor({
         <div className="config-editor-modal">
           <div className="config-editor-header">
             <h2>Edit Configuration</h2>
-            <button className="close-btn" onClick={onClose}>
+            <button type="button" className="close-btn" onClick={onClose}>
               ✕
             </button>
           </div>
@@ -578,7 +686,7 @@ export function ConfigEditor({
             <h2>Edit Configuration</h2>
             <p className="config-editor-subtitle">{serverName}</p>
           </div>
-          <button className="close-btn" onClick={onClose}>
+          <button type="button" className="close-btn" onClick={onClose}>
             ✕
           </button>
         </div>
@@ -595,6 +703,7 @@ export function ConfigEditor({
               <div className="properties-header">
                 <h3>Current Properties</h3>
                 <button
+                  type="button"
                   className="btn btn-plus"
                   onClick={() => showAddField("")}
                   title="Add top-level property"
@@ -627,6 +736,7 @@ export function ConfigEditor({
                       className="property-value-input"
                     />
                     <button
+                      type="button"
                       className="btn btn-small btn-save-inline"
                       onClick={() => handleAddField([], "")}
                       title="Save"
@@ -634,6 +744,7 @@ export function ConfigEditor({
                       💾
                     </button>
                     <button
+                      type="button"
                       className="btn btn-small btn-cancel-inline"
                       onClick={() => hideAddField("")}
                       title="Cancel"
@@ -647,15 +758,14 @@ export function ConfigEditor({
           ) : (
             <p className="empty-config">No properties found</p>
           )}
-
-          {/* Inline per-parent add controls shown next to each group title */}
         </div>
 
         <div className="config-editor-footer">
-          <button className="btn btn-cancel" onClick={onClose}>
+          <button type="button" className="btn btn-cancel" onClick={onClose}>
             Cancel
           </button>
           <button
+            type="button"
             className="btn btn-open"
             onClick={() => {
               if (filePath === null || filePath === "") {
@@ -673,6 +783,7 @@ export function ConfigEditor({
           </button>
 
           <button
+            type="button"
             className="btn btn-save"
             onClick={handleSave}
             disabled={saving}
