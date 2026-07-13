@@ -1,0 +1,42 @@
+name: Kickback on CI failure
+
+# Runs from the default branch. When a required CI workflow fails on a direct
+# push to main/master, revert that commit ("kickback") so bad code does not stay.
+on:
+  workflow_run:
+    workflows:
+      - Lint
+      - Type Check
+      - Unit Tests
+      - Dead Code Check
+      - Security Audit
+    types:
+      - completed
+
+concurrency:
+  group: kickback-${{ github.event.workflow_run.head_sha }}
+  cancel-in-progress: true
+
+jobs:
+  kickback:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      actions: read
+      checks: read
+    steps:
+      - name: Checkout (scripts from default branch)
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Kickback failing push if policy allows
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          CONCLUSION: ${{ github.event.workflow_run.conclusion }}
+          EVENT_NAME: ${{ github.event.workflow_run.event }}
+          BRANCH: ${{ github.event.workflow_run.head_branch }}
+          SHA: ${{ github.event.workflow_run.head_sha }}
+          WORKFLOW_NAME: ${{ github.event.workflow_run.name }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+        run: node .github/scripts/kickback-run.cjs

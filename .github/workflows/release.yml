@@ -9,12 +9,29 @@ on:
 
 jobs:
   release:
+    # Skip Actions bot pushes (version bumps) and Kickback reverts so we do not
+    # publish from auto-generated commits. CI must be green before packaging.
+    if: >
+      github.event_name == 'workflow_dispatch' ||
+      github.event_name == 'merge_group' ||
+      (github.event_name == 'push' &&
+       github.actor != 'github-actions[bot]' &&
+       !startsWith(github.event.head_commit.message, 'Kickback:'))
     runs-on: ubuntu-latest
     permissions:
       contents: write
+      checks: read
+      actions: read
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Wait for required CI checks
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          SHA: ${{ github.sha }}
+        run: node .github/scripts/wait-for-required-checks.cjs
 
       - name: Setup Node.js
         uses: actions/setup-node@v4
@@ -30,12 +47,6 @@ jobs:
 
       - name: Install dependencies
         run: npm ci
-
-      - name: Lint
-        run: npm run lint
-
-      - name: Type check
-        run: npm run type-check
 
       - name: Build
         run: npm run build
