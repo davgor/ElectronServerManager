@@ -25,9 +25,10 @@ function delay(ms: number): Promise<void> {
 
 /**
  * Auto-update state machine: validate -> resolve steamcmd -> stop server ->
- * run steamcmd app_update -> verify buildid (with backoff) -> restart only
- * on a confirmed build change. Every result carries the stage it finished
- * at (or failed in), so the renderer can surface actionable status.
+ * run steamcmd app_update (into installPath) -> verify buildid (with backoff)
+ * -> always restart after a successful stop. `updated: true` means the
+ * buildid changed; `stage: "no-update"` still restarts so the checkbox keeps
+ * the server running after a check.
  */
 export async function autoUpdateServer(
   appId: number,
@@ -79,17 +80,33 @@ export async function autoUpdateServer(
     };
   }
 
-  // Stage: updating
-  const updateResult = await runSteamCmdUpdate(steamCmdPath, appId, {
-    timeoutMs: options?.steamCmdTimeoutMs,
-  });
+  // Stage: updating — target the managed install dir, not steamcmd's default.
+  const updateResult = await runSteamCmdUpdate(
+    steamCmdPath,
+    appId,
+    installPath,
+    {
+      timeoutMs: options?.steamCmdTimeoutMs,
+    }
+  );
   if (!updateResult.success) {
+    const updateError = updateResult.error ?? "steamcmd update failed";
+    const startResult = await startServer(appId, installPath);
+    if (!startResult.success) {
+      return {
+        success: false,
+        stage: "updating",
+        updated: false,
+        previousBuildId,
+        error: `${updateError} Server was left stopped after the failed update: ${startResult.error ?? "unknown error"}`,
+      };
+    }
     return {
       success: false,
       stage: "updating",
       updated: false,
       previousBuildId,
-      error: updateResult.error ?? "steamcmd update failed",
+      error: updateError,
     };
   }
 
@@ -108,6 +125,29 @@ export async function autoUpdateServer(
     previousBuildId !== null &&
     newBuildId !== previousBuildId;
 
+  // Stage: restarting — always bring the server back after a successful stop.
+  const startResult = await startServer(appId, installPath);
+  if (!startResult.success) {
+    if (buildChanged) {
+      return {
+        success: false,
+        stage: "restarting",
+        updated: true,
+        previousBuildId,
+        newBuildId,
+        error: `Server updated to build ${newBuildId} but failed to restart: ${startResult.error ?? "unknown error"}`,
+      };
+    }
+    return {
+      success: false,
+      stage: "restarting",
+      updated: false,
+      previousBuildId,
+      newBuildId,
+      error: `Update check finished but failed to restart: ${startResult.error ?? "unknown error"}`,
+    };
+  }
+
   if (!buildChanged) {
     return {
       success: true,
@@ -115,19 +155,6 @@ export async function autoUpdateServer(
       updated: false,
       previousBuildId,
       newBuildId,
-    };
-  }
-
-  // Stage: restarting — only on a confirmed build change.
-  const startResult = await startServer(appId, installPath);
-  if (!startResult.success) {
-    return {
-      success: false,
-      stage: "restarting",
-      updated: true,
-      previousBuildId,
-      newBuildId,
-      error: `Server updated to build ${newBuildId} but failed to restart: ${startResult.error ?? "unknown error"}`,
     };
   }
 

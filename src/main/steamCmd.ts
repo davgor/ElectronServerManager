@@ -71,13 +71,18 @@ export function resolveSteamCmdPath(configuredPath?: string): string | null {
 }
 
 /**
- * Run `steamcmd +login anonymous +app_update <appId> validate +quit` and
- * resolve with the outcome. Never rejects; failures (including timeouts and
- * spawn errors) resolve as `{ success: false, error }`.
+ * Run `steamcmd +force_install_dir <installPath> +login anonymous +app_update
+ * <appId> validate +quit` and resolve with the outcome. Never rejects;
+ * failures (including timeouts and spawn errors) resolve as
+ * `{ success: false, error }`.
+ *
+ * `+force_install_dir` must come before login/app_update so the depot lands
+ * in the managed server install, not steamcmd's default library.
  */
 export function runSteamCmdUpdate(
   steamCmdPath: string,
   appId: number,
+  installPath: string,
   options?: RunSteamCmdOptions
 ): Promise<IpcActionResult> {
   const timeoutMs = options?.timeoutMs ?? DEFAULT_STEAMCMD_TIMEOUT_MS;
@@ -98,6 +103,8 @@ export function runSteamCmdUpdate(
     const child = spawn(
       steamCmdPath,
       [
+        "+force_install_dir",
+        installPath,
         "+login",
         "anonymous",
         "+app_update",

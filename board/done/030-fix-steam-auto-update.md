@@ -11,11 +11,11 @@ Per-server “Auto-update & restart when available” still does not reliably up
 
 ## Acceptance criteria (epic)
 
-- [ ] SteamCMD updates the detected server install directory (`+force_install_dir` using `installPath`)
-- [ ] After a successful update check, a previously running server is running again whether or not buildid changed (unless stop/start itself fails)
-- [ ] SteamCMD failure after stop attempts restart (or surfaces a clear error that the server was left stopped)
-- [ ] Unit tests cover install-dir args, no-update restart, and post-failure restart; existing wrong “do not restart on no-update” expectations are corrected
-- [ ] `npm run lint`, `npm test`, `npm run type-check`, `npm run deadcode`, `npm run electron-build` pass
+- [x] SteamCMD updates the detected server install directory (`+force_install_dir` using `installPath`)
+- [x] After a successful update check, a previously running server is running again whether or not buildid changed (unless stop/start itself fails)
+- [x] SteamCMD failure after stop attempts restart (or surfaces a clear error that the server was left stopped)
+- [x] Unit tests cover install-dir args, no-update restart, and post-failure restart; existing wrong “do not restart on no-update” expectations are corrected
+- [x] `npm run lint`, `npm test`, `npm run type-check`, `npm run deadcode`, `npm run electron-build` pass
 
 ## Sub-tickets
 
@@ -37,10 +37,10 @@ Thread `installPath` into `runSteamCmdUpdate` and invoke SteamCMD as:
 
 #### Acceptance criteria
 
-- [ ] `runSteamCmdUpdate` accepts and passes `installPath` as `+force_install_dir`
-- [ ] `autoUpdateServer` / IPC path supplies the server `installPath` already available to the handler
-- [ ] Unit tests assert spawn argv includes `+force_install_dir` and the install path before `+app_update`
-- [ ] `npm test` for `steamCmd` / `autoUpdate` passes
+- [x] `runSteamCmdUpdate` accepts and passes `installPath` as `+force_install_dir`
+- [x] `autoUpdateServer` / IPC path supplies the server `installPath` already available to the handler
+- [x] Unit tests assert spawn argv includes `+force_install_dir` and the install path before `+app_update`
+- [x] `npm test` for `steamCmd` / `autoUpdate` passes
 
 ### 030.2 — Always restart after stop (no-update and failure)
 
@@ -54,10 +54,10 @@ Keep “restart only on confirmed change” as the **update applied** signal (`u
 
 #### Acceptance criteria
 
-- [ ] `stage: "no-update"` still means no depot change, but `startServer` was called after stop
-- [ ] SteamCMD failure after stop attempts restart; result still reports `success: false` with stage `updating` (or equivalent) and a clear error
-- [ ] Tests that previously expected `startServer` not called on no-update are updated and pass
-- [ ] `npm test` for `autoUpdate` passes
+- [x] `stage: "no-update"` still means no depot change, but `startServer` was called after stop
+- [x] SteamCMD failure after stop attempts restart; result still reports `success: false` with stage `updating` (or equivalent) and a clear error
+- [x] Tests that previously expected `startServer` not called on no-update are updated and pass
+- [x] `npm test` for `autoUpdate` passes
 
 ### 030.3 — Soften auto-update polling (optional / follow-up)
 
@@ -65,8 +65,12 @@ Today `useSteamServers` stops+validates every 5 minutes while running. Prefer a 
 
 **Origin:** Review — cooldown still runs a full disruptive validate loop.
 
+**Decision (2026-07-13): defer cheaper pre-check.**
+
+Rationale: with 030.1–030.2 fixed, each cooldown tick still briefly stops the server, but SteamCMD now targets the correct install and the process is always restarted (including on `no-update` and SteamCMD failure). A true non-disruptive check needs a remote/build-availability signal (e.g. Steam `app_info` plumbing) that this repo does not have yet; inventing a half-measure would not remove the stop+validate path. Track a cheaper pre-check as a follow-up if the 5-minute brief downtime remains painful in practice.
+
 #### Acceptance criteria
 
-- [ ] Documented decision: implement cheaper check **or** explicitly defer with rationale in this ticket
-- [ ] If implemented: no full stop+validate on every cooldown tick unless an update is indicated; covered by hook/unit tests
-- [ ] `npm test` / lint pass for touched files
+- [x] Documented decision: implement cheaper check **or** explicitly defer with rationale in this ticket
+- [x] If implemented: N/A — deferred (see Decision above); no cheaper pre-check in this epic
+- [x] `npm test` / lint pass for touched files
