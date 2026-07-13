@@ -98,13 +98,29 @@ interface ReleaseGateInput {
   eventName: string;
   actor: string;
   headCommitMessage: string;
+  /** When provided and non-empty, markdown-only changes skip release (except workflow_dispatch). */
+  changedFiles?: readonly string[];
+}
+
+/** True only when every path is a markdown file. Empty list is not markdown-only (unknown set). */
+export function isMarkdownOnlyChange(files: readonly string[]): boolean {
+  if (files.length === 0) {
+    return false;
+  }
+  return files.every((file) => /\.md$/i.test(file));
 }
 
 export function shouldRunRelease(input: ReleaseGateInput): boolean {
+  if (input.eventName === "workflow_dispatch") {
+    return true;
+  }
   if (
-    input.eventName === "workflow_dispatch" ||
-    input.eventName === "merge_group"
+    input.changedFiles !== undefined &&
+    isMarkdownOnlyChange(input.changedFiles)
   ) {
+    return false;
+  }
+  if (input.eventName === "merge_group") {
     return true;
   }
   if (input.eventName !== "push") {

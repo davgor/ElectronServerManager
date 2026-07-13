@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - main
+    # Docs / board-only pushes should not cut a version or publish artifacts.
+    paths-ignore:
+      - "**/*.md"
   merge_group:
   workflow_dispatch:
 

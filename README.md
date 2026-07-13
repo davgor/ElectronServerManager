@@ -2,22 +2,34 @@
 
 Desktop app for detecting and managing Steam dedicated servers. It finds
 installed catalog servers, then lets you start/stop them, auto-restart on
-crash, update game files via SteamCMD, back up saves, and edit server config —
-all from a frameless Electron UI.
+crash, update game files via SteamCMD, schedule or run save backups, and edit
+server config — all from a frameless Electron UI. Palworld servers also get a
+REST admin panel and a live ops view when the in-game REST API is enabled.
 
 Built for personal server ops; kept intentionally small and explicit about what
-it supports.
+it supports. Windows, Linux, and macOS are supported where the catalog defines
+platform-specific executables and config paths (see
+[docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md)).
 
 ## Features
 
-- **Steam detection** — Scans Steam libraries for servers in the built-in catalog
+- **Steam detection** — Scans Steam libraries for servers in the built-in catalog;
+  shows Steam cover art when available
+- **Multi-library Steam paths** — Prefer a Steam install when more than one exists
 - **Run / stop** — Launch or shut down the dedicated server process
+- **Server output** — View recent captured stdout/stderr for a managed server
 - **Auto-restart** — Optional restart if a managed server crashes
 - **Auto-update (game files)** — Optional SteamCMD update before/around runs
-- **Save backups** — Copy save data to a folder you choose
-- **Config editor** — View and edit JSON/INI server configs in-app
+  (SteamCMD path configurable in the UI)
+- **Save backups** — Manual backup or timed intervals to a folder you choose
+- **Config editor** — View and edit JSON/INI server configs in-app, with search
+  that filters the tree to matching keys
+- **Palworld Admin** — Modal for the documented Palworld REST API (info, players,
+  metrics, kick/ban, announce, save, shutdown, etc.); requires `RESTAPIEnabled`
+  in config
+- **Palworld live ops** — Optional on-card polling of info/players/metrics while
+  the server is running and REST is enabled (interval persisted per server)
 - **Custom title bar** — Frameless window with minimize / maximize / close
-- **Multi-library Steam paths** — Prefer a Steam install when more than one exists
 - **App auto-update** — Packaged builds check GitHub Releases (NSIS / AppImage);
   see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md)
 
@@ -30,6 +42,9 @@ Currently shipped catalog (see `src/main/steamDetection.ts`):
 | `2278520` | Enshrouded Dedicated Server |
 | `1623730` | Palworld Dedicated Server |
 
+Palworld includes Linux executable (`PalServer.sh`) and config-path overrides;
+Enshrouded uses the Windows `.exe` (typically Wine/Proton on Linux).
+
 To add another game, follow [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
 
 ## Requirements
@@ -37,6 +52,8 @@ To add another game, follow [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
 - Node.js compatible with the repo’s Electron/Vite toolchain
 - Steam installed (for detection and installs)
 - SteamCMD available for game auto-update flows (path configurable in the UI)
+- For Palworld Admin / live ops: server config with `RESTAPIEnabled` (and related
+  REST settings) — enable via **Edit Config** if the Admin button is disabled
 
 ## Quick start
 
@@ -97,7 +114,7 @@ flow.
 
 ## Stack
 
-Electron **39.2.7**, Vite **7.3.0**, React **18**, TypeScript **5.3** — see
+Electron **^39.8**, Vite **^7.3**, React **^18.2**, TypeScript **^5.3** — see
 `package.json` for exact ranges. Deeper layout and IPC: [ARCHITECTURE.md](ARCHITECTURE.md).
 
 ## License

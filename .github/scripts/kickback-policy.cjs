@@ -60,13 +60,21 @@ function evaluateRequiredChecks(requiredNames, checkRuns) {
   return anyPending ? "pending" : "success";
 }
 
+function isMarkdownOnlyChange(files) {
+  const list = Array.isArray(files) ? files : [];
+  if (list.length === 0) return false;
+  return list.every((file) => /\.md$/i.test(String(file || "")));
+}
+
 function shouldRunRelease(input) {
+  if (input.eventName === "workflow_dispatch") return true;
   if (
-    input.eventName === "workflow_dispatch" ||
-    input.eventName === "merge_group"
+    input.changedFiles !== undefined &&
+    isMarkdownOnlyChange(input.changedFiles)
   ) {
-    return true;
+    return false;
   }
+  if (input.eventName === "merge_group") return true;
   if (input.eventName !== "push") return false;
   if (input.actor === "github-actions[bot]") return false;
   if (isKickbackCommitMessage(input.headCommitMessage)) return false;
@@ -77,6 +85,7 @@ module.exports = {
   REQUIRED_CI_CHECK_NAMES,
   PROTECTED_PUSH_BRANCHES,
   isKickbackCommitMessage,
+  isMarkdownOnlyChange,
   shouldKickback,
   evaluateRequiredChecks,
   shouldRunRelease,
