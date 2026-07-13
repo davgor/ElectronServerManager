@@ -1,307 +1,163 @@
-# Architecture Diagram - Steam Server Manager
+# Architecture — Steam Server Manager
 
-## Application Flow
+Desktop Electron app that detects Steam-installed dedicated servers, then
+start/stop, auto-restart, SteamCMD update, backup, and edit config from a
+frameless React UI.
 
-```
-┌─────────────────────────────────────────────────────────────────┐
-│                         ELECTRON APP                             │
-├─────────────────────────────────────────────────────────────────┤
-│                                                                   │
-│  ┌─────────────────────────────────────────────────────────┐   │
-│  │              MAIN PROCESS (Node.js)                     │   │
-│  │          (src/main/main.ts)                             │   │
-│  │                                                         │   │
-│  │  ┌─────────────────────────────────────────────────┐   │   │
-│  │  │ IPC Handler: 'get-steam-servers'                │   │   │
-│  │  │                                                 │   │   │
-│  │  │ Calls: findInstalledServers()                  │   │   │
-│  │  └──────────────────┬──────────────────────────────┘   │   │
-│  │                     │                                   │   │
-│  │  ┌──────────────────▼──────────────────────────────┐   │   │
-│  │  │  src/main/steamDetection.ts                    │   │   │
-│  │  │                                                 │   │   │
-│  │  │  1. findSteamPath()                             │   │   │
-│  │  │     ├─ Windows: Registry lookup                │   │   │
-│  │  │     ├─ macOS: ~/Library/Application Support   │   │   │
-│  │  │     └─ Linux: ~/.steam/steam                  │   │   │
-│  │  │                                                 │   │   │
-│  │  │  2. parseLibraryFolders()                       │   │   │
-│  │  │     └─ Read libraryfolders.vdf                │   │   │
-│  │  │                                                 │   │   │
-│  │  │  3. Loop through STEAM_DEDICATED_SERVERS       │   │   │
-│  │  │     └─ Check for appmanifest_*.acf files      │   │   │
-│  │  │                                                 │   │   │
-│  │  │  4. isProcessRunning()                          │   │   │
-│  │  │     └─ Check if server process is active      │   │   │
-│  │  │                                                 │   │   │
-│  │  │  Returns: SteamServer[]                         │   │   │
-│  │  └──────────────────┬──────────────────────────────┘   │   │
-│  │                     │                                   │   │
-│  │  Stores as JSON and returns via IPC                    │   │
-│  └─────────────────────┬───────────────────────────────────┘   │
-│                        │                                         │
-│  ┌─────────────────────▼───────────────────────────────────┐   │
-│  │  RENDERER PROCESS (React + TypeScript)                 │   │
-│  │  (src/renderer/App.tsx)                                │   │
-│  │                                                         │   │
-│  │  ┌─────────────────────────────────────────────────┐   │   │
-│  │  │ App Component (React Hooks)                     │   │   │
-│  │  │                                                 │   │   │
-│  │  │ State:                                          │   │   │
-│  │  │  - servers: SteamServer[]                       │   │   │
-│  │  │  - loading: boolean                             │   │   │
-│  │  │  - error: string | null                         │   │   │
-│  │  │                                                 │   │   │
-│  │  │ useEffect(() => {                              │   │   │
-│  │  │   fetchServers()  // Called on mount            │   │   │
-│  │  │ })                                              │   │   │
-│  │  │                                                 │   │   │
-│  │  │ fetchServers():                                 │   │   │
-│  │  │   window.electron.ipcRenderer.invoke(           │   │   │
-│  │  │     'get-steam-servers'                         │   │   │
-│  │  │   )                                             │   │   │
-│  │  │                                                 │   │   │
-│  │  └─────────────────────────────────────────────────┘   │   │
-│  │                                                         │   │
-│  │  ┌─────────────────────────────────────────────────┐   │   │
-│  │  │ UI Rendering (App.css)                          │   │   │
-│  │  │                                                 │   │   │
-│  │  │ [Loading State]                                 │   │   │
-│  │  │ OR                                              │   │   │
-│  │  │ [Server Count Badge]                            │   │   │
-│  │  │ ┌───────────┐ ┌───────────┐ ┌──────────┐        │   │   │
-│  │  │ │ Server 1  │ │ Server 2  │ │ Server 3 │ ...    │   │   │
-│  │  │ │ Running✓  │ │ Stopped✗  │ │Running✓  │        │   │   │
-│  │  │ │ App 1391  │ │ App 4940  │ │ App 258  │        │   │   │
-│  │  │ └───────────┘ └───────────┘ └──────────┘        │   │   │
-│  │  │ [Refresh Button]                                │   │   │
-│  │  │                                                 │   │   │
-│  │  └─────────────────────────────────────────────────┘   │   │
-│  │                                                         │   │
-│  └─────────────────────────────────────────────────────────┘   │
-│                                                                   │
-└─────────────────────────────────────────────────────────────────┘
-```
+## Technology stack
 
-## IPC Communication Bridge
+Versions match `package.json` (pin/range as declared there):
+
+| Layer | Tech |
+|-------|------|
+| Desktop shell | Electron **39.2.7** |
+| UI | React **^18.2**, TypeScript **^5.3** |
+| Renderer bundler | Vite **7.3.0** |
+| Packaging | electron-builder **^24.6** |
+| Settings persistence | electron-store **^8.1** |
+| Dev env detection | electron-is-dev **^3.0** (removal tracked in epic 009) |
+
+Build outputs: renderer → Vite `dist/`; main/preload → `tsc -p tsconfig.main.json` → `dist/main/`, `dist/preload/`.
+
+## Process model
 
 ```
-┌──────────────────────────────────────────────────────────┐
-│  src/preload/preload.ts (Context Bridge)                │
-├──────────────────────────────────────────────────────────┤
-│                                                           │
-│  Exposes window.electron.ipcRenderer to Renderer        │
-│                                                           │
-│  Methods:                                                │
-│  ├─ send(channel, ...args)                              │
-│  ├─ on(channel, callback)                               │
-│  ├─ once(channel, callback)                             │
-│  └─ invoke(channel, ...args) → Promise<unknown>         │
-│                                                           │
-│  ✅ Secure: Context isolation enabled                   │
-│  ✅ Type-safe: Full TypeScript support                  │
-│  ✅ Events: Node integration disabled                   │
-│                                                           │
-└──────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────┐
+│ Electron                                                     │
+│  ┌──────────────────────┐   IPC (typed)   ┌───────────────┐ │
+│  │ Main (Node)          │◄───────────────►│ Renderer      │ │
+│  │ src/main/*           │  via preload    │ React UI      │ │
+│  │ frame: false window  │  allowlist      │ TitleBar +    │ │
+│  │ Steam / process I/O  │                 │ ServerCard +  │ │
+│  └──────────────────────┘                 │ ConfigEditor  │ │
+│           ▲                               └───────────────┘ │
+│           │ contextBridge                                    │
+│  ┌────────┴─────────────┐                                   │
+│  │ Preload              │                                   │
+│  │ src/preload/preload  │                                   │
+│  └──────────────────────┘                                   │
+└─────────────────────────────────────────────────────────────┘
 ```
 
-## Data Flow Diagram
+- **Main** owns Steam detection, process spawn/kill, SteamCMD updates, backups,
+  config file I/O, settings store, and window chrome IPC.
+- **Preload** exposes a narrow `window.electron` API; channels are allowlisted.
+- **Renderer** never imports Node/Electron main APIs — only typed IPC.
 
-```
-User opens app
-    │
-    ├─→ Electron creates BrowserWindow
-    │
-    ├─→ Loads http://localhost:5173 (dev) or static HTML (prod)
-    │
-    ├─→ React mounts App component
-    │
-    ├─→ useEffect hook fires
-    │
-    ├─→ Calls: window.electron.ipcRenderer.invoke('get-steam-servers')
-    │
-    ├─→ Message sent via IPC to Main process
-    │
-    ├─→ Main process receives 'get-steam-servers' handler
-    │
-    ├─→ Executes findInstalledServers()
-    │   │
-    │   ├─ Find Steam installation path
-    │   ├─ Determine current platform (Windows/macOS/Linux)
-    │   ├─ Load library folder locations
-    │   ├─ Loop through the STEAM_DEDICATED_SERVERS catalog
-    │   │   (currently 2 entries: Enshrouded, Palworld —
-    │   │    see docs/ADDING_SERVERS.md to add more)
-    │   ├─ Check if appmanifest file exists
-    │   ├─ Check if process is running
-    │   └─ Build SteamServer[] array
-    │
-    ├─→ Main process returns: { success, servers, error }
-    │
-    ├─→ React receives response via Promise
-    │
-    ├─→ State updates: setServers(result.servers)
-    │
-    └─→ Component re-renders with server list
-```
+Security baseline: `contextIsolation: true`, `nodeIntegration: false`, no
+generic shell/exec IPC channel.
 
-## File Organization
+## File organization
 
 ```
 src/
 ├── main/
-│   ├── main.ts
-│   │   └─ Electron app lifecycle
-│   │   └─ BrowserWindow creation
-│   │   └─ IPC handler registration
-│   │   └─ Menu setup
-│   │
-│   └── steamDetection.ts
-│       ├─ Steam path finding (OS-specific)
-│       ├─ Library folder parsing
-│       ├─ Server manifest detection
-│       ├─ Process status checking
-│       └─ Main export: findInstalledServers()
-│
-├── renderer/
-│   ├── main.tsx
-│   │   └─ React app initialization
-│   │   └─ ReactDOM.createRoot()
-│   │
-│   ├── App.tsx
-│   │   ├─ useState: servers, loading, error
-│   │   ├─ useEffect: fetch servers on mount
-│   │   ├─ Conditional rendering:
-│   │   │   ├─ Loading state
-│   │   │   ├─ Error state with retry
-│   │   │   ├─ Empty state
-│   │   │   └─ Server grid display
-│   │   └─ Refresh button click handler
-│   │
-│   ├── App.css
-│   │   ├─ .app - Main container
-│   │   ├─ .container - Content wrapper
-│   │   ├─ .loading - Loading spinner style
-│   │   ├─ .error - Error message style
-│   │   ├─ .no-servers - Empty state style
-│   │   ├─ .servers - Grid container
-│   │   ├─ .server-card - Individual card
-│   │   ├─ .status - Running/Stopped badge
-│   │   └─ .refresh-section - Button container
-│   │
-│   └── index.css
-│       └─ Global reset and layout
-│
+│   ├── main.ts                 # App lifecycle, register handlers
+│   ├── appWindow.ts            # Frameless BrowserWindow
+│   ├── registerIpcHandlers.ts  # Most ipcMain.handle registrations
+│   ├── windowControls.ts       # Minimize / maximize / close IPC
+│   ├── steamDetection.ts       # Catalog + findInstalledServers()
+│   ├── steamIpc.ts             # Diagnostics / path listing helpers
+│   ├── steamCmd.ts             # SteamCMD path + update helpers
+│   ├── serverProcess.ts        # Run / stop server processes
+│   ├── autoUpdate.ts           # Per-server SteamCMD update flow
+│   ├── serverBackup.ts         # Save-folder backups
+│   ├── serverConfig.ts         # Read/write server config files
+│   ├── iniConfig.ts            # INI parse/serialize
+│   ├── settingsStore.ts        # electron-store settings
+│   └── driveUtils.ts           # Drive / path utilities
 ├── preload/
-│   └── preload.ts
-│       ├─ Import contextBridge from electron
-│       ├─ Export ipcRenderer methods
-│       ├─ Maintain security (context isolation)
-│       └─ Expose window.electron to renderer
-│
+│   └── preload.ts              # contextBridge + channel allowlist
+├── renderer/
+│   ├── main.tsx / App.tsx      # Shell + server list
+│   ├── TitleBar.tsx            # Custom window controls
+│   ├── ServerCard.tsx          # Per-server actions
+│   ├── ConfigEditor.tsx        # Nested JSON/INI editor
+│   ├── SteamPathSelector.tsx / SteamCmdPathInput.tsx
+│   └── hooks/                  # useSteamServers, settings, backups
 └── types/
-    └── electron.d.ts
-        ├─ SteamServer interface
-        ├─ ElectronAPI interface
-        └─ Global window type declaration
+    ├── ipc.ts                  # Channel map + ElectronAPI
+    └── electron.d.ts           # Window.electron declaration
 ```
 
-## Technology Stack
+Ticket board lives under `/board` (`backlog/`, `in-progress/`, `done/`).
 
-```
-┌─────────────────────────────────────────┐
-│        STEAM SERVER MANAGER              │
-├─────────────────────────────────────────┤
-│                                          │
-│  Frontend:                               │
-│  ├─ React 18                             │
-│  ├─ TypeScript 5.3                       │
-│  ├─ Vite 5.0 (fast HMR)                  │
-│  └─ CSS Grid + Flexbox                   │
-│                                          │
-│  Backend:                                │
-│  ├─ Electron 27                          │
-│  ├─ Node.js APIs                         │
-│  ├─ Child Process (process detection)    │
-│  └─ File System (manifest parsing)       │
-│                                          │
-│  IPC:                                    │
-│  ├─ Main ↔ Renderer via ipcMain/invoke   │
-│  ├─ Preload script for security          │
-│  └─ Context isolation enabled            │
-│                                          │
-│  Build:                                  │
-│  ├─ Electron Builder for packaging       │
-│  ├─ TypeScript compilation                │
-│  └─ Vite bundling for React              │
-│                                          │
-└─────────────────────────────────────────┘
-```
+## Server catalog
 
-## Key Design Decisions
+`STEAM_DEDICATED_SERVERS` in `steamDetection.ts` currently has **2** entries:
 
-### 1. IPC Handler Pattern
+| App ID | Name |
+|--------|------|
+| `2278520` | Enshrouded Dedicated Server |
+| `1623730` | Palworld Dedicated Server |
 
-- Uses `ipcMain.handle()` with Promise
-- Returns typed response object
-- Error handling at application level
-- Prevents renderer from accessing Node APIs directly
+Add games via [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
 
-### 2. Steam Detection Strategy
+## IPC channels
 
-- Cross-platform compatible (Windows/macOS/Linux)
-- Uses OS-specific methods for finding Steam
-- Registry lookup for Windows (fast, reliable)
-- File system checks for macOS/Linux
-- Graceful fallbacks to common paths
+All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
+`registerIpcHandlers.ts` and `windowControls.ts`; mirrored in preload
+`ALLOWED_CHANNELS` and `src/types/ipc.ts`.
 
-### 3. React State Management
+| Channel | Purpose |
+|---------|---------|
+| `get-app-version` | App version string |
+| `check-diagnostics` | Environment / path diagnostics |
+| `get-steam-paths` | Candidate Steam install paths |
+| `get-steam-servers` | Installed catalog servers (+ optional preferred path) |
+| `run-server` | Start dedicated server process |
+| `stop-server` | Stop dedicated server process |
+| `auto-update-server` | SteamCMD update for a server |
+| `backup-server-save` | Copy save data to backup folder |
+| `select-backup-folder` | Native folder picker for backups |
+| `get-server-config` | Load server config (JSON/INI) |
+| `save-server-config` | Persist edited config |
+| `open-file-default` | Open a path with the OS default app |
+| `get-settings` / `save-settings` | Persisted UI/server flags |
+| `window-minimize` | Frameless window minimize |
+| `window-maximize-toggle` | Maximize / restore |
+| `window-close` | Close window |
 
-- Simple local state (useState)
-- Sufficient for current requirements
-- Easy to migrate to Redux/Zustand if needed
-- Clear separation: loading → error → success
+Renderer calls typed methods on `window.electron` (e.g. `getSteamServers`,
+`runServer`, `windowControls.minimize`) — not raw channel strings.
 
-### 4. UI/UX Approach
+## Feature flows (high level)
 
-- Card-based grid layout
-- Color-coded status indicators
-- Loading/error/empty states
-- Responsive mobile-friendly design
-- One-click refresh functionality
+1. **Detect** — `findInstalledServers()` resolves Steam path(s), parses
+   `libraryfolders.vdf`, checks manifests for catalog app IDs, probes process
+   status.
+2. **Run / stop** — `serverProcess` spawns/kills the resolved executable.
+3. **Auto-restart** — Renderer settings flag; polling in `useSteamServers`
+   restarts if a watched server exits unexpectedly.
+4. **Auto-update (game files)** — SteamCMD via `autoUpdate.ts` when enabled per
+   server (not Electron app auto-update; that is epic 012).
+5. **Backup** — Copies configured save location into a user-chosen backup root.
+6. **Config editor** — Loads config over IPC; `ConfigEditor` edits nested
+   values with type preservation; saves back through main.
 
-## Performance Characteristics
+## Design notes
 
-```
-Initial Scan:
-  ├─ Steam path lookup: ~100ms
-  ├─ Library folder parsing: ~50ms
-  ├─ Manifest file checks (per catalog entry): ~100ms
-  ├─ Process detection: ~300ms
-  └─ Total: ~1-2 seconds (typical)
+- Main modules stay free of React/DOM; renderer stays free of Node FS/process.
+- IPC responses are structured result objects (success / error) where applicable.
+- Settings (`autoRestart`, `autoUpdate`, paths) persist via `electron-store`.
+- Cover art and some path helpers exist in main; dead-code cleanup is epic 009.
 
-UI Response:
-  ├─ Button click → fetch: <1ms
-  ├─ Network latency: 0ms (IPC)
-  ├─ React render: <100ms
-  └─ Total user-perceived time: ~2-3 seconds
+## Performance (order-of-magnitude)
 
-Memory Usage:
-  ├─ Detection module: <1MB
-  ├─ Typical result set: <10KB
-  └─ React UI: ~2-5MB (including deps)
-```
+Initial scan is dominated by Steam path lookup, library VDF parse, per-catalog
+manifest checks, and process probing — typically on the order of **1–2 seconds**
+on a normal desktop. IPC itself is local (no network). UI re-renders stay
+small for the current 2-server catalog.
 
-## Security Considerations
+## Security
 
-✅ **Context Isolation**: Renderer process isolated from Node.js  
-✅ **Preload Script**: Only approved APIs exposed to renderer  
-✅ **No Node Integration**: Disabled in webPreferences  
-✅ **IPC Validation**: Handler validates input/output  
-✅ **Read-Only Operations**: Steam detection is read-only  
-✅ **Error Handling**: No sensitive info in error messages
+- Context isolation + preload allowlist only
+- No Node integration in the renderer
+- No unrestricted `exec` / shell IPC
+- File operations are scoped to Steam installs, config paths, and user-chosen
+  backup directories
 
 ---
 
-This architecture provides a clean separation of concerns while maintaining
-security and type safety across the main-renderer boundary.
+For product overview and scripts, see [README.md](README.md). For extending the
+catalog, see [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
