@@ -55,12 +55,21 @@ jest.mock("../../main/appUpdater", () => ({
   installAppUpdate: jest.fn(),
 }));
 
+jest.mock("../../main/palworldRestIpc", () => ({
+  getPalworldRestStatus: jest.fn(),
+  invokePalworldRest: jest.fn(),
+}));
+
 import { registerWindowControlHandlers } from "../../main/windowControls";
 import { registerIpcHandlers } from "../../main/registerIpcHandlers";
 import { startServer, stopServer } from "../../main/serverProcess";
 import { fetchSteamServers } from "../../main/steamIpc";
 import { getServerConfig, saveServerConfig } from "../../main/serverConfig";
 import { checkForAppUpdate, installAppUpdate } from "../../main/appUpdater";
+import {
+  getPalworldRestStatus,
+  invokePalworldRest,
+} from "../../main/palworldRestIpc";
 
 const mockStartServer = startServer as jest.Mock;
 const mockStopServer = stopServer as jest.Mock;
@@ -69,6 +78,8 @@ const mockGetServerConfig = getServerConfig as jest.Mock;
 const mockSaveServerConfig = saveServerConfig as jest.Mock;
 const mockCheckForAppUpdate = checkForAppUpdate as jest.Mock;
 const mockInstallAppUpdate = installAppUpdate as jest.Mock;
+const mockGetPalworldRestStatus = getPalworldRestStatus as jest.Mock;
+const mockInvokePalworldRest = invokePalworldRest as jest.Mock;
 
 function getHandler(channel: string): (...args: unknown[]) => unknown {
   const call = handleMock.mock.calls.find(
@@ -103,6 +114,8 @@ describe("registerIpcHandlers", () => {
       "get-app-version",
       "app-update-check",
       "app-update-install",
+      "palworld-rest-status",
+      "palworld-rest-request",
     ]) {
       expect(handleMock).toHaveBeenCalledWith(channel, expect.any(Function));
     }
@@ -125,6 +138,16 @@ describe("registerIpcHandlers", () => {
     mockSaveServerConfig.mockResolvedValue({ success: true });
     mockCheckForAppUpdate.mockResolvedValue({ success: true });
     mockInstallAppUpdate.mockResolvedValue({ success: true });
+    mockGetPalworldRestStatus.mockResolvedValue({
+      success: true,
+      enabled: true,
+      isPalworld: true,
+      port: 8212,
+    });
+    mockInvokePalworldRest.mockResolvedValue({
+      success: true,
+      data: { version: "1" },
+    });
 
     await expect(getHandler("run-server")({}, 1, "/path")).resolves.toEqual({
       success: true,
@@ -172,5 +195,26 @@ describe("registerIpcHandlers", () => {
       success: true,
     });
     expect(mockInstallAppUpdate).toHaveBeenCalled();
+
+    await expect(
+      getHandler("palworld-rest-status")({}, 1623730, "/pal")
+    ).resolves.toEqual({
+      success: true,
+      enabled: true,
+      isPalworld: true,
+      port: 8212,
+    });
+    expect(mockGetPalworldRestStatus).toHaveBeenCalledWith(1623730, "/pal");
+
+    await expect(
+      getHandler("palworld-rest-request")({}, 1623730, "/pal", "GET", "info")
+    ).resolves.toEqual({ success: true, data: { version: "1" } });
+    expect(mockInvokePalworldRest).toHaveBeenCalledWith(
+      1623730,
+      "/pal",
+      "GET",
+      "info",
+      undefined
+    );
   });
 });

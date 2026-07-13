@@ -8,6 +8,7 @@ import type {
   IpcEventChannel,
   IpcInvokeArgs,
   IpcInvokeResult,
+  PalworldRestEndpoint,
 } from "../types/ipc";
 
 /**
@@ -40,6 +41,8 @@ export const ALLOWED_CHANNELS: readonly IpcChannel[] = [
   "window-minimize",
   "window-maximize-toggle",
   "window-close",
+  "palworld-rest-status",
+  "palworld-rest-request",
 ] as const;
 
 const ALLOWED_EVENTS: readonly IpcEventChannel[] = [
@@ -95,6 +98,23 @@ const electronApi: ElectronAPI = {
   saveSettings: (settings: AppSettings) => invokeIpc("save-settings", settings),
   checkForAppUpdate: () => invokeIpc("app-update-check"),
   installAppUpdate: () => invokeIpc("app-update-install"),
+  getPalworldRestStatus: (appId: number, installPath: string) =>
+    invokeIpc("palworld-rest-status", appId, installPath),
+  palworldRestRequest: (
+    appId: number,
+    installPath: string,
+    method: "GET" | "POST",
+    endpoint: PalworldRestEndpoint,
+    body?: Record<string, unknown>
+  ) =>
+    invokeIpc(
+      "palworld-rest-request",
+      appId,
+      installPath,
+      method,
+      endpoint,
+      body
+    ),
   onAppUpdateStatus: (callback: (status: AppUpdateStatus) => void) => {
     const channel = "app-update-status";
     if (!isAllowedEvent(channel)) {

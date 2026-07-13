@@ -478,3 +478,30 @@ p {
   font-size: 0.8em;
   align-self: flex-start;
 }
+
+.btn-palworld-admin-open {
+  background: #1a4a7a;
+  color: #7ab0ff;
+  border: 1px solid #2a5a9a;
+}
+
+.btn-palworld-admin-open:hover:not(:disabled) {
+  background: #2a5a9a;
+  color: #ffffff;
+}
+
+.btn-palworld-admin-open:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+  transform: none;
+  box-shadow: none;
+}
+
+.palworld-admin-btn-wrap {
+  display: inline-flex;
+  flex: 1;
+}
+
+.palworld-admin-btn-wrap .btn {
+  width: 100%;
+}

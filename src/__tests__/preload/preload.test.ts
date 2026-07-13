@@ -63,6 +63,8 @@ describe("Preload IPC bridge", () => {
         "window-minimize",
         "window-maximize-toggle",
         "window-close",
+        "palworld-rest-status",
+        "palworld-rest-request",
       ];
 
       expect([...ALLOWED_CHANNELS].sort()).toEqual(
@@ -282,6 +284,31 @@ describe("Preload IPC bridge", () => {
 
       await getExposedApi().installAppUpdate();
       expect(mockIpcInvoke).toHaveBeenCalledWith("app-update-install");
+    });
+
+    it("invokes palworld-rest-status and palworld-rest-request", async () => {
+      await getExposedApi().getPalworldRestStatus(1623730, "/pal");
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "palworld-rest-status",
+        1623730,
+        "/pal"
+      );
+
+      await getExposedApi().palworldRestRequest(
+        1623730,
+        "/pal",
+        "POST",
+        "announce",
+        { message: "hi" }
+      );
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "palworld-rest-request",
+        1623730,
+        "/pal",
+        "POST",
+        "announce",
+        { message: "hi" }
+      );
     });
 
     it("exposes typed window controls hitting the window-* channels", async () => {

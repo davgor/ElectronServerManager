@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 
 import type { AppSettings, ServerPersistedSettings } from "../../types/ipc";
+import { clampPalworldOpsIntervalSeconds } from "../palworldOpsSettings";
 
 const DEFAULT_SERVER_SETTINGS: ServerPersistedSettings = {
   autoRestart: false,
@@ -14,6 +15,8 @@ interface UseServerSettingsResult {
   setAutoUpdate: (appId: number, enabled: boolean) => void;
   setBackupPath: (appId: number, path: string) => void;
   setBackupInterval: (appId: number, seconds: number) => void;
+  setPalworldOpsEnabled: (appId: number, enabled: boolean) => void;
+  setPalworldOpsInterval: (appId: number, seconds: number) => void;
   setSelectedSteamPath: (path: string) => void;
   setSteamCmdPath: (path: string) => void;
 }
@@ -109,6 +112,22 @@ export function useServerSettings(): UseServerSettingsResult {
     [updateServer]
   );
 
+  const setPalworldOpsEnabled = useCallback(
+    (appId: number, enabled: boolean) => {
+      updateServer(appId, { palworldOpsEnabled: enabled });
+    },
+    [updateServer]
+  );
+
+  const setPalworldOpsInterval = useCallback(
+    (appId: number, seconds: number) => {
+      updateServer(appId, {
+        palworldOpsIntervalSeconds: clampPalworldOpsIntervalSeconds(seconds),
+      });
+    },
+    [updateServer]
+  );
+
   const setSelectedSteamPath = useCallback(
     (path: string) => {
       updateSettings((previous) => ({
@@ -136,6 +155,8 @@ export function useServerSettings(): UseServerSettingsResult {
     setAutoUpdate,
     setBackupPath,
     setBackupInterval,
+    setPalworldOpsEnabled,
+    setPalworldOpsInterval,
     setSelectedSteamPath,
     setSteamCmdPath,
   };

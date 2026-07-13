@@ -17,6 +17,9 @@ export interface SteamServer {
 
 export type ConfigFormat = "json" | "ini";
 
+/** Steam app id for Palworld Dedicated Server. */
+export const PALWORLD_APP_ID = 1623730;
+
 /** Base shape returned by action-style IPC handlers. */
 export interface IpcActionResult {
   success: boolean;
@@ -75,6 +78,42 @@ export interface ServerPersistedSettings {
   autoUpdate: boolean;
   backupPath?: string;
   backupIntervalSeconds?: number;
+  /** Epic 020: live Palworld ops panel toggle. */
+  palworldOpsEnabled?: boolean;
+  /** Epic 020: poll interval in seconds for live ops. */
+  palworldOpsIntervalSeconds?: number;
+}
+
+/** Palworld REST GET endpoints under `/v1/api/*`. */
+export type PalworldRestGetEndpoint =
+  | "info"
+  | "players"
+  | "settings"
+  | "metrics"
+  | "game-data";
+
+/** Palworld REST POST endpoints under `/v1/api/*`. */
+export type PalworldRestPostEndpoint =
+  | "announce"
+  | "kick"
+  | "ban"
+  | "unban"
+  | "save"
+  | "shutdown"
+  | "stop";
+
+export type PalworldRestEndpoint =
+  | PalworldRestGetEndpoint
+  | PalworldRestPostEndpoint;
+
+export interface PalworldRestStatusResponse extends IpcActionResult {
+  enabled: boolean;
+  isPalworld: boolean;
+  port?: number;
+}
+
+export interface PalworldRestCallResult extends IpcActionResult {
+  data?: unknown;
 }
 
 export interface AppSettings {
@@ -160,6 +199,20 @@ export interface IpcInvokeMap {
     result: WindowMaximizeToggleResponse;
   };
   "window-close": { args: []; result: IpcActionResult };
+  "palworld-rest-status": {
+    args: [appId: number, installPath: string];
+    result: PalworldRestStatusResponse;
+  };
+  "palworld-rest-request": {
+    args: [
+      appId: number,
+      installPath: string,
+      method: "GET" | "POST",
+      endpoint: PalworldRestEndpoint,
+      body?: Record<string, unknown>,
+    ];
+    result: PalworldRestCallResult;
+  };
 }
 
 export type IpcChannel = keyof IpcInvokeMap;
@@ -212,5 +265,16 @@ export interface ElectronAPI {
   onAppUpdateStatus: (
     callback: (status: AppUpdateStatus) => void
   ) => () => void;
+  getPalworldRestStatus: (
+    appId: number,
+    installPath: string
+  ) => Promise<PalworldRestStatusResponse>;
+  palworldRestRequest: (
+    appId: number,
+    installPath: string,
+    method: "GET" | "POST",
+    endpoint: PalworldRestEndpoint,
+    body?: Record<string, unknown>
+  ) => Promise<PalworldRestCallResult>;
   windowControls: ElectronWindowControls;
 }
