@@ -30,6 +30,7 @@ function appIdsWithFlag(
 function App(): JSX.Element {
   const [actionError, setActionError] = useState<string | null>(null);
   const [editingServer, setEditingServer] = useState<SteamServer | null>(null);
+  const [configRevision, setConfigRevision] = useState(0);
 
   const {
     settings,
@@ -214,6 +215,7 @@ function App(): JSX.Element {
                     onEditConfig={handleEditConfig}
                     onTogglePalworldOps={setPalworldOpsEnabled}
                     onChangePalworldOpsInterval={setPalworldOpsInterval}
+                    configRevision={configRevision}
                   />
                 );
               })}
@@ -225,6 +227,7 @@ function App(): JSX.Element {
                 installPath={editingServer.installPath}
                 onClose={() => setEditingServer(null)}
                 onSave={() => {
+                  setConfigRevision((n) => n + 1);
                   void refresh();
                 }}
               />

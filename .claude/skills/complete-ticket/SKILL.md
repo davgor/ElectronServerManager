@@ -54,6 +54,7 @@ npm run lint
 npm run format:check
 npm test
 npm run type-check
+npm run deadcode
 npm run electron-build   # when main/preload changed (also runs via pretest)
 npm run build            # when renderer/build output plausibly affected
 ```
@@ -62,7 +63,7 @@ If something fails, fix it — don't check off a criterion that doesn't actually
 
 **Targeted tests during iteration** are fine (`npx jest src/__tests__/main/foo.test.ts`), but **finish with full `npm test`** unless the user scoped a subset.
 
-**CI parity:** This repo's GitHub Actions workflows (`.github/workflows/lint.yml`, `unit-tests.yml`, `typecheck.yml`) mirror the local gate. Before calling a ticket done on substantial work, confirm the equivalent local commands all pass — you don't need `act` unless the user asks for it.
+**CI parity:** This repo's GitHub Actions workflows (`.github/workflows/lint.yml`, `unit-tests.yml`, `typecheck.yml`, `deadcode.yml`) mirror the local gate. Before calling a ticket done on substantial work, confirm the equivalent local commands all pass — you don't need `act` unless the user asks for it.
 
 **If the ticket adds or changes IPC handlers in `src/main/main.ts` or `src/preload/preload.ts`**, passing `npm test` alone may not prove the real Electron app works — Jest mocks Electron. Before considering such a ticket done:
 
