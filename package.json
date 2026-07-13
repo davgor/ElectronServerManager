@@ -35,6 +35,7 @@
     "pretest": "npm run electron-build && npm run rebuild:native:node",
     "test": "jest",
     "test:watch": "jest --watch",
+    "pretest:coverage": "npm run pretest",
     "test:coverage": "jest --coverage",
     "test:diff-coverage": "jest --coverage --silent && node .github/scripts/diff-coverage-gate.cjs",
     "audit:cve": "node scripts/audit-cve.cjs",

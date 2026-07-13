@@ -36,17 +36,37 @@ jobs:
 
       - name: Determine diff range
         id: diffrange
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
         run: |
-          if [ "${{ github.event_name }}" = "pull_request" ]; then
-            git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=1
-            BASE_SHA=$(git merge-base "origin/${{ github.event.pull_request.base.ref }}" HEAD)
+          set -e
+          BASE_SHA=""
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE_REF="$PR_BASE_REF"
+            if [ -z "$BASE_REF" ]; then
+              if git rev-parse --verify origin/main >/dev/null 2>&1; then
+                BASE_REF=main
+              elif git rev-parse --verify origin/master >/dev/null 2>&1; then
+                BASE_REF=master
+              fi
+            fi
+            if [ -n "$BASE_REF" ]; then
+              git fetch origin "$BASE_REF" --depth=1 || true
+              BASE_SHA=$(git merge-base "origin/${BASE_REF}" HEAD 2>/dev/null || true)
+            fi
+            if [ -z "$BASE_SHA" ]; then
+              BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+            fi
           else
-            BASE_SHA="${{ github.event.before }}"
+            BASE_SHA="$PUSH_BEFORE"
             if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
               BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
             fi
           fi
           echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+          echo "Resolved BASE_SHA=$BASE_SHA"
 
       - name: Diff coverage gate (changed lines only)
         run: node .github/scripts/diff-coverage-gate.cjs
@@ -57,6 +77,7 @@ jobs:
 
       - name: Upload test results (optional)
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: test-logs

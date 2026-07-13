@@ -5,7 +5,7 @@
 
 export const COVERAGE_COMMENT_MARKER = "<!-- coverage-report-sticky -->";
 
-export interface CoverageMetric {
+interface CoverageMetric {
   total: number;
   covered: number;
   pct: number;
@@ -18,30 +18,30 @@ export interface CoverageTotals {
   branches: CoverageMetric;
 }
 
-export type MetricKey = keyof CoverageTotals;
+type MetricKey = keyof CoverageTotals;
 
-export interface MetricDeltas {
+interface MetricDeltas {
   lines: number;
   statements: number;
   functions: number;
   branches: number;
 }
 
-export interface FileNewLineCoverage {
+interface FileNewLineCoverage {
   file: string;
   covered: number;
   total: number;
   uncoveredLines: number[];
 }
 
-export interface NewLineCoverage {
+interface NewLineCoverage {
   covered: number;
   total: number;
   pct: number;
   files: FileNewLineCoverage[];
 }
 
-export type LcovHitMap = Record<string, Map<number, number>>;
+type LcovHitMap = Record<string, Map<number, number>>;
 
 interface JestMetric {
   total?: number;
@@ -92,7 +92,7 @@ export function computeMetricDeltas(
 }
 
 /** Normalize Istanbul/Jest SF paths to repo-relative `src/...` when possible. */
-export function normalizeSourcePath(filePath: string): string {
+function normalizeSourcePath(filePath: string): string {
   const normalized = filePath.replace(/\\/g, "/");
   const idx = normalized.lastIndexOf("/src/");
   if (idx !== -1) {
@@ -296,7 +296,7 @@ const METRIC_LABELS: { key: MetricKey; label: string }[] = [
 
 const MAX_UNCOVERED_FILE_ROWS = 15;
 
-export interface BuildCoverageMarkdownInput {
+interface BuildCoverageMarkdownInput {
   before: CoverageTotals | null;
   after: CoverageTotals;
   newLines: NewLineCoverage;
