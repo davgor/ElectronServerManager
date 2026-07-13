@@ -2,6 +2,7 @@ import { promises as fs } from "fs";
 import path from "path";
 import { execSync } from "child_process";
 
+import { getCatalogRepository } from "./catalog/catalogRepository";
 import * as logger from "./logger";
 
 export interface SteamServer {
@@ -29,34 +30,10 @@ export interface ServerInfo {
   configLocations?: Partial<Record<NodeJS.Platform, string>>;
 }
 
-/**
- * Known Steam dedicated server applications, keyed by Steam app ID.
- * See docs/ADDING_SERVERS.md for how to add a new entry.
- */
-export const STEAM_DEDICATED_SERVERS: Record<number, ServerInfo> = {
-  // Enshrouded ships a Windows-only server binary; on Linux it is typically
-  // run through Wine/Proton against the same .exe, so no override is defined.
-  2278520: {
-    name: "Enshrouded Dedicated Server",
-    folderName: "EnshroudedServer",
-    executable: "enshrouded_server.exe",
-    saveLocation: "savegame",
-    configLocation: "enshrouded_server.json",
-  },
-  1623730: {
-    name: "Palworld Dedicated Server",
-    folderName: "PalServer",
-    executable: "PalServer.exe",
-    executables: {
-      linux: "PalServer.sh",
-    },
-    saveLocation: "Pal/Saved/SaveGames",
-    configLocation: "Pal/Saved/Config/WindowsServer/PalWorldSettings.ini",
-    configLocations: {
-      linux: "Pal/Saved/Config/LinuxServer/PalWorldSettings.ini",
-    },
-  },
-};
+/** Catalog of known dedicated servers (SQLite-backed). See docs/ADDING_SERVERS.md. */
+export function getSteamDedicatedServers(): Record<number, ServerInfo> {
+  return getCatalogRepository().getServersRecord();
+}
 
 /**
  * Resolve the executable for a server on the given platform,
@@ -339,11 +316,10 @@ export async function findInstalledServers(
 
   const servers: SteamServer[] = [];
 
-  for (const appId in STEAM_DEDICATED_SERVERS) {
-    const serverInfo =
-      STEAM_DEDICATED_SERVERS[
-        appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
-      ];
+  for (const [appIdKey, serverInfo] of Object.entries(
+    getSteamDedicatedServers()
+  )) {
+    const appId = appIdKey;
     const resolvedExecutable = resolveServerExecutable(serverInfo);
     const serverName = serverInfo.name;
     const expectedFolderName = serverInfo.folderName;
@@ -513,10 +489,11 @@ export async function backupServerSave(
   backupPath: string
 ): Promise<string | null> {
   try {
-    const serverInfo =
-      STEAM_DEDICATED_SERVERS[
-        appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
-      ];
+    const serverInfo = getCatalogRepository().getServer(appId);
+    if (serverInfo === null) {
+      logger.error(`No catalog entry for app ${appId}`);
+      return null;
+    }
 
     const saveLocation = resolveServerSaveLocation(serverInfo);
     if (saveLocation === undefined || saveLocation === "") {

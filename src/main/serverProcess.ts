@@ -4,8 +4,8 @@ import { spawn, spawnSync } from "child_process";
 
 import type { IpcActionResult } from "../types/ipc";
 
+import { getCatalogRepository } from "./catalog/catalogRepository";
 import {
-  STEAM_DEDICATED_SERVERS,
   ServerInfo,
   isProcessRunning,
   resolveServerExecutable,
@@ -41,11 +41,9 @@ export function resetTrackedPidsForTests(): void {
 }
 
 export function getServerMapping(appId: number): ServerInfo | null {
-  const mappingEntry = (
-    STEAM_DEDICATED_SERVERS as Record<string, ServerInfo | undefined>
-  )[String(appId)];
+  const mappingEntry = getCatalogRepository().getServer(appId);
   if (
-    !mappingEntry ||
+    mappingEntry === null ||
     typeof mappingEntry.executable !== "string" ||
     mappingEntry.executable.length === 0
   ) {

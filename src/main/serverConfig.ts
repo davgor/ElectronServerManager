@@ -7,31 +7,20 @@ import type {
   IpcActionResult,
 } from "../types/ipc";
 
+import { getCatalogRepository } from "./catalog/catalogRepository";
 import { parseIniContent, stringifyIniContent } from "./iniConfig";
 import * as logger from "./logger";
-import {
-  STEAM_DEDICATED_SERVERS,
-  resolveServerConfigLocation,
-} from "./steamDetection";
+import { resolveServerConfigLocation } from "./steamDetection";
 
 type ConfigReadResult = GetServerConfigResponse;
 
 type ConfigWriteResult = IpcActionResult;
 
 function getServerConfigLocation(appId: number): string | null {
-  if (
-    !Object.prototype.hasOwnProperty.call(
-      STEAM_DEDICATED_SERVERS,
-      String(appId)
-    )
-  ) {
+  const serverInfo = getCatalogRepository().getServer(appId);
+  if (serverInfo === null) {
     return null;
   }
-
-  const serverInfo =
-    STEAM_DEDICATED_SERVERS[
-      appId as unknown as keyof typeof STEAM_DEDICATED_SERVERS
-    ];
 
   const configLocation = resolveServerConfigLocation(serverInfo);
   if (configLocation === undefined || configLocation === "") {
