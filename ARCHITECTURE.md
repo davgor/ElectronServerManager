@@ -14,6 +14,7 @@ Versions match `package.json` (pin/range as declared there):
 | UI | React **^18.2**, TypeScript **^5.3** |
 | Renderer bundler | Vite **7.3.0** |
 | Packaging | electron-builder **^24.6** |
+| App updates | electron-updater **^6.8** |
 | Settings persistence | electron-store **^8.1** |
 | Dev env detection | `process.env.NODE_ENV` / `ELECTRON_START_URL` in main bootstrap |
 
@@ -67,12 +68,14 @@ src/
 │   ├── settingsStore.ts        # electron-store settings
 │   ├── logger.ts               # Structured main-process logging
 │   ├── serverOutputBuffer.ts   # Recent server stdout/stderr ring buffer
+│   ├── appUpdater.ts           # electron-updater (packaged builds only)
 │   └── driveUtils.ts           # Drive / path utilities
 ├── preload/
 │   └── preload.ts              # contextBridge + channel allowlist
 ├── renderer/
 │   ├── main.tsx / App.tsx      # Shell + server list
-│   ├── TitleBar.tsx            # Custom window controls
+│   ├── TitleBar.tsx            # Custom window controls + app version
+│   ├── UpdateBanner.tsx        # App auto-update status / restart CTA
 │   ├── ServerCard.tsx          # Per-server actions
 │   ├── ConfigEditor.tsx        # Nested JSON/INI editor
 │   ├── SteamPathSelector.tsx / SteamCmdPathInput.tsx
@@ -117,12 +120,19 @@ All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
 | `save-server-config` | Persist edited config |
 | `open-file-default` | Open a path with the OS default app |
 | `get-settings` / `save-settings` | Persisted UI/server flags |
+| `app-update-check` | Trigger packaged app update check |
+| `app-update-install` | Quit and install a downloaded app update |
 | `window-minimize` | Frameless window minimize |
 | `window-maximize-toggle` | Maximize / restore |
 | `window-close` | Close window |
 
+Push event (preload allowlisted, not invoke): `app-update-status` — app
+auto-update state machine for the renderer banner.
+
 Renderer calls typed methods on `window.electron` (e.g. `getSteamServers`,
-`runServer`, `windowControls.minimize`) — not raw channel strings.
+`runServer`, `windowControls.minimize`, `onAppUpdateStatus`) — not raw channel
+strings. The title bar shows `getAppVersion()` so a successful app update is
+easy to confirm.
 
 ## Feature flows (high level)
 
@@ -133,9 +143,11 @@ Renderer calls typed methods on `window.electron` (e.g. `getSteamServers`,
 3. **Auto-restart** — Renderer settings flag; polling in `useSteamServers`
    restarts if a watched server exits unexpectedly.
 4. **Auto-update (game files)** — SteamCMD via `autoUpdate.ts` when enabled per
-   server (not Electron app auto-update; that is epic 012).
-5. **Backup** — Copies configured save location into a user-chosen backup root.
-6. **Config editor** — Loads config over IPC; `ConfigEditor` edits nested
+   server.
+5. **App auto-update** — Packaged builds use `electron-updater` (`appUpdater.ts`)
+   against GitHub Releases metadata; see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
+6. **Backup** — Copies configured save location into a user-chosen backup root.
+7. **Config editor** — Loads config over IPC; `ConfigEditor` edits nested
    values with type preservation; saves back through main.
 
 ## Design notes

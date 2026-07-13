@@ -15,6 +15,7 @@ import { getServerConfig, saveServerConfig } from "./serverConfig";
 import { backupServerSaveHandler, selectBackupFolder } from "./serverBackup";
 import { getSettings, saveSettings } from "./settingsStore";
 import { getServerOutput } from "./serverOutputBuffer";
+import { checkForAppUpdate, installAppUpdate } from "./appUpdater";
 
 interface IpcRegistrationDeps {
   getMainWindow: () => BrowserWindow | null;
@@ -99,4 +100,8 @@ export function registerIpcHandlers(deps: IpcRegistrationDeps): void {
   ipcMain.handle("save-settings", (_event, settings: AppSettings) => {
     return saveSettings(settings);
   });
+
+  ipcMain.handle("app-update-check", () => checkForAppUpdate());
+
+  ipcMain.handle("app-update-install", () => installAppUpdate());
 }

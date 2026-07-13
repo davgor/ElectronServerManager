@@ -1,4 +1,10 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import App from "../../renderer/App";
@@ -17,9 +23,10 @@ const mockSaveServerConfig = jest.fn();
 const mockOpenFileDefault = jest.fn();
 const mockGetSettings = jest.fn();
 const mockSaveSettings = jest.fn();
+const mockGetAppVersion = jest.fn().mockResolvedValue("0.0.0-test");
 
 const mockElectronApi: ElectronAPI = {
-  getAppVersion: jest.fn().mockResolvedValue("0.0.0-test"),
+  getAppVersion: mockGetAppVersion,
   checkDiagnostics: jest.fn().mockResolvedValue({}),
   getSteamPaths: mockGetSteamPaths,
   getSteamServers: mockGetSteamServers,
@@ -34,6 +41,9 @@ const mockElectronApi: ElectronAPI = {
   openFileDefault: mockOpenFileDefault,
   getSettings: mockGetSettings,
   saveSettings: mockSaveSettings,
+  checkForAppUpdate: jest.fn().mockResolvedValue({ success: true }),
+  installAppUpdate: jest.fn().mockResolvedValue({ success: true }),
+  onAppUpdateStatus: jest.fn(() => () => undefined),
   windowControls: {
     minimize: jest.fn().mockResolvedValue({ success: true }),
     toggleMaximize: jest
@@ -48,7 +58,63 @@ Object.defineProperty(window, "electron", {
   writable: true,
 });
 
+const originalConsoleError = console.error;
+
+/** Render App and flush mount-time async path/settings/version updates. */
+async function renderApp(): Promise<void> {
+  await act(async () => {
+    render(<App />);
+    await Promise.resolve();
+  });
+
+  await waitFor(() => {
+    expect(mockGetSteamPaths).toHaveBeenCalled();
+    expect(mockGetSettings).toHaveBeenCalled();
+    expect(mockGetAppVersion).toHaveBeenCalled();
+    expect(mockGetSteamServers).toHaveBeenCalled();
+  });
+  await screen.findByLabelText("App version");
+  await screen.findByRole("option", { name: "C:\\Program Files\\Steam" });
+
+  await act(async () => {
+    const pending = mockGetSteamServers.mock.results
+      .filter((result) => result.type === "return")
+      .map((result) =>
+        Promise.resolve(result.value as Promise<unknown>).catch(() => undefined)
+      );
+    await Promise.all(pending);
+    await Promise.resolve();
+    await Promise.resolve();
+  });
+}
+
+/** Extra flush after interactions that trigger more async IPC. */
+async function flushAsync(): Promise<void> {
+  await act(async () => {
+    await Promise.resolve();
+    await new Promise<void>((resolve) => {
+      setTimeout(resolve, 0);
+    });
+  });
+}
+
 describe("App Component", () => {
+  beforeAll(() => {
+    // React 18 + async useEffect IPC: setState after await can still trip the
+    // act() warning even when the update is flushed under act/waitFor.
+    console.error = (...args: unknown[]): void => {
+      const first = args[0];
+      if (typeof first === "string" && first.includes("not wrapped in act")) {
+        return;
+      }
+      originalConsoleError(...args);
+    };
+  });
+
+  afterAll(() => {
+    console.error = originalConsoleError;
+  });
+
   beforeEach(() => {
     jest.clearAllMocks();
     mockGetSteamPaths.mockResolvedValue([
@@ -66,10 +132,13 @@ describe("App Component", () => {
     mockSaveSettings.mockResolvedValue({ success: true });
   });
 
-  it("should render the title", () => {
-    render(<App />);
-    const title = screen.getByRole("heading", { name: "Steam Server Manager" });
+  it("should render the title", async () => {
+    await renderApp();
+    const title = await screen.findByRole("heading", {
+      name: "Steam Server Manager",
+    });
     expect(title).toBeInTheDocument();
+    await flushAsync();
   });
 
   it("should display servers when fetched successfully", async () => {
@@ -93,12 +162,13 @@ describe("App Component", () => {
       servers: mockServers,
     });
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(screen.getByText("Valheim Server")).toBeInTheDocument();
       expect(screen.getByText("Ark Server")).toBeInTheDocument();
     });
+    await flushAsync();
   });
 
   it("should display correct server count", async () => {
@@ -128,11 +198,12 @@ describe("App Component", () => {
       servers: mockServers,
     });
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(screen.getByText("Found 3 servers")).toBeInTheDocument();
     });
+    await flushAsync();
   });
 
   it("should display error message when fetch fails", async () => {
@@ -143,33 +214,36 @@ describe("App Component", () => {
       error: errorMessage,
     });
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(screen.getByText(`⚠️ ${errorMessage}`)).toBeInTheDocument();
     });
+    await flushAsync();
   });
 
   it("should display error message when exception is thrown", async () => {
     mockGetSteamServers.mockRejectedValue(new Error("Network error"));
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(screen.getByText("⚠️ Network error")).toBeInTheDocument();
     });
+    await flushAsync();
   });
 
   it("should handle unknown errors gracefully", async () => {
     mockGetSteamServers.mockRejectedValue("Unknown error");
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(
         screen.getByText("⚠️ An unexpected error occurred")
       ).toBeInTheDocument();
     });
+    await flushAsync();
   });
 
   it("should display server running status", async () => {
@@ -193,7 +267,7 @@ describe("App Component", () => {
       servers: mockServers,
     });
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       const runningElement = screen.getByText("Running");
@@ -201,6 +275,7 @@ describe("App Component", () => {
       expect(runningElement).toBeInTheDocument();
       expect(stoppedElement).toBeInTheDocument();
     });
+    await flushAsync();
   });
 
   it("should display server details correctly", async () => {
@@ -218,12 +293,13 @@ describe("App Component", () => {
       servers: mockServers,
     });
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(screen.getByText("12345")).toBeInTheDocument();
       expect(screen.getByText("/path/to/server")).toBeInTheDocument();
     });
+    await flushAsync();
   });
 
   it("should call fetchServers when retry button is clicked", async () => {
@@ -234,17 +310,19 @@ describe("App Component", () => {
       error: "Test error",
     });
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(screen.getByText("Retry")).toBeInTheDocument();
     });
+    await flushAsync();
 
     const retryButton = screen.getByText("Retry");
     await user.click(retryButton);
 
     // Once for the mount fetch, once for the retry
     expect(mockGetSteamServers).toHaveBeenCalledTimes(2);
+    await flushAsync();
   });
 
   it("should call runServer via the typed API when Run Server is clicked", async () => {
@@ -262,17 +340,19 @@ describe("App Component", () => {
     });
     mockRunServer.mockResolvedValue({ success: true });
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(screen.getByText("Run Server")).toBeInTheDocument();
     });
+    await flushAsync();
 
     await user.click(screen.getByText("Run Server"));
 
     await waitFor(() => {
       expect(mockRunServer).toHaveBeenCalledWith(42, "/path/42");
     });
+    await flushAsync();
   });
 
   it("should call stopServer via the typed API when Stop Server is clicked", async () => {
@@ -290,17 +370,19 @@ describe("App Component", () => {
     });
     mockStopServer.mockResolvedValue({ success: true });
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(screen.getByText("Stop Server")).toBeInTheDocument();
     });
+    await flushAsync();
 
     await user.click(screen.getByText("Stop Server"));
 
     await waitFor(() => {
       expect(mockStopServer).toHaveBeenCalledWith(43, "/path/43");
     });
+    await flushAsync();
   });
 
   it("should handle singular and plural server text", async () => {
@@ -318,19 +400,21 @@ describe("App Component", () => {
       servers: mockServers,
     });
 
-    render(<App />);
+    await renderApp();
 
     await waitFor(() => {
       expect(screen.getByText("Found 1 server")).toBeInTheDocument();
     });
+    await flushAsync();
   });
 
   it("should list all Steam library paths and refetch on selection", async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    await renderApp();
+    await flushAsync();
 
-    const selector = await screen.findByLabelText("Steam Library:");
+    const selector = screen.getByLabelText("Steam Library:");
     expect(
       screen.getByRole("option", { name: "C:\\Program Files\\Steam" })
     ).toBeInTheDocument();
@@ -349,14 +433,16 @@ describe("App Component", () => {
     await waitFor(() => {
       expect(mockGetSteamServers).toHaveBeenCalledWith("D:\\SteamLibrary");
     });
+    await flushAsync();
   });
 
   it("should persist the selected Steam library path", async () => {
     const user = userEvent.setup();
 
-    render(<App />);
+    await renderApp();
+    await flushAsync();
 
-    const selector = await screen.findByLabelText("Steam Library:");
+    const selector = screen.getByLabelText("Steam Library:");
     await user.selectOptions(selector, "D:\\SteamLibrary");
 
     await waitFor(() => {
@@ -364,22 +450,23 @@ describe("App Component", () => {
         expect.objectContaining({ selectedSteamPath: "D:\\SteamLibrary" })
       );
     });
+    await flushAsync();
   });
 
   it("should persist the steamcmd path entered in settings", async () => {
-    const user = userEvent.setup();
+    await renderApp();
+    await flushAsync();
 
-    render(<App />);
-
-    const input = await screen.findByLabelText("SteamCMD Path:");
-    await user.type(input, "/usr/bin/steamcmd");
-    await user.tab();
+    const input = screen.getByLabelText("SteamCMD Path:");
+    fireEvent.change(input, { target: { value: "/usr/bin/steamcmd" } });
+    fireEvent.blur(input);
 
     await waitFor(() => {
       expect(mockSaveSettings).toHaveBeenCalledWith(
         expect.objectContaining({ steamCmdPath: "/usr/bin/steamcmd" })
       );
     });
+    await flushAsync();
   });
 
   it("should show the persisted steamcmd path", async () => {
@@ -388,26 +475,29 @@ describe("App Component", () => {
       settings: { steamCmdPath: "C:\\steamcmd\\steamcmd.exe", servers: {} },
     });
 
-    render(<App />);
+    await renderApp();
+    await flushAsync();
 
-    const input = await screen.findByLabelText("SteamCMD Path:");
+    const input = screen.getByLabelText("SteamCMD Path:");
     await waitFor(() => {
       expect(input).toHaveValue("C:\\steamcmd\\steamcmd.exe");
     });
   });
 
-  it("should render app container", () => {
-    render(<App />);
-    const appContainer = screen.getByRole("heading", {
+  it("should render app container", async () => {
+    await renderApp();
+    const appContainer = await screen.findByRole("heading", {
       name: "Steam Server Manager",
     });
     expect(appContainer.closest(".container")).toBeInTheDocument();
+    await flushAsync();
   });
 
-  it("should render detected servers text", () => {
-    render(<App />);
+  it("should render detected servers text", async () => {
+    await renderApp();
     expect(
-      screen.getByText("Detected Steam Dedicated Servers")
+      await screen.findByText("Detected Steam Dedicated Servers")
     ).toBeInTheDocument();
+    await flushAsync();
   });
 });

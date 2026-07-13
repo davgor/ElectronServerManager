@@ -26,6 +26,9 @@ const mockElectronApi: ElectronAPI = {
     .fn()
     .mockResolvedValue({ success: true, settings: { servers: {} } }),
   saveSettings: jest.fn().mockResolvedValue({ success: true }),
+  checkForAppUpdate: jest.fn().mockResolvedValue({ success: true }),
+  installAppUpdate: jest.fn().mockResolvedValue({ success: true }),
+  onAppUpdateStatus: jest.fn(() => () => undefined),
   windowControls: {
     minimize: jest.fn().mockResolvedValue({ success: true }),
     toggleMaximize: jest

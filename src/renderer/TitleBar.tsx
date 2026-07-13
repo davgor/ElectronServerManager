@@ -1,8 +1,30 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import "./TitleBar.css";
 
 function TitleBar(): JSX.Element {
   const [isMaximized, setIsMaximized] = useState(false);
+  const [appVersion, setAppVersion] = useState<string | null>(null);
+  const cancelledRef = useRef(false);
+
+  useEffect(() => {
+    cancelledRef.current = false;
+    void (async (): Promise<void> => {
+      try {
+        const version = await window.electron.getAppVersion();
+        if (cancelledRef.current) {
+          return;
+        }
+        if (version.trim().length > 0) {
+          setAppVersion(version);
+        }
+      } catch (err) {
+        console.error("Failed to load app version", err);
+      }
+    })();
+    return () => {
+      cancelledRef.current = true;
+    };
+  }, []);
 
   const minimize = async (): Promise<void> => {
     try {
@@ -35,6 +57,11 @@ function TitleBar(): JSX.Element {
     <div className="titlebar" title="Drag to move window">
       <div className="titlebar-left-pill">
         <div className="titlebar-drag">Steam Server Manager</div>
+        {appVersion !== null ? (
+          <span className="titlebar-version" aria-label="App version">
+            v{appVersion}
+          </span>
+        ) : null}
       </div>
       <div className="titlebar-controls">
         <button

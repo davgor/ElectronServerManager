@@ -1,0 +1,59 @@
+.update-banner {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  margin: 0 0 16px;
+  padding: 10px 14px;
+  border-radius: 6px;
+  background: #123040;
+  color: #d7ecf7;
+  font-size: 14px;
+  border: 1px solid rgba(120, 180, 210, 0.25);
+}
+
+.update-banner-ready {
+  justify-content: space-between;
+}
+
+.update-banner-action {
+  border: none;
+  border-radius: 4px;
+  padding: 6px 12px;
+  background: #2f8f6b;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.update-banner-action:disabled {
+  opacity: 0.7;
+  cursor: default;
+}
+
+.update-banner-action:hover:not(:disabled) {
+  background: #267556;
+}
+
+.update-banner-progress {
+  flex: 1 1 160px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.12);
+  overflow: hidden;
+}
+
+.update-banner-progress-bar {
+  height: 100%;
+  background: #4db3e0;
+  transition: width 160ms ease;
+}
+
+.update-banner-error {
+  color: #ffb4b4;
+}
+
+.update-banner.update-banner-error {
+  background: #3a1c1c;
+  border-color: rgba(255, 120, 120, 0.35);
+}

@@ -89,6 +89,19 @@ export interface GetSettingsResponse extends IpcActionResult {
   settings: AppSettings;
 }
 
+/** App auto-update status pushed from main → renderer (epic 012). */
+export type AppUpdateStatus =
+  | { state: "idle" }
+  | { state: "checking" }
+  | { state: "available"; version: string; currentVersion: string }
+  | { state: "not-available" }
+  | { state: "downloading"; percent: number }
+  | { state: "ready"; version: string }
+  | { state: "error"; message: string };
+
+/** Main → renderer push event channels (not invoke). */
+export type IpcEventChannel = "app-update-status";
+
 /**
  * Request/response contract for every `ipcRenderer.invoke` channel.
  * `args` is the tuple of arguments after the channel name; `result` is the
@@ -139,6 +152,8 @@ export interface IpcInvokeMap {
   };
   "get-settings": { args: []; result: GetSettingsResponse };
   "save-settings": { args: [settings: AppSettings]; result: IpcActionResult };
+  "app-update-check": { args: []; result: IpcActionResult };
+  "app-update-install": { args: []; result: IpcActionResult };
   "window-minimize": { args: []; result: IpcActionResult };
   "window-maximize-toggle": {
     args: [];
@@ -192,5 +207,10 @@ export interface ElectronAPI {
   ) => Promise<IpcActionResult>;
   getSettings: () => Promise<GetSettingsResponse>;
   saveSettings: (settings: AppSettings) => Promise<IpcActionResult>;
+  checkForAppUpdate: () => Promise<IpcActionResult>;
+  installAppUpdate: () => Promise<IpcActionResult>;
+  onAppUpdateStatus: (
+    callback: (status: AppUpdateStatus) => void
+  ) => () => void;
   windowControls: ElectronWindowControls;
 }

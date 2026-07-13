@@ -39,6 +39,8 @@ const EXPECTED_CHANNELS = [
   "save-server-config",
   "get-settings",
   "save-settings",
+  "app-update-check",
+  "app-update-install",
   "window-minimize",
   "window-maximize-toggle",
   "window-close",
@@ -53,7 +55,7 @@ const channelsAreExpected: readonly ExpectedChannel[] = [] as IpcChannel[];
 
 describe("IPC types", () => {
   it("covers every registered IPC channel", () => {
-    expect(expectedAreChannels).toHaveLength(18);
+    expect(expectedAreChannels).toHaveLength(20);
     expect(channelsAreExpected).toHaveLength(0);
   });
 

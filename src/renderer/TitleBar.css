@@ -30,7 +30,9 @@
   z-index: 1;
   white-space: nowrap;
   max-width: 60%;
-  display: inline-block;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
   overflow: hidden;
   text-overflow: ellipsis;
   position: relative;
@@ -47,6 +49,13 @@
   padding: 0 8px;
   background: transparent;
   border: none;
+}
+.titlebar-version {
+  font-weight: 500;
+  font-size: 12px;
+  color: rgba(207, 239, 255, 0.7);
+  padding-right: 8px;
+  white-space: nowrap;
 }
 
 /* Controls container */
