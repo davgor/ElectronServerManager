@@ -250,6 +250,21 @@ p {
   gap: 10px;
 }
 
+.server-output {
+  margin-top: 12px;
+  max-height: 180px;
+  overflow: auto;
+  padding: 10px;
+  background: #0f1419;
+  border: 1px solid #3d495c;
+  border-radius: 5px;
+  color: #c5d0de;
+  font-family: "Courier New", monospace;
+  font-size: 0.8em;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
 .server-settings {
   margin-top: 12px;
   padding-top: 12px;

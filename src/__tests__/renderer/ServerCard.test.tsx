@@ -246,4 +246,24 @@ describe("ServerCard Component", () => {
 
     expect(screen.queryByAltText("Valheim Server")).not.toBeInTheDocument();
   });
+
+  it("loads and shows recent server output when Show Output is clicked", async () => {
+    const user = userEvent.setup();
+    const getServerOutput = jest.fn().mockResolvedValue("server booted\n");
+    Object.defineProperty(window, "electron", {
+      value: { getServerOutput },
+      configurable: true,
+    });
+
+    render(<ServerCard {...makeProps()} />);
+
+    expect(screen.queryByTestId("server-output")).not.toBeInTheDocument();
+
+    await user.click(screen.getByText("Show Output"));
+
+    expect(getServerOutput).toHaveBeenCalledWith(1396110);
+    expect(await screen.findByTestId("server-output")).toHaveTextContent(
+      "server booted"
+    );
+  });
 });

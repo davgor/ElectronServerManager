@@ -7,11 +7,12 @@ import type {
   IpcActionResult,
 } from "../types/ipc";
 
+import { parseIniContent, stringifyIniContent } from "./iniConfig";
+import * as logger from "./logger";
 import {
   STEAM_DEDICATED_SERVERS,
   resolveServerConfigLocation,
 } from "./steamDetection";
-import { parseIniContent, stringifyIniContent } from "./iniConfig";
 
 type ConfigReadResult = GetServerConfigResponse;
 
@@ -73,7 +74,7 @@ export async function getServerConfig(
 
     return { success: true, content: parsed, format, filePath: configPath };
   } catch (err) {
-    console.error("Error reading server config:", err);
+    logger.error("Error reading server config:", err);
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),
@@ -105,7 +106,7 @@ export async function saveServerConfig(
     await fs.writeFile(configPath, fileContent, "utf-8");
     return { success: true };
   } catch (err) {
-    console.error("Error saving server config:", err);
+    logger.error("Error saving server config:", err);
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),

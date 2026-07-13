@@ -2,6 +2,8 @@ import path from "path";
 
 import { app, BrowserWindow, screen } from "electron";
 
+import { enableFileLogging } from "./logger";
+
 let mainWindow: BrowserWindow | null = null;
 
 export function getMainWindow(): BrowserWindow | null {
@@ -68,6 +70,7 @@ function createWindow(isDev: boolean): void {
 
 export function registerAppLifecycle(isDev: boolean): void {
   app.on("ready", () => {
+    enableFileLogging(app.getPath("userData"));
     createWindow(isDev);
   });
 

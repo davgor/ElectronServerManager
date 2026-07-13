@@ -19,6 +19,7 @@ const mockElectronApi: ElectronAPI = {
   backupServerSave: jest.fn().mockResolvedValue({ success: true }),
   selectBackupFolder: jest.fn().mockResolvedValue({ success: true }),
   getServerConfig: mockGetServerConfig,
+  getServerOutput: jest.fn().mockResolvedValue(""),
   saveServerConfig: mockSaveServerConfig,
   openFileDefault: mockOpenFileDefault,
   getSettings: jest

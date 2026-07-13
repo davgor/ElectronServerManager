@@ -2,6 +2,8 @@ import { execSync } from "child_process";
 import { existsSync } from "fs";
 import { join } from "path";
 
+import * as logger from "./logger";
+
 /**
  * Get list of available drives on the system
  */
@@ -41,7 +43,7 @@ function getAvailableDrives(): string[] {
 
     return ["C:"];
   } catch (error) {
-    console.error("Error getting available drives:", error);
+    logger.error("Error getting available drives:", error);
     return ["C:"];
   }
 }

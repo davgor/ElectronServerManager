@@ -51,6 +51,7 @@ describe("Preload IPC bridge", () => {
         "backup-server-save",
         "select-backup-folder",
         "get-server-config",
+        "get-server-output",
         "open-file-default",
         "save-server-config",
         "get-settings",
@@ -213,6 +214,14 @@ describe("Preload IPC bridge", () => {
         1396110,
         "/steam/valheim"
       );
+    });
+
+    it("invokes get-server-output for getServerOutput", async () => {
+      mockIpcInvoke.mockResolvedValue("boot ok\n");
+      await expect(getExposedApi().getServerOutput(1396110)).resolves.toBe(
+        "boot ok\n"
+      );
+      expect(mockIpcInvoke).toHaveBeenCalledWith("get-server-output", 1396110);
     });
 
     it("invokes open-file-default for openFileDefault", async () => {

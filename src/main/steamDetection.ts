@@ -2,6 +2,8 @@ import { promises as fs } from "fs";
 import path from "path";
 import { execSync } from "child_process";
 
+import * as logger from "./logger";
+
 export interface SteamServer {
   name: string;
   appId: number;
@@ -241,8 +243,7 @@ export async function fetchCoverArt(
     const response = await fetch(coverUrl, { method: "HEAD" });
     value = response.ok ? coverUrl : undefined;
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.log(
+    logger.debug(
       `Failed to fetch cover art for app ${appId}: ${err instanceof Error ? err.message : String(err)}`
     );
     value = undefined;
@@ -269,8 +270,7 @@ export function isProcessRunning(processName: string): boolean {
       command = `tasklist /FI "IMAGENAME eq ${exeName}"`;
       const result = execSync(command, { encoding: "utf8" });
       const isRunning = result.includes(exeName);
-      // eslint-disable-next-line no-console
-      console.log(
+      logger.debug(
         `Process check for ${exeName}: ${isRunning ? "RUNNING" : "NOT FOUND"}`
       );
       return isRunning;
@@ -278,20 +278,17 @@ export function isProcessRunning(processName: string): boolean {
       command = `pgrep -f "${processName}"`;
       try {
         execSync(command);
-        // eslint-disable-next-line no-console
-        console.log(`Process check for ${processName}: RUNNING`);
+        logger.debug(`Process check for ${processName}: RUNNING`);
         return true;
       } catch {
-        // eslint-disable-next-line no-console
-        console.log(`Process check for ${processName}: NOT FOUND`);
+        logger.debug(`Process check for ${processName}: NOT FOUND`);
         return false;
       }
     }
 
     return false;
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(
+    logger.error(
       `Error checking process: ${err instanceof Error ? err.message : String(err)}`
     );
     return false;
@@ -322,25 +319,23 @@ export async function findInstalledServers(
   }
 
   if (steamPath === null) {
-    console.warn("Steam installation not found");
+    logger.warn("Steam installation not found");
     return [];
   }
 
   if (steamPath === "") {
-    console.warn("Steam installation not found");
+    logger.warn("Steam installation not found");
     return [];
   }
 
-  // eslint-disable-next-line no-console
-  console.log(`Searching for servers in: ${steamPath}`);
+  logger.debug(`Searching for servers in: ${steamPath}`);
 
   const libraryPaths = await parseLibraryFolders(steamPath);
   // Filter out any falsy or non-string entries that can appear in test mocks
   const safeLibraryPaths = libraryPaths.filter(
     (p): p is string => typeof p === "string" && p.length > 0
   );
-  // eslint-disable-next-line no-console
-  console.log(`Library paths found: ${JSON.stringify(safeLibraryPaths)}`);
+  logger.debug(`Library paths found: ${JSON.stringify(safeLibraryPaths)}`);
 
   const servers: SteamServer[] = [];
 
@@ -364,8 +359,7 @@ export async function findInstalledServers(
       try {
         await fs.stat(manifestPath);
         manifestExists = true;
-        // eslint-disable-next-line no-console
-        console.log(
+        logger.debug(
           `Found manifest for ${serverName} (${appId}) at: ${manifestPath}`
         );
       } catch {
@@ -394,8 +388,7 @@ export async function findInstalledServers(
             isRunning: isProcessRunning(resolvedExecutable),
             coverArt: steamCoverArtUrl(parseInt(appId, 10)),
           });
-          // eslint-disable-next-line no-console
-          console.log(
+          logger.debug(
             `✓ Found ${serverName} (numeric folder) at ${numericAppPath}`
           );
           break;
@@ -419,8 +412,7 @@ export async function findInstalledServers(
               isRunning: isProcessRunning(resolvedExecutable),
               coverArt: steamCoverArtUrl(parseInt(appId, 10)),
             });
-            // eslint-disable-next-line no-console
-            console.log(
+            logger.debug(
               `✓ Found ${serverName} (expected folder) at ${expectedPath}`
             );
             break;
@@ -441,8 +433,7 @@ export async function findInstalledServers(
           break;
         }
       } catch (err) {
-        // eslint-disable-next-line no-console
-        console.log(
+        logger.debug(
           `Error while checking common directory for ${serverName}: ${err instanceof Error ? err.message : String(err)}`
         );
         // don't add server unless manifestExists
@@ -460,8 +451,7 @@ export async function findInstalledServers(
     }
   }
 
-  // eslint-disable-next-line no-console
-  console.log(`Total servers found: ${servers.length}`);
+  logger.debug(`Total servers found: ${servers.length}`);
   return servers;
 }
 
@@ -490,24 +480,20 @@ export async function getServerBuildId(
       const buildId = parseBuildIdFromManifest(content);
 
       if (buildId === null) {
-        // eslint-disable-next-line no-console
-        console.warn(`Could not parse buildid from manifest for app ${appId}`);
+        logger.warn(`Could not parse buildid from manifest for app ${appId}`);
         return null;
       }
 
-      // eslint-disable-next-line no-console
-      console.log(`App ${appId} current buildid: ${buildId}`);
+      logger.debug(`App ${appId} current buildid: ${buildId}`);
       return buildId.toString();
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.log(
+      logger.debug(
         `Could not read manifest for app ${appId}: ${err instanceof Error ? err.message : String(err)}`
       );
       return null;
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(
+    logger.error(
       `Error checking buildid for app ${appId}: ${err instanceof Error ? err.message : String(err)}`
     );
     return null;
@@ -534,8 +520,7 @@ export async function backupServerSave(
 
     const saveLocation = resolveServerSaveLocation(serverInfo);
     if (saveLocation === undefined || saveLocation === "") {
-      // eslint-disable-next-line no-console
-      console.error(`No save location defined for app ${appId}`);
+      logger.error(`No save location defined for app ${appId}`);
       return null;
     }
 
@@ -546,8 +531,7 @@ export async function backupServerSave(
     try {
       await fs.stat(savePath);
     } catch {
-      // eslint-disable-next-line no-console
-      console.error(`Save directory not found: ${savePath}`);
+      logger.error(`Save directory not found: ${savePath}`);
       return null;
     }
 
@@ -557,8 +541,7 @@ export async function backupServerSave(
     try {
       await fs.mkdir(backupDir, { recursive: true });
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(
+      logger.error(
         `Failed to create backup directory: ${err instanceof Error ? err.message : String(err)}`
       );
       return null;
@@ -569,8 +552,7 @@ export async function backupServerSave(
     const timestamp = now.toISOString().replace(/[:.]/g, "-").slice(0, -5); // YYYY-MM-DDTHH-mm-ss
     const backupFile = path.join(backupDir, `${timestamp}.zip`);
 
-    // eslint-disable-next-line no-console
-    console.log(`Creating backup from ${savePath} to ${backupFile}`);
+    logger.debug(`Creating backup from ${savePath} to ${backupFile}`);
 
     // Use platform-specific commands to create zip
     const platform = process.platform;
@@ -588,19 +570,16 @@ export async function backupServerSave(
         execSync(`zip -r "${backupFile}" "${savePath}"`);
       }
 
-      // eslint-disable-next-line no-console
-      console.log(`Backup created successfully: ${backupFile}`);
+      logger.debug(`Backup created successfully: ${backupFile}`);
       return backupFile;
     } catch (err) {
-      // eslint-disable-next-line no-console
-      console.error(
+      logger.error(
         `Failed to create backup: ${err instanceof Error ? err.message : String(err)}`
       );
       return null;
     }
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error(
+    logger.error(
       `Error during backup: ${err instanceof Error ? err.message : String(err)}`
     );
     return null;
