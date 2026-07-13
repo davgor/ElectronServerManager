@@ -18,6 +18,7 @@ const mockStopServer = jest.fn();
 const mockAutoUpdateServer = jest.fn();
 const mockBackupServerSave = jest.fn();
 const mockSelectBackupFolder = jest.fn();
+const mockSelectSteamCmdPath = jest.fn();
 const mockGetServerConfig = jest.fn();
 const mockSaveServerConfig = jest.fn();
 const mockOpenFileDefault = jest.fn();
@@ -35,6 +36,7 @@ const mockElectronApi: ElectronAPI = {
   autoUpdateServer: mockAutoUpdateServer,
   backupServerSave: mockBackupServerSave,
   selectBackupFolder: mockSelectBackupFolder,
+  selectSteamCmdPath: mockSelectSteamCmdPath,
   getServerConfig: mockGetServerConfig,
   getServerOutput: jest.fn().mockResolvedValue(""),
   saveServerConfig: mockSaveServerConfig,
@@ -486,6 +488,27 @@ describe("App Component", () => {
     await waitFor(() => {
       expect(input).toHaveValue("C:\\steamcmd\\steamcmd.exe");
     });
+  });
+
+  it("should persist the steamcmd path chosen via Browse", async () => {
+    mockSelectSteamCmdPath.mockResolvedValue({
+      success: true,
+      path: "C:\\steamcmd\\steamcmd.exe",
+    });
+
+    await renderApp();
+    await flushAsync();
+
+    const user = userEvent.setup();
+    await user.click(screen.getByRole("button", { name: "Browse" }));
+
+    await waitFor(() => {
+      expect(mockSelectSteamCmdPath).toHaveBeenCalled();
+      expect(mockSaveSettings).toHaveBeenCalledWith(
+        expect.objectContaining({ steamCmdPath: "C:\\steamcmd\\steamcmd.exe" })
+      );
+    });
+    await flushAsync();
   });
 
   it("should render app container", async () => {

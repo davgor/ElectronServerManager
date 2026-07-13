@@ -4,7 +4,11 @@ import { EventEmitter } from "events";
 import { existsSync } from "fs";
 import * as childProcess from "child_process";
 
-import { resolveSteamCmdPath, runSteamCmdUpdate } from "../../main/steamCmd";
+import {
+  resolveSteamCmdPath,
+  runSteamCmdUpdate,
+  selectSteamCmdPath,
+} from "../../main/steamCmd";
 
 jest.mock("fs", () => ({
   existsSync: jest.fn(),
@@ -247,6 +251,59 @@ describe("steamCmd", () => {
       child.emit("exit", null, "SIGKILL");
 
       expect(result.success).toBe(false);
+    });
+  });
+
+  describe("selectSteamCmdPath", () => {
+    it("returns error when main window is unavailable", async () => {
+      const result = await selectSteamCmdPath(() => null, {
+        showOpenDialog: jest.fn(),
+      });
+
+      expect(result).toEqual({
+        success: false,
+        path: null,
+        error: "Main window not available",
+      });
+    });
+
+    it("returns selected path when dialog succeeds", async () => {
+      const showOpenDialog = jest.fn().mockResolvedValue({
+        canceled: false,
+        filePaths: ["C:\\steamcmd\\steamcmd.exe"],
+      });
+
+      const result = await selectSteamCmdPath(() => ({}) as never, {
+        showOpenDialog,
+      });
+
+      expect(result).toEqual({
+        success: true,
+        path: "C:\\steamcmd\\steamcmd.exe",
+      });
+      expect(showOpenDialog).toHaveBeenCalledWith(
+        expect.anything(),
+        expect.objectContaining({
+          properties: ["openFile"],
+          title: "Select SteamCMD Executable",
+        })
+      );
+    });
+
+    it("returns canceled result when dialog is dismissed", async () => {
+      const showOpenDialog = jest.fn().mockResolvedValue({
+        canceled: true,
+        filePaths: [],
+      });
+
+      const result = await selectSteamCmdPath(() => ({}) as never, {
+        showOpenDialog,
+      });
+
+      expect(result).toEqual({
+        success: false,
+        path: null,
+      });
     });
   });
 });

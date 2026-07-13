@@ -41,6 +41,10 @@ jest.mock("../../main/serverBackup", () => ({
   selectBackupFolder: jest.fn(),
 }));
 
+jest.mock("../../main/steamCmd", () => ({
+  selectSteamCmdPath: jest.fn(),
+}));
+
 jest.mock("../../main/settingsStore", () => ({
   getSettings: jest.fn(() => ({ success: true, settings: { servers: {} } })),
   saveSettings: jest.fn(),

@@ -18,6 +18,9 @@ const mockElectronApi: ElectronAPI = {
   autoUpdateServer: jest.fn().mockResolvedValue({ success: true }),
   backupServerSave: jest.fn().mockResolvedValue({ success: true }),
   selectBackupFolder: jest.fn().mockResolvedValue({ success: true }),
+  selectSteamCmdPath: jest
+    .fn()
+    .mockResolvedValue({ success: true, path: null }),
   getServerConfig: mockGetServerConfig,
   getServerOutput: jest.fn().mockResolvedValue(""),
   saveServerConfig: mockSaveServerConfig,

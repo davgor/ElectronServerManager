@@ -123,6 +123,7 @@ All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
 | `auto-update-server` | SteamCMD update for a server |
 | `backup-server-save` | Copy save data to backup folder |
 | `select-backup-folder` | Native folder picker for backups |
+| `select-steamcmd-path` | Native file picker for SteamCMD executable |
 | `get-server-config` | Load server config (JSON/INI) |
 | `get-server-output` | Recent capped stdout/stderr for a server |
 | `save-server-config` | Persist edited config |

@@ -52,6 +52,7 @@ describe("Preload IPC bridge", () => {
         "auto-update-server",
         "backup-server-save",
         "select-backup-folder",
+        "select-steamcmd-path",
         "get-server-config",
         "get-server-output",
         "open-file-default",
@@ -211,6 +212,18 @@ describe("Preload IPC bridge", () => {
         path: "/backups",
       });
       expect(mockIpcInvoke).toHaveBeenCalledWith("select-backup-folder");
+    });
+
+    it("invokes select-steamcmd-path for selectSteamCmdPath", async () => {
+      mockIpcInvoke.mockResolvedValue({
+        success: true,
+        path: "/usr/bin/steamcmd",
+      });
+      await expect(getExposedApi().selectSteamCmdPath()).resolves.toEqual({
+        success: true,
+        path: "/usr/bin/steamcmd",
+      });
+      expect(mockIpcInvoke).toHaveBeenCalledWith("select-steamcmd-path");
     });
 
     it("invokes get-server-config for getServerConfig", async () => {
