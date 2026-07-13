@@ -71,6 +71,7 @@ npm run lint
 npm run format:check
 npm test
 npm run type-check
+npm run deadcode
 npm run electron-build   # when main/preload changed
 npm run build            # when renderer/build output affected
 ```
@@ -99,6 +100,7 @@ Delivery:
 - [ ] npm run format:check — pass
 - [ ] npm test — pass
 - [ ] npm run type-check — pass
+- [ ] npm run deadcode — pass
 - [ ] npm run build — pass (when applicable)
 - [ ] Acceptance criteria checked off only when verified
 ```

@@ -11,6 +11,11 @@
   align-items: center;
 }
 
+/* Reused checkbox class carries standalone margin-top for ServerCard rows. */
+.palworld-ops-controls .auto-restart-checkbox {
+  margin-top: 0;
+}
+
 .palworld-ops-interval {
   display: flex;
   align-items: center;

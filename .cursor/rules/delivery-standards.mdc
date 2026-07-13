@@ -16,6 +16,7 @@ Any implementation work in this repo must follow `.cursor/skills/delivery-standa
    - `npm run format:check`
    - `npm test`
    - `npm run type-check`
+   - `npm run deadcode`
    - `npm run build` (when renderer/build output is affected)
    - `npm run electron-build` (when main/preload changed)
 3. **Board traceability** — create a ticket in `/board/backlog/` or update the related epic/ticket before or as you start. If the user named a ticket id, use `complete-ticket` skill.
