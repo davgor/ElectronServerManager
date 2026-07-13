@@ -151,7 +151,9 @@ easy to confirm.
 3. **Auto-restart** — Renderer settings flag; polling in `useSteamServers`
    restarts if a watched server exits unexpectedly.
 4. **Auto-update (game files)** — SteamCMD via `autoUpdate.ts` when enabled per
-   server.
+   server: stop → `+force_install_dir <installPath>` + `app_update validate` →
+   verify buildid → always restart after a successful stop (`updated` reflects
+   whether the build changed; `no-update` still brings the process back up).
 5. **App auto-update** — Packaged builds use `electron-updater` (`appUpdater.ts`)
    against GitHub Releases metadata; see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
 6. **Backup** — Copies configured save location into a user-chosen backup root.

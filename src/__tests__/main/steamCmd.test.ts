@@ -122,19 +122,34 @@ describe("steamCmd", () => {
   });
 
   describe("runSteamCmdUpdate", () => {
-    it("runs app_update with validate and resolves success on exit 0", async () => {
+    const INSTALL_PATH = "/steam/common/EnshroudedServer";
+
+    it("runs force_install_dir before app_update and resolves success on exit 0", async () => {
       const child = createFakeChild();
       mockSpawn.mockReturnValue(
         child as unknown as ReturnType<typeof childProcess.spawn>
       );
 
-      const pending = runSteamCmdUpdate("/usr/bin/steamcmd", 2278520);
+      const pending = runSteamCmdUpdate(
+        "/usr/bin/steamcmd",
+        2278520,
+        INSTALL_PATH
+      );
       child.emit("exit", 0, null);
 
       await expect(pending).resolves.toEqual({ success: true });
       expect(mockSpawn).toHaveBeenCalledWith(
         "/usr/bin/steamcmd",
-        ["+login", "anonymous", "+app_update", "2278520", "validate", "+quit"],
+        [
+          "+force_install_dir",
+          INSTALL_PATH,
+          "+login",
+          "anonymous",
+          "+app_update",
+          "2278520",
+          "validate",
+          "+quit",
+        ],
         expect.objectContaining({ shell: false })
       );
     });
@@ -145,7 +160,11 @@ describe("steamCmd", () => {
         child as unknown as ReturnType<typeof childProcess.spawn>
       );
 
-      const pending = runSteamCmdUpdate("C:\\steamcmd\\steamcmd.exe", 2278520);
+      const pending = runSteamCmdUpdate(
+        "C:\\steamcmd\\steamcmd.exe",
+        2278520,
+        "D:\\servers\\EnshroudedServer"
+      );
       child.emit("exit", 7, null);
 
       await expect(pending).resolves.toEqual({ success: true });
@@ -157,7 +176,11 @@ describe("steamCmd", () => {
         child as unknown as ReturnType<typeof childProcess.spawn>
       );
 
-      const pending = runSteamCmdUpdate("/usr/bin/steamcmd", 2278520);
+      const pending = runSteamCmdUpdate(
+        "/usr/bin/steamcmd",
+        2278520,
+        INSTALL_PATH
+      );
       child.stderr.emit("data", Buffer.from("No subscription"));
       child.emit("exit", 8, null);
 
@@ -173,7 +196,11 @@ describe("steamCmd", () => {
         child as unknown as ReturnType<typeof childProcess.spawn>
       );
 
-      const pending = runSteamCmdUpdate("/usr/bin/steamcmd", 2278520);
+      const pending = runSteamCmdUpdate(
+        "/usr/bin/steamcmd",
+        2278520,
+        INSTALL_PATH
+      );
       child.emit("error", new Error("ENOENT"));
 
       const result = await pending;
@@ -187,9 +214,14 @@ describe("steamCmd", () => {
         child as unknown as ReturnType<typeof childProcess.spawn>
       );
 
-      const result = await runSteamCmdUpdate("/usr/bin/steamcmd", 2278520, {
-        timeoutMs: 5,
-      });
+      const result = await runSteamCmdUpdate(
+        "/usr/bin/steamcmd",
+        2278520,
+        INSTALL_PATH,
+        {
+          timeoutMs: 5,
+        }
+      );
 
       expect(result.success).toBe(false);
       expect(result.error).toContain("timed out");
@@ -202,9 +234,14 @@ describe("steamCmd", () => {
         child as unknown as ReturnType<typeof childProcess.spawn>
       );
 
-      const result = await runSteamCmdUpdate("/usr/bin/steamcmd", 2278520, {
-        timeoutMs: 5,
-      });
+      const result = await runSteamCmdUpdate(
+        "/usr/bin/steamcmd",
+        2278520,
+        INSTALL_PATH,
+        {
+          timeoutMs: 5,
+        }
+      );
       // The killed child eventually emits exit; this must not throw or
       // change the already-resolved outcome.
       child.emit("exit", null, "SIGKILL");

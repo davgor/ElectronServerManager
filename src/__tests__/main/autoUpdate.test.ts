@@ -97,7 +97,7 @@ describe("autoUpdateServer", () => {
     expect(mockRunSteamCmdUpdate).not.toHaveBeenCalled();
   });
 
-  it("runs steamcmd for the app and fails at updating on steamcmd error", async () => {
+  it("passes installPath to steamcmd and fails at updating on steamcmd error after restart attempt", async () => {
     mockGetServerBuildId.mockResolvedValue("100");
     mockRunSteamCmdUpdate.mockResolvedValue({
       success: false,
@@ -111,15 +111,38 @@ describe("autoUpdateServer", () => {
     expect(mockRunSteamCmdUpdate).toHaveBeenCalledWith(
       "/usr/bin/steamcmd",
       APP_ID,
+      INSTALL_PATH,
       expect.any(Object)
     );
+    expect(mockStartServer).toHaveBeenCalledWith(APP_ID, INSTALL_PATH);
     expect(result.success).toBe(false);
     expect(result.stage).toBe("updating");
     expect(result.error).toContain("exit code 8");
-    expect(mockStartServer).not.toHaveBeenCalled();
   });
 
-  it("does not restart when the buildid is unchanged after steamcmd", async () => {
+  it("keeps the update error when steamcmd fails and restart also fails", async () => {
+    mockGetServerBuildId.mockResolvedValue("100");
+    mockRunSteamCmdUpdate.mockResolvedValue({
+      success: false,
+      error: "steamcmd exited with exit code 8",
+    });
+    mockStartServer.mockResolvedValue({
+      success: false,
+      error: "bind failed",
+    });
+
+    const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+      buildIdPollDelaysMs: NO_POLL_DELAYS,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.stage).toBe("updating");
+    expect(result.error).toContain("exit code 8");
+    expect(result.error).toContain("left stopped");
+    expect(result.error).toContain("bind failed");
+  });
+
+  it("restarts on no-update when the buildid is unchanged after steamcmd", async () => {
     mockGetServerBuildId.mockResolvedValue("100");
 
     const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
@@ -131,7 +154,7 @@ describe("autoUpdateServer", () => {
     expect(result.updated).toBe(false);
     expect(result.previousBuildId).toBe("100");
     expect(result.newBuildId).toBe("100");
-    expect(mockStartServer).not.toHaveBeenCalled();
+    expect(mockStartServer).toHaveBeenCalledWith(APP_ID, INSTALL_PATH);
   });
 
   it("restarts and reports complete when the buildid changed", async () => {
@@ -166,7 +189,7 @@ describe("autoUpdateServer", () => {
     expect(mockGetServerBuildId).toHaveBeenCalledTimes(3);
   });
 
-  it("fails at the restarting stage when the restart fails", async () => {
+  it("fails at the restarting stage when the restart fails after an update", async () => {
     mockGetServerBuildId.mockResolvedValueOnce("100").mockResolvedValue("101");
     mockStartServer.mockResolvedValue({
       success: false,
@@ -183,7 +206,7 @@ describe("autoUpdateServer", () => {
     expect(result.error).toContain("exited immediately");
   });
 
-  it("reports no-update when the buildid cannot be read after the update", async () => {
+  it("reports no-update and restarts when the buildid cannot be read after the update", async () => {
     mockGetServerBuildId.mockResolvedValueOnce("100").mockResolvedValue(null);
 
     const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
@@ -193,6 +216,23 @@ describe("autoUpdateServer", () => {
     expect(result.success).toBe(true);
     expect(result.stage).toBe("no-update");
     expect(result.updated).toBe(false);
-    expect(mockStartServer).not.toHaveBeenCalled();
+    expect(mockStartServer).toHaveBeenCalledWith(APP_ID, INSTALL_PATH);
+  });
+
+  it("fails at restarting when no-update restart fails", async () => {
+    mockGetServerBuildId.mockResolvedValue("100");
+    mockStartServer.mockResolvedValue({
+      success: false,
+      error: "Server process exited immediately",
+    });
+
+    const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+      buildIdPollDelaysMs: NO_POLL_DELAYS,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.stage).toBe("restarting");
+    expect(result.updated).toBe(false);
+    expect(result.error).toContain("exited immediately");
   });
 });
