@@ -1,4 +1,4 @@
-export interface NpmAuditFinding {
+interface NpmAuditFinding {
   name: string;
   severity: string;
   viaTitles: string[];
