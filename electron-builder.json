@@ -2,7 +2,13 @@
   "appId": "com.electronservermanager.app",
   "productName": "Game Server Manager",
   "artifactName": "Game-Server-Manager-${version}.${ext}",
-  "files": ["dist/main/**/*", "dist/preload/**/*", "dist/renderer/**/*", "node_modules/**/*"],
+  "files": [
+    "dist/main/**/*",
+    "dist/preload/**/*",
+    "dist/renderer/**/*",
+    "dist/types/**/*",
+    "node_modules/**/*"
+  ],
   "directories": {
     "output": "release",
     "buildResources": "assets"
