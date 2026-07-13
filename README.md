@@ -65,6 +65,7 @@ dev server, and launches Electron once `http://localhost:5173` is ready.
 | `npm run type-check` | `tsc --noEmit` |
 | `npm test` | Jest (runs `electron-build` via `pretest`) |
 | `npm run test:coverage` | Jest with coverage |
+| `npm run audit:cve` | Fail if npm audit reports any vulnerability |
 | `npm run deadcode` | `ts-prune` unused export scan |
 
 ## Architecture & docs

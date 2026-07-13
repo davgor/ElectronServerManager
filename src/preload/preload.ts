@@ -96,7 +96,7 @@ const electronApi: ElectronAPI = {
   checkForAppUpdate: () => invokeIpc("app-update-check"),
   installAppUpdate: () => invokeIpc("app-update-install"),
   onAppUpdateStatus: (callback: (status: AppUpdateStatus) => void) => {
-    const channel = "app-update-status" as const;
+    const channel = "app-update-status";
     if (!isAllowedEvent(channel)) {
       throw new Error(
         `Blocked listener on disallowed IPC event: ${String(channel)}`
