@@ -17,7 +17,21 @@ version, download it in the background, and restart to apply it.
 5. The UI banner prompts **Restart & Install**; after restart the title bar
    version (`vX.Y.Z`) should match the release tag / `package.json`.
 
-Dev runs (`npm start`) never hit the public update feed.
+Dev runs (`npm start` / `npm run dev`) never hit the public update feed.
+
+## Artifact naming (required for GitHub)
+
+Release filenames must **not contain spaces**. GitHub Releases rewrites spaces to
+dots (e.g. `Game.Server.Manager.Setup.…`), while `latest.yml` from
+electron-builder uses hyphens (`Game-Server-Manager-Setup-…`). A mismatch causes
+auto-update downloads to 404.
+
+`electron-builder.json` sets space-free `artifactName` patterns, and the release
+workflow sanitizes/verifies filenames before upload.
+
+If an already-published release has this mismatch (e.g. v1.0.22), either publish a
+newer fixed release from `main`, or re-upload hyphenated copies of the assets
+(see `scripts/repair-v1.0.22-assets.ps1`).
 
 ## Which artifacts auto-update
 
