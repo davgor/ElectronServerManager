@@ -54,11 +54,16 @@ describe("filterConfigTree", () => {
     expect(result.expandPaths).toEqual([]);
   });
 
-  it("filters by key match and keeps ancestors", () => {
+  it("filters by key match and keeps ancestors without non-matching siblings", () => {
     const result = filterConfigTree(sample, "canKickBan");
     expect(Object.keys(result.filtered)).toEqual(["userGroups"]);
-    const groups = result.filtered.userGroups as Record<string, unknown>;
+    const groups = result.filtered.userGroups as Record<
+      string,
+      Record<string, unknown>
+    >;
     expect(Object.keys(groups)).toEqual(["admin", "guest"]);
+    expect(groups.admin).toEqual({ canKickBan: true });
+    expect(groups.guest).toEqual({ canKickBan: false });
     expect(result.expandPaths).toEqual(
       expect.arrayContaining([
         "userGroups",
@@ -68,7 +73,7 @@ describe("filterConfigTree", () => {
     );
   });
 
-  it("filters by value match", () => {
+  it("filters by value match without non-matching siblings", () => {
     const result = filterConfigTree(sample, "secret");
     expect(Object.keys(result.filtered)).toEqual(["userGroups"]);
     const groups = result.filtered.userGroups as Record<
@@ -76,7 +81,33 @@ describe("filterConfigTree", () => {
       Record<string, unknown>
     >;
     expect(Object.keys(groups)).toEqual(["admin"]);
-    expect(groups.admin).toEqual({ password: "secret", canKickBan: true });
+    expect(groups.admin).toEqual({ password: "secret" });
+  });
+
+  it("does not keep non-matching siblings under a nested section (Palworld-like)", () => {
+    const palworldLike: Record<string, unknown> = {
+      "/Script/Pal.PalGameWorldSettings": {
+        OptionSettings: {
+          Difficulty: "None",
+          RandomizerType: "None",
+          RandomizerSeed: '""',
+          DayTimeSpeedRate: 1,
+        },
+      },
+    };
+    const result = filterConfigTree(palworldLike, "diff");
+    const script = result.filtered[
+      "/Script/Pal.PalGameWorldSettings"
+    ] as Record<string, unknown>;
+    const options = script.OptionSettings as Record<string, unknown>;
+    expect(Object.keys(options)).toEqual(["Difficulty"]);
+    expect(options.Difficulty).toBe("None");
+    expect(result.expandPaths).toEqual(
+      expect.arrayContaining([
+        "/Script/Pal.PalGameWorldSettings",
+        "/Script/Pal.PalGameWorldSettings.OptionSettings",
+      ])
+    );
   });
 
   it("is case-insensitive", () => {

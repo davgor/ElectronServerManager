@@ -128,26 +128,11 @@ function filterObject(
     return {};
   }
 
-  // Nested object with a leaf hit: keep siblings for context.
-  if (leafHits.length > 0 && pathPrefix !== "") {
-    addAncestorPaths(pathPrefix, expandPaths);
-    for (const [key, value] of [...containerKeyHits, ...nestedHits]) {
-      if (isObject(value)) {
-        expandMatchingContainers(
-          value,
-          pathFor(pathPrefix, key),
-          query,
-          expandPaths
-        );
-      }
-    }
-    return obj;
-  }
-
   const result: Record<string, unknown> = {};
 
   for (const [key, value] of leafHits) {
     result[key] = value;
+    addAncestorPaths(pathPrefix, expandPaths);
   }
 
   for (const [key, value] of containerKeyHits) {

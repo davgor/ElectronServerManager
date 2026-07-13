@@ -304,6 +304,31 @@ describe("ConfigEditor", () => {
     expect(screen.queryByText("name")).not.toBeInTheDocument();
     expect(screen.getByText("userGroups")).toBeInTheDocument();
     expect(screen.getAllByText("canKickBan").length).toBeGreaterThanOrEqual(1);
+    expect(screen.queryByText("password")).not.toBeInTheDocument();
+  });
+
+  it("hides non-matching sibling properties under a nested section", async () => {
+    const user = userEvent.setup();
+    mockLoadedConfig({
+      "/Script/Pal.PalGameWorldSettings": {
+        OptionSettings: {
+          Difficulty: "None",
+          RandomizerType: "None",
+          RandomizerSeed: '""',
+        },
+      },
+    });
+    render(<ConfigEditor {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("Difficulty")).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText("Search settings"), "diff");
+
+    expect(screen.getByText("Difficulty")).toBeInTheDocument();
+    expect(screen.queryByText("RandomizerType")).not.toBeInTheDocument();
+    expect(screen.queryByText("RandomizerSeed")).not.toBeInTheDocument();
   });
 
   it("filters by value match", async () => {
