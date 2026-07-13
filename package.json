@@ -31,7 +31,6 @@
     "prepare": "husky install"
   },
   "dependencies": {
-    "electron-is-dev": "^3.0.0",
     "electron-store": "^8.1.0"
   },
   "devDependencies": {
