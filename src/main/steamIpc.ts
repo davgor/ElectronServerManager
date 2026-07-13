@@ -8,8 +8,9 @@ import type {
   IpcActionResult,
 } from "../types/ipc";
 
-import { findInstalledServers } from "./steamDetection";
 import { getCommonSteamPaths } from "./driveUtils";
+import * as logger from "./logger";
+import { findInstalledServers } from "./steamDetection";
 
 export function collectDiagnostics(): CheckDiagnosticsResponse {
   const diagnostics: CheckDiagnosticsResponse = {};
@@ -40,7 +41,7 @@ export function listSteamPaths(): string[] {
   try {
     return getCommonSteamPaths();
   } catch (error) {
-    console.error("Error getting Steam paths:", error);
+    logger.error("Error getting Steam paths:", error);
     return [];
   }
 }
@@ -52,7 +53,7 @@ export async function fetchSteamServers(
     const servers = await findInstalledServers(path);
     return { success: true, servers };
   } catch (error) {
-    console.error("Error finding Steam servers:", error);
+    logger.error("Error finding Steam servers:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Unknown error occurred",
@@ -75,8 +76,7 @@ export async function openFileDefault(
     }
     return { success: true };
   } catch (err) {
-    // eslint-disable-next-line no-console
-    console.error("Error opening file:", err);
+    logger.error("Error opening file:", err);
     return {
       success: false,
       error: err instanceof Error ? err.message : String(err),

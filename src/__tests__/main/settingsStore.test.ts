@@ -45,7 +45,6 @@ describe("settingsStore", () => {
     mockStoreBehavior.throwOnConstruct = false;
     mockStoreBehavior.throwOnWrite = false;
     resetSettingsStoreForTests();
-    jest.spyOn(console, "error").mockImplementation(() => undefined);
   });
 
   afterEach(() => {

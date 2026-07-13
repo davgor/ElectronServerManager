@@ -10,6 +10,8 @@ import {
   isProcessRunning,
   resolveServerExecutable,
 } from "./steamDetection";
+import * as logger from "./logger";
+import { appendServerOutput, clearServerOutput } from "./serverOutputBuffer";
 
 type ServerActionResult = IpcActionResult;
 
@@ -101,7 +103,7 @@ export function killServerProcessByName(
   }
 
   const message = describeKillFailure(result, command);
-  console.error(`Failed to kill process by name (${executable}):`, message);
+  logger.error(`Failed to kill process by name (${executable}):`, message);
   return {
     success: false,
     error: `Failed to stop server process: ${message}`,
@@ -174,7 +176,7 @@ export async function startServer(
     const serverExePath = path.join(installPath, executable);
 
     if (!existsSync(serverExePath)) {
-      console.error(`Server executable not found: ${serverExePath}`);
+      logger.error(`Server executable not found: ${serverExePath}`);
       return {
         success: false,
         error: `Server executable not found at: ${serverExePath}. Please verify the installation path.`,
@@ -182,7 +184,7 @@ export async function startServer(
     }
 
     if (!existsSync(installPath)) {
-      console.error(`Install directory not found: ${installPath}`);
+      logger.error(`Install directory not found: ${installPath}`);
       return {
         success: false,
         error: `Install directory not found: ${installPath}`,
@@ -196,16 +198,24 @@ export async function startServer(
       shell: false,
     });
 
+    clearServerOutput(appId);
+
     const outcome: SpawnOutcome = { errored: null, exited: null, stderr: "" };
 
     serverProcess.on("error", (err: Error) => {
       outcome.errored = err;
-      console.error(`Spawn error for ${executable}: ${err.message}`);
+      logger.error(`Spawn error for ${executable}: ${err.message}`);
+    });
+
+    serverProcess.stdout.on("data", (data: Buffer) => {
+      appendServerOutput(appId, data.toString());
     });
 
     serverProcess.stderr.on("data", (data: Buffer) => {
+      const text = data.toString();
+      appendServerOutput(appId, text);
       if (outcome.stderr.length < MAX_CAPTURED_STDERR_CHARS) {
-        outcome.stderr += data.toString();
+        outcome.stderr += text;
       }
     });
 
@@ -258,7 +268,7 @@ export async function startServer(
 
     return { success: true };
   } catch (error) {
-    console.error("Error starting server:", error);
+    logger.error("Error starting server:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to start server",
@@ -288,7 +298,7 @@ export function stopServer(
     // name-based kill for the resolved executable.
     return killServerProcessByName(resolveServerExecutable(mappingEntry));
   } catch (error) {
-    console.error("Error stopping server:", error);
+    logger.error("Error stopping server:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to stop server",

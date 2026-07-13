@@ -14,6 +14,7 @@ import { autoUpdateServer } from "./autoUpdate";
 import { getServerConfig, saveServerConfig } from "./serverConfig";
 import { backupServerSaveHandler, selectBackupFolder } from "./serverBackup";
 import { getSettings, saveSettings } from "./settingsStore";
+import { getServerOutput } from "./serverOutputBuffer";
 
 interface IpcRegistrationDeps {
   getMainWindow: () => BrowserWindow | null;
@@ -71,6 +72,10 @@ export function registerIpcHandlers(deps: IpcRegistrationDeps): void {
       return getServerConfig(appId, installPath);
     }
   );
+
+  ipcMain.handle("get-server-output", (_event, appId: number) => {
+    return getServerOutput(appId);
+  });
 
   ipcMain.handle("open-file-default", async (_event, filePath: string) => {
     return openFileDefault(filePath);

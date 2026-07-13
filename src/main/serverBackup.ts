@@ -3,6 +3,7 @@ import type {
   SelectBackupFolderResponse,
 } from "../types/ipc";
 
+import * as logger from "./logger";
 import { backupServerSave as steamBackupServerSave } from "./steamDetection";
 
 type BackupResult = BackupServerSaveResponse;
@@ -22,8 +23,7 @@ export async function backupServerSaveHandler(
   backupPath: string
 ): Promise<BackupResult> {
   try {
-    // eslint-disable-next-line no-console
-    console.log(`Backing up server ${appId} to ${backupPath}`);
+    logger.info(`Backing up server ${appId} to ${backupPath}`);
 
     const backupFile = await steamBackupServerSave(
       appId,
@@ -38,12 +38,11 @@ export async function backupServerSaveHandler(
       };
     }
 
-    // eslint-disable-next-line no-console
-    console.log(`Backup completed: ${backupFile}`);
+    logger.info(`Backup completed: ${backupFile}`);
 
     return { success: true, backupPath: backupFile };
   } catch (error) {
-    console.error("Error creating backup:", error);
+    logger.error("Error creating backup:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Backup failed",
@@ -75,12 +74,11 @@ export async function selectBackupFolder(
     }
 
     const selectedPath = result.filePaths[0];
-    // eslint-disable-next-line no-console
-    console.log(`Backup folder selected: ${selectedPath}`);
+    logger.info(`Backup folder selected: ${selectedPath}`);
 
     return { success: true, path: selectedPath };
   } catch (error) {
-    console.error("Error selecting backup folder:", error);
+    logger.error("Error selecting backup folder:", error);
     return {
       success: false,
       path: null,

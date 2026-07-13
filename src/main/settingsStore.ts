@@ -2,6 +2,8 @@ import Store from "electron-store";
 
 import type { AppSettings, GetSettingsResponse } from "../types/ipc";
 
+import * as logger from "./logger";
+
 /**
  * Lazily created so importing this module never crashes outside a running
  * Electron app (e.g. in unit tests or type-check-only contexts).
@@ -32,7 +34,7 @@ export function getSettings(): GetSettingsResponse {
       settings: { ...defaults, ...stored },
     };
   } catch (error) {
-    console.error("Failed to load settings:", error);
+    logger.error("Failed to load settings:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to load settings",
@@ -49,7 +51,7 @@ export function saveSettings(settings: AppSettings): {
     getStore().store = settings;
     return { success: true };
   } catch (error) {
-    console.error("Failed to save settings:", error);
+    logger.error("Failed to save settings:", error);
     return {
       success: false,
       error: error instanceof Error ? error.message : "Failed to save settings",

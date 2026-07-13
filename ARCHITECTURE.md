@@ -65,6 +65,8 @@ src/
 │   ├── serverConfig.ts         # Read/write server config files
 │   ├── iniConfig.ts            # INI parse/serialize
 │   ├── settingsStore.ts        # electron-store settings
+│   ├── logger.ts               # Structured main-process logging
+│   ├── serverOutputBuffer.ts   # Recent server stdout/stderr ring buffer
 │   └── driveUtils.ts           # Drive / path utilities
 ├── preload/
 │   └── preload.ts              # contextBridge + channel allowlist
@@ -111,6 +113,7 @@ All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
 | `backup-server-save` | Copy save data to backup folder |
 | `select-backup-folder` | Native folder picker for backups |
 | `get-server-config` | Load server config (JSON/INI) |
+| `get-server-output` | Recent capped stdout/stderr for a server |
 | `save-server-config` | Persist edited config |
 | `open-file-default` | Open a path with the OS default app |
 | `get-settings` / `save-settings` | Persisted UI/server flags |

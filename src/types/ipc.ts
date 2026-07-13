@@ -123,6 +123,10 @@ export interface IpcInvokeMap {
     args: [appId: number, installPath: string];
     result: GetServerConfigResponse;
   };
+  "get-server-output": {
+    args: [appId: number];
+    result: string;
+  };
   "open-file-default": { args: [filePath: string]; result: IpcActionResult };
   "save-server-config": {
     args: [
@@ -178,6 +182,7 @@ export interface ElectronAPI {
     appId: number,
     installPath: string
   ) => Promise<GetServerConfigResponse>;
+  getServerOutput: (appId: number) => Promise<string>;
   openFileDefault: (filePath: string) => Promise<IpcActionResult>;
   saveServerConfig: (
     appId: number,

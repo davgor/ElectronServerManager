@@ -34,6 +34,7 @@ const EXPECTED_CHANNELS = [
   "backup-server-save",
   "select-backup-folder",
   "get-server-config",
+  "get-server-output",
   "open-file-default",
   "save-server-config",
   "get-settings",
@@ -52,7 +53,7 @@ const channelsAreExpected: readonly ExpectedChannel[] = [] as IpcChannel[];
 
 describe("IPC types", () => {
   it("covers every registered IPC channel", () => {
-    expect(expectedAreChannels).toHaveLength(17);
+    expect(expectedAreChannels).toHaveLength(18);
     expect(channelsAreExpected).toHaveLength(0);
   });
 

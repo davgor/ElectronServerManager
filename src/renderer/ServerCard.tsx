@@ -1,3 +1,5 @@
+import { useState } from "react";
+
 import type { SteamServer } from "../types/ipc";
 
 export interface ServerCardProps {
@@ -35,6 +37,18 @@ export function ServerCard({
 }: ServerCardProps): JSX.Element {
   const hasBackupPath = backupPath !== undefined && backupPath !== "";
   const hasLastBackup = lastBackup !== undefined && lastBackup !== "";
+  const [showOutput, setShowOutput] = useState(false);
+  const [serverOutput, setServerOutput] = useState("");
+
+  async function toggleServerOutput(): Promise<void> {
+    if (showOutput) {
+      setShowOutput(false);
+      return;
+    }
+    const output = await window.electron.getServerOutput(server.appId);
+    setServerOutput(output);
+    setShowOutput(true);
+  }
 
   return (
     <div className="server-card">
@@ -78,7 +92,22 @@ export function ServerCard({
           >
             ⚙️ Edit Config
           </button>
+          <button
+            className="btn btn-server-output"
+            onClick={() => {
+              void toggleServerOutput();
+            }}
+          >
+            {showOutput ? "Hide Output" : "Show Output"}
+          </button>
         </div>
+        {showOutput && (
+          <pre className="server-output" data-testid="server-output">
+            {serverOutput.length > 0
+              ? serverOutput
+              : "(no recent output captured)"}
+          </pre>
+        )}
         <div className="server-settings">
           <label className="auto-restart-checkbox">
             <input

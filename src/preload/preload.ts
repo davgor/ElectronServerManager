@@ -28,6 +28,7 @@ export const ALLOWED_CHANNELS: readonly IpcChannel[] = [
   "backup-server-save",
   "select-backup-folder",
   "get-server-config",
+  "get-server-output",
   "open-file-default",
   "save-server-config",
   "get-settings",
@@ -69,6 +70,7 @@ const electronApi: ElectronAPI = {
   selectBackupFolder: () => invokeIpc("select-backup-folder"),
   getServerConfig: (appId: number, installPath: string) =>
     invokeIpc("get-server-config", appId, installPath),
+  getServerOutput: (appId: number) => invokeIpc("get-server-output", appId),
   openFileDefault: (filePath: string) =>
     invokeIpc("open-file-default", filePath),
   saveServerConfig: (
