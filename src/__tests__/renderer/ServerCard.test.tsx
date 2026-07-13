@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ServerCard } from "../../renderer/ServerCard";
@@ -22,6 +22,7 @@ function makeProps(overrides: Partial<ServerCardProps> = {}): ServerCardProps {
     lastBackup: undefined,
     palworldOpsEnabled: false,
     palworldOpsIntervalSeconds: undefined,
+    configRevision: 0,
     onRunServer: jest.fn(),
     onStopServer: jest.fn(),
     onToggleAutoRestart: jest.fn(),
@@ -311,5 +312,89 @@ describe("ServerCard Component", () => {
     expect(
       screen.queryByRole("button", { name: "Admin" })
     ).not.toBeInTheDocument();
+  });
+
+  it("rechecks REST status and enables Admin when configRevision increases after save", async () => {
+    const getPalworldRestStatus = jest
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        enabled: false,
+        isPalworld: true,
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        enabled: true,
+        isPalworld: true,
+      });
+
+    Object.defineProperty(window, "electron", {
+      value: { getPalworldRestStatus },
+      configurable: true,
+    });
+
+    const palworldProps = makeProps({
+      server: {
+        name: "Palworld Dedicated Server",
+        appId: 1623730,
+        installPath: "C:\\servers\\pal",
+        isRunning: true,
+      },
+      configRevision: 0,
+    });
+
+    const { rerender } = render(<ServerCard {...palworldProps} />);
+
+    const admin = await screen.findByRole("button", { name: "Admin" });
+    expect(admin).toBeDisabled();
+    expect(getPalworldRestStatus).toHaveBeenCalledTimes(1);
+
+    rerender(<ServerCard {...palworldProps} configRevision={1} />);
+
+    await waitFor(() => {
+      expect(getPalworldRestStatus).toHaveBeenCalledTimes(2);
+    });
+    expect(await screen.findByRole("button", { name: "Admin" })).toBeEnabled();
+  });
+
+  it("disables Admin when configRevision increases and REST is turned off", async () => {
+    const getPalworldRestStatus = jest
+      .fn()
+      .mockResolvedValueOnce({
+        success: true,
+        enabled: true,
+        isPalworld: true,
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        enabled: false,
+        isPalworld: true,
+      });
+
+    Object.defineProperty(window, "electron", {
+      value: { getPalworldRestStatus },
+      configurable: true,
+    });
+
+    const palworldProps = makeProps({
+      server: {
+        name: "Palworld Dedicated Server",
+        appId: 1623730,
+        installPath: "C:\\servers\\pal",
+        isRunning: true,
+      },
+      configRevision: 0,
+    });
+
+    const { rerender } = render(<ServerCard {...palworldProps} />);
+
+    expect(await screen.findByRole("button", { name: "Admin" })).toBeEnabled();
+
+    rerender(<ServerCard {...palworldProps} configRevision={1} />);
+
+    await waitFor(() => {
+      expect(getPalworldRestStatus).toHaveBeenCalledTimes(2);
+    });
+    expect(await screen.findByRole("button", { name: "Admin" })).toBeDisabled();
   });
 });

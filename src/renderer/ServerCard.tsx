@@ -16,6 +16,7 @@ export interface ServerCardProps {
   lastBackup: string | undefined;
   palworldOpsEnabled: boolean;
   palworldOpsIntervalSeconds: number | undefined;
+  configRevision: number;
   onRunServer: (appId: number, installPath: string) => void;
   onStopServer: (appId: number, installPath: string) => void;
   onToggleAutoRestart: (appId: number, enabled: boolean) => void;
@@ -40,6 +41,7 @@ export function ServerCard({
   lastBackup,
   palworldOpsEnabled,
   palworldOpsIntervalSeconds,
+  configRevision,
   onRunServer,
   onStopServer,
   onToggleAutoRestart,
@@ -82,7 +84,7 @@ export function ServerCard({
     return () => {
       cancelled = true;
     };
-  }, [isPalworld, server.appId, server.installPath]);
+  }, [isPalworld, server.appId, server.installPath, configRevision]);
 
   async function toggleServerOutput(): Promise<void> {
     if (showOutput) {
