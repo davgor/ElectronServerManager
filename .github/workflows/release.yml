@@ -87,6 +87,55 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: npx electron-builder --linux --publish never
 
+      # softprops uploads the on-disk filename; GitHub turns spaces into dots, while
+      # electron-updater's latest.yml uses hyphenated names. Keep artifacts space-free.
+      - name: Sanitize release artifact filenames
+        run: |
+          set -euo pipefail
+          cd release
+          shopt -s nullglob
+          for f in *\ *; do
+            mv -v -- "$f" "${f// /-}"
+          done
+
+      - name: Verify updater metadata matches packaged files
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import pathlib
+          import re
+          import sys
+
+          release = pathlib.Path("release")
+          for meta_name in ("latest.yml", "latest-linux.yml"):
+              meta = release / meta_name
+              if not meta.exists():
+                  print(f"missing {meta_name}", file=sys.stderr)
+                  sys.exit(1)
+              text = meta.read_text(encoding="utf-8")
+              urls = re.findall(r"(?m)^\s+url:\s+(\S+)$", text)
+              path_match = re.search(r"(?m)^path:\s+(\S+)$", text)
+              if path_match is not None:
+                  urls.append(path_match.group(1))
+              for url in urls:
+                  if " " in url or ".." in url:
+                      print(f"{meta_name} has unsafe url: {url}", file=sys.stderr)
+                      sys.exit(1)
+                  candidate = release / url
+                  if not candidate.is_file():
+                      print(
+                          f"{meta_name} references {url} but file is missing",
+                          file=sys.stderr,
+                      )
+                      print(
+                          "release files:",
+                          sorted(p.name for p in release.iterdir()),
+                          file=sys.stderr,
+                      )
+                      sys.exit(1)
+              print(f"{meta_name}: ok ({len(urls)} paths)")
+          PY
+
       - name: Upload release assets
         uses: softprops/action-gh-release@v1
         env:

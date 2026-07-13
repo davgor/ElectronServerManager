@@ -1,6 +1,7 @@
 {
   "appId": "com.electronservermanager.app",
   "productName": "Game Server Manager",
+  "artifactName": "Game-Server-Manager-${version}.${ext}",
   "files": ["dist/main/**/*", "dist/preload/**/*", "dist/renderer/**/*", "node_modules/**/*"],
   "directories": {
     "output": "release",
@@ -28,12 +29,17 @@
   },
   "nsis": {
     "oneClick": false,
-    "allowToChangeInstallationDirectory": true
+    "allowToChangeInstallationDirectory": true,
+    "artifactName": "Game-Server-Manager-Setup-${version}.${ext}"
+  },
+  "portable": {
+    "artifactName": "Game-Server-Manager-Portable-${version}.${ext}"
   },
   "mac": {
     "target": ["dmg", "zip"]
   },
   "linux": {
-    "target": ["AppImage", "deb"]
+    "target": ["AppImage", "deb"],
+    "artifactName": "Game-Server-Manager-${version}.${ext}"
   }
 }
