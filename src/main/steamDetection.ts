@@ -56,10 +56,6 @@ export const STEAM_DEDICATED_SERVERS: Record<number, ServerInfo> = {
   },
 };
 
-// Re-export the mapping with a typed shape for callers
-export const STEAM_DEDICATED_SERVERS_TYPED: Record<number, ServerInfo> =
-  STEAM_DEDICATED_SERVERS;
-
 /**
  * Resolve the executable for a server on the given platform,
  * falling back to the default executable when no override exists.
@@ -206,30 +202,57 @@ export async function parseLibraryFolders(
   return libraryPaths;
 }
 
+const COVER_ART_CACHE_TTL_MS = 60 * 60 * 1000; // 1 hour
+
+type CoverArtCacheEntry = {
+  value: string | undefined;
+  expiresAt: number;
+};
+
+const coverArtCache = new Map<number, CoverArtCacheEntry>();
+
+/** Deterministic Steam CDN header image URL (no network). */
+export function steamCoverArtUrl(appId: number): string {
+  return `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`;
+}
+
+/** Clear the in-memory cover-art validation cache (tests / forced refresh). */
+export function clearCoverArtCache(): void {
+  coverArtCache.clear();
+}
+
 /**
- * Fetch cover art for a Steam game from Steam CDN
+ * Validate cover art for a Steam game via CDN HEAD, with in-memory TTL cache.
+ * Server scan uses {@link steamCoverArtUrl} instead so it never blocks on HEAD.
  */
 export async function fetchCoverArt(
   appId: number
 ): Promise<string | undefined> {
-  try {
-    // Use Steam's CDN directly for app header images
-    // Format: https://cdn.akamai.steamstatic.com/steam/apps/{appId}/header.jpg
-    const coverUrl = `https://cdn.akamai.steamstatic.com/steam/apps/${appId}/header.jpg`;
+  const now = Date.now();
+  const cached = coverArtCache.get(appId);
+  if (cached !== undefined && cached.expiresAt > now) {
+    return cached.value;
+  }
 
-    // Validate the URL works with a HEAD request
+  const coverUrl = steamCoverArtUrl(appId);
+  let value: string | undefined;
+
+  try {
     const response = await fetch(coverUrl, { method: "HEAD" });
-    if (response.ok) {
-      return coverUrl;
-    }
-    return undefined;
+    value = response.ok ? coverUrl : undefined;
   } catch (err) {
     // eslint-disable-next-line no-console
     console.log(
       `Failed to fetch cover art for app ${appId}: ${err instanceof Error ? err.message : String(err)}`
     );
-    return undefined;
+    value = undefined;
   }
+
+  coverArtCache.set(appId, {
+    value,
+    expiresAt: now + COVER_ART_CACHE_TTL_MS,
+  });
+  return value;
 }
 
 /**
@@ -364,13 +387,12 @@ export async function findInstalledServers(
         const numericAppPath = path.join(commonPath, appFolder);
         try {
           await fs.stat(numericAppPath);
-          const coverArt = await fetchCoverArt(parseInt(appId));
           servers.push({
             name: serverName,
             appId: parseInt(appId),
             installPath: numericAppPath,
             isRunning: isProcessRunning(resolvedExecutable),
-            coverArt,
+            coverArt: steamCoverArtUrl(parseInt(appId, 10)),
           });
           // eslint-disable-next-line no-console
           console.log(
@@ -390,13 +412,12 @@ export async function findInstalledServers(
           const expectedPath = path.join(commonPath, expectedFolderName);
           try {
             await fs.stat(expectedPath);
-            const coverArt = await fetchCoverArt(parseInt(appId));
             servers.push({
               name: serverName,
               appId: parseInt(appId),
               installPath: expectedPath,
               isRunning: isProcessRunning(resolvedExecutable),
-              coverArt,
+              coverArt: steamCoverArtUrl(parseInt(appId, 10)),
             });
             // eslint-disable-next-line no-console
             console.log(
@@ -410,13 +431,12 @@ export async function findInstalledServers(
 
         // If manifest exists, but we couldn't find a specific folder, treat as installing
         if (manifestExists) {
-          const coverArt = await fetchCoverArt(parseInt(appId));
           servers.push({
             name: serverName,
             appId: parseInt(appId),
             installPath: commonPath,
             isRunning: false,
-            coverArt,
+            coverArt: steamCoverArtUrl(parseInt(appId, 10)),
           });
           break;
         }
@@ -427,13 +447,12 @@ export async function findInstalledServers(
         );
         // don't add server unless manifestExists
         if (manifestExists) {
-          const coverArt = await fetchCoverArt(parseInt(appId));
           servers.push({
             name: serverName,
             appId: parseInt(appId),
             installPath: commonPath,
             isRunning: false,
-            coverArt,
+            coverArt: steamCoverArtUrl(parseInt(appId, 10)),
           });
           break;
         }

@@ -5,7 +5,7 @@ import { join } from "path";
 /**
  * Get list of available drives on the system
  */
-export function getAvailableDrives(): string[] {
+function getAvailableDrives(): string[] {
   try {
     const platform = process.platform;
 

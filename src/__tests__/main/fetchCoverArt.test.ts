@@ -1,6 +1,10 @@
 /* eslint-disable @typescript-eslint/no-unsafe-assignment, @typescript-eslint/no-unsafe-call, @typescript-eslint/no-namespace */
 
-import { fetchCoverArt } from "../../main/steamDetection";
+import {
+  clearCoverArtCache,
+  fetchCoverArt,
+  steamCoverArtUrl,
+} from "../../main/steamDetection";
 
 type FetchFn = (input: string, init?: unknown) => Promise<{ ok: boolean }>;
 
@@ -15,6 +19,7 @@ declare global {
 
 describe("fetchCoverArt", () => {
   beforeEach(() => {
+    clearCoverArtCache();
     // ensure there's no leftover fetch between tests
     // @ts-expect-error intentionally undefine global.fetch for tests
     global.fetch = undefined;
@@ -57,5 +62,26 @@ describe("fetchCoverArt", () => {
     const url = await fetchCoverArt(12345);
 
     expect(url).toBeUndefined();
+  });
+
+  it("avoids duplicate HEAD fetch on cache hit", async (): Promise<void> => {
+    const fakeFetch = jest.fn(() => Promise.resolve({ ok: true }));
+    Object.defineProperty(global, "fetch", {
+      value: fakeFetch,
+      configurable: true,
+    });
+
+    const first = await fetchCoverArt(99999);
+    const second = await fetchCoverArt(99999);
+
+    expect(first).toBe(steamCoverArtUrl(99999));
+    expect(second).toBe(first);
+    expect(fakeFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it("steamCoverArtUrl builds CDN URL without network", () => {
+    expect(steamCoverArtUrl(2278520)).toBe(
+      "https://cdn.akamai.steamstatic.com/steam/apps/2278520/header.jpg"
+    );
   });
 });

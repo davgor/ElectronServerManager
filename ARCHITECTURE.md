@@ -15,7 +15,7 @@ Versions match `package.json` (pin/range as declared there):
 | Renderer bundler | Vite **7.3.0** |
 | Packaging | electron-builder **^24.6** |
 | Settings persistence | electron-store **^8.1** |
-| Dev env detection | electron-is-dev **^3.0** (removal tracked in epic 009) |
+| Dev env detection | `process.env.NODE_ENV` / `ELECTRON_START_URL` in main bootstrap |
 
 Build outputs: renderer → Vite `dist/`; main/preload → `tsc -p tsconfig.main.json` → `dist/main/`, `dist/preload/`.
 
