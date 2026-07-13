@@ -155,7 +155,9 @@ easy to confirm.
    verify buildid → always restart after a successful stop (`updated` reflects
    whether the build changed; `no-update` still brings the process back up).
 5. **App auto-update** — Packaged builds use `electron-updater` (`appUpdater.ts`)
-   against GitHub Releases metadata; see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
+   against GitHub Releases: check on startup, poll every 4 hours while running,
+   background download, silent apply on the banner **Restart & Install** CTA;
+   see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
 6. **Backup** — Copies configured save location into a user-chosen backup root.
 7. **Config editor** — Loads config over IPC; `ConfigEditor` edits nested
    values with type preservation; saves back through main.

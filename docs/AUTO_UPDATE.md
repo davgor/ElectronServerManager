@@ -1,7 +1,7 @@
 # App auto-update runbook
 
 Installed builds of Game Server Manager can check GitHub Releases for a newer
-version, download it in the background, and restart to apply it.
+version, download it in the background, and restart to apply it silently.
 
 ## How a release becomes an update
 
@@ -11,13 +11,20 @@ version, download it in the background, and restart to apply it.
 3. Release assets uploaded to the GitHub Release include:
    - Installers (`.exe` NSIS / portable, `.AppImage`, `.deb`)
    - Updater metadata: `latest.yml`, `latest-linux.yml`, and `*.blockmap`
-4. A previously installed **packaged** app starts, `electron-updater` reads the
-   GitHub feed (see `publish` in `electron-builder.json`), and downloads when a
-   newer version is published.
-5. The UI banner prompts **Restart & Install**; after restart the title bar
-   version (`vX.Y.Z`) should match the release tag / `package.json`.
+4. A previously installed **packaged** app:
+   - Checks the GitHub feed on startup (`publish` in `electron-builder.json`)
+   - Polls again every **4 hours** while the app stays open (so releases
+     published after launch are still detected without a manual restart)
+   - Downloads automatically when a newer version is published
+5. The UI banner prompts **Restart & Install**. That CTA is required — download
+   completion does **not** quit the app. Apply uses a **silent**
+   `quitAndInstall` path (no interactive NSIS wizard); the app relaunches on the
+   new version. (On AppImage the silent flag is a no-op; relaunch still works.)
+6. After restart the title bar version (`vX.Y.Z`) should match the release tag /
+   `package.json`.
 
-Dev runs (`npm start` / `npm run dev`) never hit the public update feed.
+Dev runs (`npm start` / `npm run dev`) never hit the public update feed and do
+not schedule poll checks.
 
 ## Artifact naming (required for GitHub)
 
@@ -37,7 +44,7 @@ newer fixed release from `main`, or re-upload hyphenated copies of the assets
 
 | Artifact | Auto-update? |
 |----------|----------------|
-| Windows NSIS installer | Yes (`latest.yml`) |
+| Windows NSIS installer | Yes (`latest.yml`) — silent apply on Restart & Install |
 | Linux AppImage | Yes (`latest-linux.yml`) |
 | Windows portable `.exe` | Manual reinstall |
 | Linux `.deb` | Manual reinstall |
@@ -50,6 +57,8 @@ newer fixed release from `main`, or re-upload hyphenated copies of the assets
 3. Publish a newer GitHub Release that includes `latest.yml` /
    `latest-linux.yml` and matching installers (normal `main` release workflow).
 4. Launch the older install — banner should show update available / downloading /
-   ready.
-5. Choose **Restart & Install**.
+   ready (startup check). Optionally leave the app open past the poll interval
+   (or wait for a release published after launch) to confirm interval detection.
+5. Choose **Restart & Install**. Confirm no interactive installer wizard appears
+   (NSIS should apply quietly and relaunch).
 6. Confirm the title bar version matches the new release.

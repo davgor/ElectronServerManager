@@ -12,6 +12,9 @@ import * as logger from "./logger";
 
 const APP_UPDATE_STATUS_EVENT = "app-update-status";
 
+/** Default packaged poll interval: every 4 hours after the startup check. */
+const DEFAULT_APP_UPDATE_POLL_MS = 4 * 60 * 60 * 1000;
+
 interface AppUpdaterDeps {
   autoUpdater: Pick<
     AppUpdater,
@@ -26,14 +29,30 @@ interface AppUpdaterDeps {
   getMainWindow: () => BrowserWindow | null;
   isPackaged: boolean;
   currentVersion: string;
+  /** Override for tests; default is 4 hours. */
+  pollIntervalMs?: number;
 }
 
 let activeDeps: AppUpdaterDeps | null = null;
 let lastStatus: AppUpdateStatus = { state: "idle" };
+let checkInFlight = false;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
+
+const BUSY_UPDATE_STATES = new Set<AppUpdateStatus["state"]>([
+  "checking",
+  "available",
+  "downloading",
+  "ready",
+]);
 
 export function resetAppUpdaterForTests(): void {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
   activeDeps = null;
   lastStatus = { state: "idle" };
+  checkInFlight = false;
 }
 
 export function getLastAppUpdateStatus(): AppUpdateStatus {
@@ -48,8 +67,27 @@ function broadcast(status: AppUpdateStatus): void {
   }
 }
 
+function shouldSkipCheck(): boolean {
+  return checkInFlight || BUSY_UPDATE_STATES.has(lastStatus.state);
+}
+
+function startPolling(intervalMs: number): void {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+  }
+  pollTimer = setInterval(() => {
+    void checkForAppUpdate();
+  }, intervalMs);
+}
+
 export function registerAppUpdater(deps: AppUpdaterDeps): void {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
+
   activeDeps = deps;
+  checkInFlight = false;
 
   if (!deps.isPackaged) {
     logger.info("App updater skipped (unpackaged / development build)");
@@ -107,6 +145,11 @@ export function registerAppUpdater(deps: AppUpdaterDeps): void {
     });
   });
 
+  const pollIntervalMs = deps.pollIntervalMs ?? DEFAULT_APP_UPDATE_POLL_MS;
+  if (pollIntervalMs > 0) {
+    startPolling(pollIntervalMs);
+  }
+
   void checkForAppUpdate();
 }
 
@@ -120,7 +163,11 @@ export async function checkForAppUpdate(): Promise<{
   if (!activeDeps.isPackaged) {
     return { success: true };
   }
+  if (shouldSkipCheck()) {
+    return { success: true };
+  }
 
+  checkInFlight = true;
   try {
     await activeDeps.autoUpdater.checkForUpdates();
     return { success: true };
@@ -129,6 +176,8 @@ export async function checkForAppUpdate(): Promise<{
       error instanceof Error ? error.message : "Failed to check for updates";
     broadcast({ state: "error", message });
     return { success: false, error: message };
+  } finally {
+    checkInFlight = false;
   }
 }
 
@@ -150,8 +199,9 @@ export function installAppUpdate(): {
   }
 
   try {
-    // isSilent=false, isForceRunAfter=true
-    activeDeps.autoUpdater.quitAndInstall(false, true);
+    // isSilent=true, isForceRunAfter=true — quiet NSIS apply + relaunch.
+    // Silent is a no-op on AppImage; force-run-after still relaunches.
+    activeDeps.autoUpdater.quitAndInstall(true, true);
     return { success: true };
   } catch (error) {
     const message =

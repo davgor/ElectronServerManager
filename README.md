@@ -30,8 +30,9 @@ platform-specific executables and config paths (see
 - **Palworld live ops** — Optional on-card polling of info/players/metrics while
   the server is running and REST is enabled (interval persisted per server)
 - **Custom title bar** — Frameless window with minimize / maximize / close
-- **App auto-update** — Packaged builds check GitHub Releases (NSIS / AppImage);
-  see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md)
+- **App auto-update** — Packaged builds poll GitHub Releases (startup + every
+  4 hours) and apply silently on Restart & Install (NSIS / AppImage); see
+  [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md)
 
 ## Supported servers
 

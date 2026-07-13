@@ -11,6 +11,11 @@ import {
 
 type ListenerMap = Map<string, Array<(...args: unknown[]) => void>>;
 
+async function flushPromises(): Promise<void> {
+  await Promise.resolve();
+  await Promise.resolve();
+}
+
 function createMockAutoUpdater(): {
   autoUpdater: ElectronAppUpdater;
   checkForUpdates: jest.Mock;
@@ -117,7 +122,120 @@ describe("appUpdater", () => {
     });
 
     expect(installAppUpdate()).toEqual({ success: true });
-    expect(mock.quitAndInstall).toHaveBeenCalledWith(false, true);
+    expect(mock.quitAndInstall).toHaveBeenCalledWith(true, true);
+  });
+
+  it("schedules recurring update checks for packaged builds", async () => {
+    jest.useFakeTimers();
+    try {
+      registerAppUpdater({
+        autoUpdater: mock.autoUpdater,
+        getMainWindow,
+        isPackaged: true,
+        currentVersion: "1.0.0",
+        pollIntervalMs: 60_000,
+      });
+
+      await flushPromises();
+      expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
+
+      mock.emit("update-not-available", { version: "1.0.0" });
+      await jest.advanceTimersByTimeAsync(60_000);
+      await flushPromises();
+
+      expect(mock.checkForUpdates).toHaveBeenCalledTimes(2);
+
+      mock.emit("update-not-available", { version: "1.0.0" });
+      await jest.advanceTimersByTimeAsync(60_000);
+      await flushPromises();
+
+      expect(mock.checkForUpdates).toHaveBeenCalledTimes(3);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("does not schedule polling when unpackaged", () => {
+    jest.useFakeTimers();
+    try {
+      registerAppUpdater({
+        autoUpdater: mock.autoUpdater,
+        getMainWindow,
+        isPackaged: false,
+        currentVersion: "1.0.0",
+        pollIntervalMs: 60_000,
+      });
+
+      jest.advanceTimersByTime(60_000 * 5);
+      expect(mock.checkForUpdates).not.toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("skips overlapping checks while a previous check is in flight", async () => {
+    jest.useFakeTimers();
+    try {
+      let resolveCheck: ((value: null) => void) | undefined;
+      mock.checkForUpdates.mockImplementation(
+        () =>
+          new Promise((resolve) => {
+            resolveCheck = resolve;
+          })
+      );
+
+      registerAppUpdater({
+        autoUpdater: mock.autoUpdater,
+        getMainWindow,
+        isPackaged: true,
+        currentVersion: "1.0.0",
+        pollIntervalMs: 1_000,
+      });
+
+      expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
+
+      await jest.advanceTimersByTimeAsync(1_000);
+      await flushPromises();
+      expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
+
+      resolveCheck?.(null);
+      await flushPromises();
+      mock.emit("update-not-available", { version: "1.0.0" });
+
+      await jest.advanceTimersByTimeAsync(1_000);
+      await flushPromises();
+      expect(mock.checkForUpdates).toHaveBeenCalledTimes(2);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it("skips polling while an update download is in progress or ready", async () => {
+    jest.useFakeTimers();
+    try {
+      registerAppUpdater({
+        autoUpdater: mock.autoUpdater,
+        getMainWindow,
+        isPackaged: true,
+        currentVersion: "1.0.0",
+        pollIntervalMs: 1_000,
+      });
+
+      await flushPromises();
+      expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
+      mock.emit("download-progress", { percent: 10 });
+
+      await jest.advanceTimersByTimeAsync(1_000);
+      await flushPromises();
+      expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
+
+      mock.emit("update-downloaded", { version: "1.0.1" });
+      await jest.advanceTimersByTimeAsync(1_000);
+      await flushPromises();
+      expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it("broadcasts not-available when there is no update", () => {
@@ -139,6 +257,7 @@ describe("appUpdater", () => {
       isPackaged: true,
       currentVersion: "1.0.0",
     });
+    await flushPromises();
 
     mock.checkForUpdates.mockRejectedValueOnce(new Error("network down"));
     await expect(checkForAppUpdate()).resolves.toEqual({
