@@ -82,13 +82,24 @@ src/
 │   ├── ConfigEditor.tsx        # Nested JSON/INI editor
 │   ├── SteamPathSelector.tsx / SteamCmdPathInput.tsx
 │   └── hooks/                  # useSteamServers, settings, backups
-└── types/
-    ├── ipc.ts                  # Channel map + ElectronAPI
-    └── electron.d.ts           # Window.electron declaration
+├── ci/                         # Pure CI helpers (kickback, coverage comments)
+├── types/
+│   ├── ipc.ts                  # Channel map + ElectronAPI
+│   └── electron.d.ts           # Window.electron declaration
 ```
 
 Ticket board lives under `/board` (`backlog/`, `in-progress/`, `done/`).
 
+## Continuous integration
+
+GitHub Actions runs lint, type-check, unit tests, dead-code, and security audit
+on pushes/PRs. Failed required checks on direct `main`/`master` pushes can
+trigger an automatic kickback revert (see `src/ci/kickbackPolicy.ts`).
+
+On pull requests, **Coverage Report** runs Jest coverage on the base and head
+SHAs and posts (or updates) a sticky comment with before/after totals and
+coverage on newly added lines (`src/ci/coverageReport.ts`). That job is
+informational and does not fail on coverage deltas.
 ## Server catalog
 
 The known dedicated-server catalog lives in SQLite (`better-sqlite3`), opened

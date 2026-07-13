@@ -16,6 +16,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history needed so the diff-coverage gate can diff against
+          # the PR base / previous push commit.
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -26,12 +30,54 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run unit tests
+      - name: Run unit tests with coverage
         id: run-tests
-        run: npm test -- --ci --reporters=default
+        run: npm run test:coverage -- --ci --reporters=default
+
+      - name: Determine diff range
+        id: diffrange
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PR_BASE_REF: ${{ github.event.pull_request.base.ref }}
+          PUSH_BEFORE: ${{ github.event.before }}
+        run: |
+          set -e
+          BASE_SHA=""
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            BASE_REF="$PR_BASE_REF"
+            if [ -z "$BASE_REF" ]; then
+              if git rev-parse --verify origin/main >/dev/null 2>&1; then
+                BASE_REF=main
+              elif git rev-parse --verify origin/master >/dev/null 2>&1; then
+                BASE_REF=master
+              fi
+            fi
+            if [ -n "$BASE_REF" ]; then
+              git fetch origin "$BASE_REF" --depth=1 || true
+              BASE_SHA=$(git merge-base "origin/${BASE_REF}" HEAD 2>/dev/null || true)
+            fi
+            if [ -z "$BASE_SHA" ]; then
+              BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+            fi
+          else
+            BASE_SHA="$PUSH_BEFORE"
+            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+            fi
+          fi
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+          echo "Resolved BASE_SHA=$BASE_SHA"
+
+      - name: Diff coverage gate (changed lines only)
+        run: node .github/scripts/diff-coverage-gate.cjs
+        env:
+          BASE_SHA: ${{ steps.diffrange.outputs.base_sha }}
+          HEAD_SHA: ${{ github.sha }}
+          DIFF_COVERAGE_THRESHOLD: 80
 
       - name: Upload test results (optional)
         if: always()
+        continue-on-error: true
         uses: actions/upload-artifact@v4
         with:
           name: test-logs

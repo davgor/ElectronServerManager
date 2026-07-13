@@ -85,6 +85,10 @@ dev server, and launches Electron once `http://localhost:5173` is ready.
 | `npm run audit:cve` | Fail if npm audit reports any vulnerability |
 | `npm run deadcode` | `ts-prune` unused export scan |
 
+Pull requests also get a sticky **Coverage Report** comment (base vs head
+totals + coverage on new lines). See [ARCHITECTURE.md](ARCHITECTURE.md)
+(Continuous integration).
+
 ## Architecture & docs
 
 | Doc | Purpose |
