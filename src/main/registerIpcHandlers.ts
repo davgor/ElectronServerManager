@@ -1,6 +1,6 @@
 import { app, ipcMain, dialog, BrowserWindow } from "electron";
 
-import type { AppSettings } from "../types/ipc";
+import type { AppSettings, PalworldRestEndpoint } from "../types/ipc";
 
 import { registerWindowControlHandlers } from "./windowControls";
 import {
@@ -17,7 +17,6 @@ import { getSettings, saveSettings } from "./settingsStore";
 import { getServerOutput } from "./serverOutputBuffer";
 import { checkForAppUpdate, installAppUpdate } from "./appUpdater";
 import { getPalworldRestStatus, invokePalworldRest } from "./palworldRestIpc";
-import type { PalworldRestEndpoint } from "./palworldRest";
 
 interface IpcRegistrationDeps {
   getMainWindow: () => BrowserWindow | null;

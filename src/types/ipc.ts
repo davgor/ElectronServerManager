@@ -84,16 +84,13 @@ export interface ServerPersistedSettings {
   palworldOpsIntervalSeconds?: number;
 }
 
-/** Palworld REST GET endpoints under `/v1/api/*`. */
-export type PalworldRestGetEndpoint =
+/** Palworld REST endpoints under `/v1/api/*`. */
+export type PalworldRestEndpoint =
   | "info"
   | "players"
   | "settings"
   | "metrics"
-  | "game-data";
-
-/** Palworld REST POST endpoints under `/v1/api/*`. */
-export type PalworldRestPostEndpoint =
+  | "game-data"
   | "announce"
   | "kick"
   | "ban"
@@ -101,10 +98,6 @@ export type PalworldRestPostEndpoint =
   | "save"
   | "shutdown"
   | "stop";
-
-export type PalworldRestEndpoint =
-  | PalworldRestGetEndpoint
-  | PalworldRestPostEndpoint;
 
 export interface PalworldRestStatusResponse extends IpcActionResult {
   enabled: boolean;

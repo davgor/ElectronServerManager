@@ -4,7 +4,7 @@ import type { PalworldRestEndpoint, SteamServer } from "../types/ipc";
 
 import "./PalworldAdminModal.css";
 
-export interface PalworldAdminModalProps {
+interface PalworldAdminModalProps {
   server: SteamServer;
   onClose: () => void;
 }

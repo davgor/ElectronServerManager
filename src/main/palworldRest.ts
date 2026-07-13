@@ -3,45 +3,26 @@
  * Docs: https://docs.palworldgame.com/category/rest-api/
  */
 
+import type { PalworldRestEndpoint } from "../types/ipc";
 import { PALWORLD_APP_ID } from "../types/ipc";
 
 export { PALWORLD_APP_ID };
 
-export const DEFAULT_PALWORLD_REST_PORT = 8212;
+const DEFAULT_PALWORLD_REST_PORT = 8212;
 
-export type PalworldRestGetEndpoint =
-  | "info"
-  | "players"
-  | "settings"
-  | "metrics"
-  | "game-data";
-
-export type PalworldRestPostEndpoint =
-  | "announce"
-  | "kick"
-  | "ban"
-  | "unban"
-  | "save"
-  | "shutdown"
-  | "stop";
-
-export type PalworldRestEndpoint =
-  | PalworldRestGetEndpoint
-  | PalworldRestPostEndpoint;
-
-export interface PalworldRestConfig {
+interface PalworldRestConfig {
   enabled: boolean;
   port: number;
   adminPassword: string;
 }
 
-export interface PalworldRestCallResult {
+interface PalworldRestCallResult {
   success: boolean;
   data?: unknown;
   error?: string;
 }
 
-export interface PalworldRestRequest {
+interface PalworldRestRequest {
   method: "GET" | "POST";
   endpoint: PalworldRestEndpoint;
   body?: Record<string, unknown>;

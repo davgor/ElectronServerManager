@@ -9,7 +9,7 @@ import {
 
 import "./PalworldOpsPanel.css";
 
-export interface PalworldOpsPanelProps {
+interface PalworldOpsPanelProps {
   server: SteamServer;
   restEnabled: boolean;
   opsEnabled: boolean;

@@ -1,10 +1,9 @@
 import type {
-  IpcActionResult,
   PalworldRestCallResult,
+  PalworldRestEndpoint,
   PalworldRestStatusResponse,
 } from "../types/ipc";
 
-import type { PalworldRestEndpoint } from "./palworldRest";
 import { getServerConfig } from "./serverConfig";
 import {
   callPalworldRest,
@@ -68,5 +67,3 @@ export async function invokePalworldRest(
   const rest = extractPalworldRestConfig(configResult.content);
   return callPalworldRest(rest, { method, endpoint, body });
 }
-
-export type { IpcActionResult };
