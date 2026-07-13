@@ -242,6 +242,29 @@ describe("useSteamServers", () => {
     expect(mockRunServer).not.toHaveBeenCalled();
   });
 
+  it("does not restart after autoRestartAppIds is cleared (intentional stop)", async () => {
+    mockGetSteamServers
+      .mockResolvedValueOnce({ success: true, servers: [runningServer] })
+      .mockResolvedValue({ success: true, servers: [stoppedServer] });
+
+    const { rerender } = renderHook(
+      ({ ids }: { ids: ReadonlySet<number> }) =>
+        useSteamServers({ autoRestartAppIds: ids }),
+      {
+        initialProps: {
+          ids: new Set([runningServer.appId]) as ReadonlySet<number>,
+        },
+      }
+    );
+    await flushPromises();
+
+    // Simulate App clearing auto-restart before stop.
+    rerender({ ids: new Set() });
+    await advanceTime(10000);
+
+    expect(mockRunServer).not.toHaveBeenCalled();
+  });
+
   it("surfaces an error when the auto-restart fails", async () => {
     mockGetSteamServers
       .mockResolvedValueOnce({ success: true, servers: [runningServer] })

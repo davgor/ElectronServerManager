@@ -13,6 +13,8 @@ jest.mock("electron", () => ({
   },
   ipcRenderer: {
     invoke: (...args: unknown[]): unknown => mockIpcInvoke(...args),
+    on: jest.fn(),
+    removeListener: jest.fn(),
   },
 }));
 
@@ -56,6 +58,8 @@ describe("Preload IPC bridge", () => {
         "save-server-config",
         "get-settings",
         "save-settings",
+        "app-update-check",
+        "app-update-install",
         "window-minimize",
         "window-maximize-toggle",
         "window-close",
@@ -270,6 +274,14 @@ describe("Preload IPC bridge", () => {
       };
       await getExposedApi().saveSettings(settings);
       expect(mockIpcInvoke).toHaveBeenCalledWith("save-settings", settings);
+    });
+
+    it("invokes app-update-check and app-update-install", async () => {
+      await getExposedApi().checkForAppUpdate();
+      expect(mockIpcInvoke).toHaveBeenCalledWith("app-update-check");
+
+      await getExposedApi().installAppUpdate();
+      expect(mockIpcInvoke).toHaveBeenCalledWith("app-update-install");
     });
 
     it("exposes typed window controls hitting the window-* channels", async () => {

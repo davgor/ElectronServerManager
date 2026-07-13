@@ -18,6 +18,8 @@ it supports.
 - **Config editor** — View and edit JSON/INI server configs in-app
 - **Custom title bar** — Frameless window with minimize / maximize / close
 - **Multi-library Steam paths** — Prefer a Steam install when more than one exists
+- **App auto-update** — Packaged builds check GitHub Releases (NSIS / AppImage);
+  see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md)
 
 ## Supported servers
 
@@ -71,6 +73,7 @@ Electron once `http://localhost:5173` is ready.
 |-----|---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Process model, IPC map, file layout, stack versions |
 | [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md) | How to extend the server catalog |
+| [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) | GitHub Releases → electron-updater runbook |
 | [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) | Index of maintained docs |
 | [docs/archive/](docs/archive/) | Historical / superseded write-ups |
 

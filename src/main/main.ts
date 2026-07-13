@@ -1,5 +1,7 @@
-import { Menu, dialog } from "electron";
+import { Menu, app, dialog } from "electron";
+import { autoUpdater } from "electron-updater";
 
+import { registerAppUpdater } from "./appUpdater";
 import { getMainWindow, registerAppLifecycle } from "./appWindow";
 import { registerIpcHandlers } from "./registerIpcHandlers";
 
@@ -10,3 +12,13 @@ const isDev = Boolean(
 registerAppLifecycle(isDev);
 registerIpcHandlers({ getMainWindow, dialogApi: dialog });
 Menu.setApplicationMenu(null);
+
+void app.whenReady().then(() => {
+  registerAppUpdater({
+    autoUpdater,
+    getMainWindow,
+    // Dev (`npm start`) and unpackaged builds must not hit the public feed.
+    isPackaged: app.isPackaged && !isDev,
+    currentVersion: app.getVersion(),
+  });
+});

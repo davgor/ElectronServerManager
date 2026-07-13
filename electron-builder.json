@@ -6,6 +6,13 @@
     "output": "release",
     "buildResources": "assets"
   },
+  "publish": [
+    {
+      "provider": "github",
+      "owner": "davgor",
+      "repo": "ElectronServerManager"
+    }
+  ],
   "win": {
     "icon": "assets/icon.png",
     "target": [

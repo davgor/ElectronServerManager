@@ -9,6 +9,7 @@ import { ServerCard } from "./ServerCard";
 import { SteamCmdPathInput } from "./SteamCmdPathInput";
 import { SteamPathSelector } from "./SteamPathSelector";
 import TitleBar from "./TitleBar";
+import UpdateBanner from "./UpdateBanner";
 import { useServerBackups } from "./hooks/useServerBackups";
 import { useServerSettings } from "./hooks/useServerSettings";
 import { useSteamServers } from "./hooks/useSteamServers";
@@ -146,6 +147,7 @@ function App(): JSX.Element {
       <TitleBar />
       <div className="container">
         <h1>Steam Server Manager</h1>
+        <UpdateBanner />
 
         <p>Detected Steam Dedicated Servers</p>
 

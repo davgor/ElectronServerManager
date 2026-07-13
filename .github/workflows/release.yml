@@ -74,6 +74,9 @@ jobs:
             git push origin $TAG
           fi
 
+      # electron-updater auto-update support:
+      # - Windows NSIS + Linux AppImage publish latest.yml / latest-linux.yml + blockmaps
+      # - Portable (.exe portable) and .deb are uploaded for manual install only
       - name: Build and package with electron-builder (Windows)
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
@@ -96,3 +99,6 @@ jobs:
             release/*.deb
             release/*.exe
             release/*.msi
+            release/latest.yml
+            release/latest-linux.yml
+            release/*.blockmap

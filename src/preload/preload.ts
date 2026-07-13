@@ -2,8 +2,10 @@ import { contextBridge, ipcRenderer } from "electron";
 
 import type {
   AppSettings,
+  AppUpdateStatus,
   ElectronAPI,
   IpcChannel,
+  IpcEventChannel,
   IpcInvokeArgs,
   IpcInvokeResult,
 } from "../types/ipc";
@@ -33,13 +35,23 @@ export const ALLOWED_CHANNELS: readonly IpcChannel[] = [
   "save-server-config",
   "get-settings",
   "save-settings",
+  "app-update-check",
+  "app-update-install",
   "window-minimize",
   "window-maximize-toggle",
   "window-close",
 ] as const;
 
+export const ALLOWED_EVENTS: readonly IpcEventChannel[] = [
+  "app-update-status",
+] as const;
+
 export function isAllowedChannel(channel: string): channel is IpcChannel {
   return (ALLOWED_CHANNELS as readonly string[]).includes(channel);
+}
+
+export function isAllowedEvent(channel: string): channel is IpcEventChannel {
+  return (ALLOWED_EVENTS as readonly string[]).includes(channel);
 }
 
 export async function invokeIpc<C extends IpcChannel>(
@@ -81,6 +93,23 @@ const electronApi: ElectronAPI = {
   ) => invokeIpc("save-server-config", appId, installPath, content, format),
   getSettings: () => invokeIpc("get-settings"),
   saveSettings: (settings: AppSettings) => invokeIpc("save-settings", settings),
+  checkForAppUpdate: () => invokeIpc("app-update-check"),
+  installAppUpdate: () => invokeIpc("app-update-install"),
+  onAppUpdateStatus: (callback: (status: AppUpdateStatus) => void) => {
+    const channel = "app-update-status" as const;
+    if (!isAllowedEvent(channel)) {
+      throw new Error(
+        `Blocked listener on disallowed IPC event: ${String(channel)}`
+      );
+    }
+    const listener = (_event: unknown, status: AppUpdateStatus): void => {
+      callback(status);
+    };
+    ipcRenderer.on(channel, listener);
+    return () => {
+      ipcRenderer.removeListener(channel, listener);
+    };
+  },
   windowControls: {
     minimize: () => invokeIpc("window-minimize"),
     toggleMaximize: () => invokeIpc("window-maximize-toggle"),
