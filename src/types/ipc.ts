@@ -43,6 +43,10 @@ export interface SelectBackupFolderResponse extends IpcActionResult {
   path: string | null;
 }
 
+export interface SelectSteamCmdPathResponse extends IpcActionResult {
+  path: string | null;
+}
+
 export interface GetServerConfigResponse extends IpcActionResult {
   content?: Record<string, unknown>;
   format?: ConfigFormat;
@@ -164,6 +168,7 @@ export interface IpcInvokeMap {
     result: BackupServerSaveResponse;
   };
   "select-backup-folder": { args: []; result: SelectBackupFolderResponse };
+  "select-steamcmd-path": { args: []; result: SelectSteamCmdPathResponse };
   "get-server-config": {
     args: [appId: number, installPath: string];
     result: GetServerConfigResponse;
@@ -239,6 +244,7 @@ export interface ElectronAPI {
     backupPath: string
   ) => Promise<BackupServerSaveResponse>;
   selectBackupFolder: () => Promise<SelectBackupFolderResponse>;
+  selectSteamCmdPath: () => Promise<SelectSteamCmdPathResponse>;
   getServerConfig: (
     appId: number,
     installPath: string

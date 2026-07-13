@@ -13,6 +13,7 @@ import { startServer, stopServer } from "./serverProcess";
 import { autoUpdateServer } from "./autoUpdate";
 import { getServerConfig, saveServerConfig } from "./serverConfig";
 import { backupServerSaveHandler, selectBackupFolder } from "./serverBackup";
+import { selectSteamCmdPath } from "./steamCmd";
 import { getSettings, saveSettings } from "./settingsStore";
 import { getServerOutput } from "./serverOutputBuffer";
 import { checkForAppUpdate, installAppUpdate } from "./appUpdater";
@@ -66,6 +67,10 @@ export function registerIpcHandlers(deps: IpcRegistrationDeps): void {
 
   ipcMain.handle("select-backup-folder", async () => {
     return selectBackupFolder(getMainWindow, dialogApi);
+  });
+
+  ipcMain.handle("select-steamcmd-path", async () => {
+    return selectSteamCmdPath(getMainWindow, dialogApi);
   });
 
   ipcMain.handle(

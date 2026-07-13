@@ -30,6 +30,7 @@ export const ALLOWED_CHANNELS: readonly IpcChannel[] = [
   "auto-update-server",
   "backup-server-save",
   "select-backup-folder",
+  "select-steamcmd-path",
   "get-server-config",
   "get-server-output",
   "open-file-default",
@@ -83,6 +84,7 @@ const electronApi: ElectronAPI = {
   backupServerSave: (appId: number, installPath: string, backupPath: string) =>
     invokeIpc("backup-server-save", appId, installPath, backupPath),
   selectBackupFolder: () => invokeIpc("select-backup-folder"),
+  selectSteamCmdPath: () => invokeIpc("select-steamcmd-path"),
   getServerConfig: (appId: number, installPath: string) =>
     invokeIpc("get-server-config", appId, installPath),
   getServerOutput: (appId: number) => invokeIpc("get-server-output", appId),

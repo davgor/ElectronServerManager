@@ -3,7 +3,9 @@ import path from "path";
 import { existsSync } from "fs";
 import { spawn, execSync } from "child_process";
 
-import type { IpcActionResult } from "../types/ipc";
+import type { IpcActionResult, SelectSteamCmdPathResponse } from "../types/ipc";
+
+import * as logger from "./logger";
 
 /** Default upper bound for a steamcmd app_update run (large depots are slow). */
 const DEFAULT_STEAMCMD_TIMEOUT_MS = 15 * 60 * 1000;
@@ -13,6 +15,17 @@ const MAX_CAPTURED_OUTPUT_CHARS = 8192;
 
 interface RunSteamCmdOptions {
   timeoutMs?: number;
+}
+
+interface SteamCmdFileDialog {
+  showOpenDialog(
+    parent: unknown,
+    options: {
+      properties: string[];
+      title: string;
+      filters?: Array<{ name: string; extensions: string[] }>;
+    }
+  ): Promise<{ canceled: boolean; filePaths: string[] }>;
 }
 
 function wellKnownSteamCmdLocations(): string[] {
@@ -153,4 +166,50 @@ export function runSteamCmdUpdate(
       });
     });
   });
+}
+
+/**
+ * Open a native file picker for the steamcmd executable.
+ * Mirrors selectBackupFolder but selects a file instead of a directory.
+ */
+export async function selectSteamCmdPath(
+  getMainWindow: () => unknown,
+  dialogApi: SteamCmdFileDialog
+): Promise<SelectSteamCmdPathResponse> {
+  try {
+    const mainWindow = getMainWindow();
+    if (mainWindow === null || mainWindow === undefined) {
+      return {
+        success: false,
+        path: null,
+        error: "Main window not available",
+      };
+    }
+
+    const result = await dialogApi.showOpenDialog(mainWindow, {
+      properties: ["openFile"],
+      title: "Select SteamCMD Executable",
+      filters: [
+        { name: "Executables", extensions: ["exe", "sh", "bat", "cmd"] },
+        { name: "All Files", extensions: ["*"] },
+      ],
+    });
+
+    if (result.canceled) {
+      return { success: false, path: null };
+    }
+
+    const selectedPath = result.filePaths[0];
+    logger.info(`SteamCMD path selected: ${selectedPath}`);
+
+    return { success: true, path: selectedPath };
+  } catch (error) {
+    logger.error("Error selecting SteamCMD path:", error);
+    return {
+      success: false,
+      path: null,
+      error:
+        error instanceof Error ? error.message : "Failed to select SteamCMD",
+    };
+  }
 }

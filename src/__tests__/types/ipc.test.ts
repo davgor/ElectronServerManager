@@ -14,6 +14,7 @@ import type {
   IpcInvokeMap,
   IpcInvokeResult,
   SelectBackupFolderResponse,
+  SelectSteamCmdPathResponse,
   SteamServer,
   WindowMaximizeToggleResponse,
 } from "../../types/ipc";
@@ -33,6 +34,7 @@ const EXPECTED_CHANNELS = [
   "auto-update-server",
   "backup-server-save",
   "select-backup-folder",
+  "select-steamcmd-path",
   "get-server-config",
   "get-server-output",
   "open-file-default",
@@ -57,7 +59,7 @@ const channelsAreExpected: readonly ExpectedChannel[] = [] as IpcChannel[];
 
 describe("IPC types", () => {
   it("covers every registered IPC channel", () => {
-    expect(expectedAreChannels).toHaveLength(22);
+    expect(expectedAreChannels).toHaveLength(23);
     expect(channelsAreExpected).toHaveLength(0);
   });
 
@@ -178,6 +180,16 @@ describe("IPC types", () => {
     expect(backupResponse.backupPath).toContain("valheim");
     expect(folderResponse.path).toBeNull();
     expect(folderSelected.path).toBe("/backups");
+
+    const steamCmdSelected: SelectSteamCmdPathResponse = {
+      success: true,
+      path: "/usr/bin/steamcmd",
+    };
+    const steamCmdArgs: IpcInvokeArgs<"select-steamcmd-path"> = [];
+    const steamCmdResult: IpcInvokeResult<"select-steamcmd-path"> =
+      steamCmdSelected;
+    expect(steamCmdArgs).toHaveLength(0);
+    expect(steamCmdResult.path).toBe("/usr/bin/steamcmd");
   });
 
   it("types config channels", () => {

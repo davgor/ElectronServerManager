@@ -7,8 +7,8 @@ interface SteamCmdPathInputProps {
 }
 
 /**
- * Text input for the steamcmd executable path used by auto-updates.
- * Edits are kept locally while typing and persisted on blur.
+ * Path field for the steamcmd executable used by auto-updates.
+ * Supports typing (persisted on blur) or a native file picker via Browse.
  */
 export function SteamCmdPathInput({
   value,
@@ -19,6 +19,14 @@ export function SteamCmdPathInput({
   useEffect(() => {
     setDraft(value);
   }, [value]);
+
+  const handleBrowse = async (): Promise<void> => {
+    const result = await window.electron.selectSteamCmdPath();
+    if (result.success && result.path !== null && result.path.length > 0) {
+      setDraft(result.path);
+      onChange(result.path);
+    }
+  };
 
   return (
     <div className="steamcmd-path-input">
@@ -35,6 +43,15 @@ export function SteamCmdPathInput({
           }
         }}
       />
+      <button
+        type="button"
+        className="btn btn-browse"
+        onClick={() => {
+          void handleBrowse();
+        }}
+      >
+        Browse
+      </button>
     </div>
   );
 }
