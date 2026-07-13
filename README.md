@@ -42,18 +42,18 @@ To add another game, follow [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
 
 ```bash
 npm install
-npm start
+npm run dev
 ```
 
-`npm start` compiles the main process, starts the Vite dev server, and launches
-Electron once `http://localhost:5173` is ready.
+`npm run dev` (and `npm start`) compiles the main process, starts the Vite
+dev server, and launches Electron once `http://localhost:5173` is ready.
 
 ## Scripts
 
 | Script | Purpose |
 |--------|---------|
-| `npm start` | Dev: electron-build + Vite + Electron |
-| `npm run dev` | Vite only |
+| `npm run dev` / `npm start` | Dev: electron-build + Vite + Electron |
+| `npm run dev:renderer` | Vite only |
 | `npm run electron` | Electron after wait-on Vite |
 | `npm run electron-build` | Compile main/preload (`tsc -p tsconfig.main.json`) |
 | `npm run electron-dev` | Watch-compile main/preload |

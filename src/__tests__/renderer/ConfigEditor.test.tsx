@@ -279,4 +279,80 @@ describe("ConfigEditor", () => {
 
     confirmSpy.mockRestore();
   });
+
+  it("filters the property tree by key and auto-expands nested matches", async () => {
+    const user = userEvent.setup();
+    mockLoadedConfig({
+      name: "My Dedicated Server",
+      userGroups: {
+        admin: { password: "secret", canKickBan: true },
+        guest: { password: "guest", canKickBan: false },
+      },
+    });
+    render(<ConfigEditor {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("name")).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText("Search settings"), "canKickBan");
+
+    expect(screen.queryByText("name")).not.toBeInTheDocument();
+    expect(screen.getByText("userGroups")).toBeInTheDocument();
+    expect(screen.getAllByText("canKickBan").length).toBeGreaterThanOrEqual(1);
+  });
+
+  it("filters by value match", async () => {
+    const user = userEvent.setup();
+    mockLoadedConfig({
+      name: "My Dedicated Server",
+      saveInterval: 300,
+    });
+    render(<ConfigEditor {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("saveInterval")).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText("Search settings"), "Dedicated");
+
+    expect(screen.getByText("name")).toBeInTheDocument();
+    expect(screen.queryByText("saveInterval")).not.toBeInTheDocument();
+  });
+
+  it("clears search and restores the full property tree", async () => {
+    const user = userEvent.setup();
+    mockLoadedConfig();
+    render(<ConfigEditor {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("name")).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText("Search settings"), "saveInterval");
+    expect(screen.queryByText("name")).not.toBeInTheDocument();
+    expect(screen.getByText("saveInterval")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Clear search" }));
+
+    expect(screen.getByText("name")).toBeInTheDocument();
+    expect(screen.getByText("saveInterval")).toBeInTheDocument();
+    expect(screen.getByLabelText("Search settings")).toHaveValue("");
+  });
+
+  it("shows an empty state when no settings match the query", async () => {
+    const user = userEvent.setup();
+    mockLoadedConfig();
+    render(<ConfigEditor {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByLabelText("Search settings")).toBeInTheDocument();
+    });
+
+    await user.type(screen.getByLabelText("Search settings"), "zzzz-no-match");
+
+    expect(
+      screen.getByText('No settings match "zzzz-no-match"')
+    ).toBeInTheDocument();
+  });
 });

@@ -1,7 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import "./ConfigEditor.css";
 
 import type { ConfigFormat } from "../types/ipc";
+
+import { filterConfigTree, normalizeQuery } from "./configSearch";
 
 interface ConfigEditorProps {
   appId: number;
@@ -43,9 +45,32 @@ export function ConfigEditor({
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
+  const [searchQuery, setSearchQuery] = useState("");
   const [addFields, setAddFields] = useState<
     Record<string, { key: string; value: string } | undefined>
   >({});
+
+  const { filtered: displayConfig, expandPaths: searchExpandPaths } =
+    useMemo(() => {
+      if (config === null || normalizeQuery(searchQuery) === "") {
+        return {
+          filtered: config,
+          expandPaths: [] as string[],
+        };
+      }
+      return filterConfigTree(config, searchQuery);
+    }, [config, searchQuery]);
+
+  const visibleExpandedPaths = useMemo(() => {
+    if (searchExpandPaths.length === 0) {
+      return expandedPaths;
+    }
+    const merged = new Set(expandedPaths);
+    for (const path of searchExpandPaths) {
+      merged.add(path);
+    }
+    return merged;
+  }, [expandedPaths, searchExpandPaths]);
 
   useEffect(() => {
     void (async (): Promise<void> => {
@@ -375,7 +400,7 @@ export function ConfigEditor({
     if (value !== null && value !== undefined && typeof value === "object") {
       if (Array.isArray(value)) {
         const arr = value as unknown[];
-        const isExpanded = expandedPaths.has(pathStr);
+        const isExpanded = visibleExpandedPaths.has(pathStr);
 
         return (
           <div
@@ -433,7 +458,7 @@ export function ConfigEditor({
                 ) {
                   const itemPath = [...fullPath, itemKey];
                   const itemPathStr = itemPath.join(".");
-                  const itemExpanded = expandedPaths.has(itemPathStr);
+                  const itemExpanded = visibleExpandedPaths.has(itemPathStr);
 
                   return (
                     <div
@@ -514,7 +539,7 @@ export function ConfigEditor({
       }
 
       const obj = value as Record<string, unknown>;
-      const isExpanded = expandedPaths.has(pathStr);
+      const isExpanded = visibleExpandedPaths.has(pathStr);
 
       return (
         <div
@@ -702,58 +727,88 @@ export function ConfigEditor({
             <div className="properties-section">
               <div className="properties-header">
                 <h3>Current Properties</h3>
-                <button
-                  type="button"
-                  className="btn btn-plus"
-                  onClick={() => showAddField("")}
-                  title="Add top-level property"
-                >
-                  +
-                </button>
-              </div>
-              <div className="properties-list">
-                {Object.entries(config).map(([key, value]) =>
-                  renderProperty(key, value, [])
-                )}
-                {topAdd ? (
-                  <div className="add-inline-form" style={{ paddingLeft: 0 }}>
+                <div className="properties-header-actions">
+                  <div className="config-search">
                     <input
-                      type="text"
-                      placeholder="Property name"
-                      value={topAdd.key}
-                      onChange={(e) =>
-                        updateAddField("", "key", e.target.value)
-                      }
-                      className="property-key-input"
+                      type="search"
+                      className="config-search-input"
+                      placeholder="Search settings…"
+                      aria-label="Search settings"
+                      value={searchQuery}
+                      onChange={(e) => setSearchQuery(e.target.value)}
                     />
-                    <input
-                      type="text"
-                      placeholder="Property value"
-                      value={topAdd.value}
-                      onChange={(e) =>
-                        updateAddField("", "value", e.target.value)
-                      }
-                      className="property-value-input"
-                    />
-                    <button
-                      type="button"
-                      className="btn btn-small btn-save-inline"
-                      onClick={() => handleAddField([], "")}
-                      title="Save"
-                    >
-                      💾
-                    </button>
-                    <button
-                      type="button"
-                      className="btn btn-small btn-cancel-inline"
-                      onClick={() => hideAddField("")}
-                      title="Cancel"
-                    >
-                      ✕
-                    </button>
+                    {normalizeQuery(searchQuery) !== "" ? (
+                      <button
+                        type="button"
+                        className="config-search-clear"
+                        onClick={() => setSearchQuery("")}
+                        aria-label="Clear search"
+                        title="Clear search"
+                      >
+                        ✕
+                      </button>
+                    ) : null}
                   </div>
-                ) : null}
+                  <button
+                    type="button"
+                    className="btn btn-plus"
+                    onClick={() => showAddField("")}
+                    title="Add top-level property"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
+              {displayConfig !== null &&
+              Object.keys(displayConfig).length > 0 ? (
+                <div className="properties-list">
+                  {Object.entries(displayConfig).map(([key, value]) =>
+                    renderProperty(key, value, [])
+                  )}
+                  {topAdd ? (
+                    <div className="add-inline-form" style={{ paddingLeft: 0 }}>
+                      <input
+                        type="text"
+                        placeholder="Property name"
+                        value={topAdd.key}
+                        onChange={(e) =>
+                          updateAddField("", "key", e.target.value)
+                        }
+                        className="property-key-input"
+                      />
+                      <input
+                        type="text"
+                        placeholder="Property value"
+                        value={topAdd.value}
+                        onChange={(e) =>
+                          updateAddField("", "value", e.target.value)
+                        }
+                        className="property-value-input"
+                      />
+                      <button
+                        type="button"
+                        className="btn btn-small btn-save-inline"
+                        onClick={() => handleAddField([], "")}
+                        title="Save"
+                      >
+                        💾
+                      </button>
+                      <button
+                        type="button"
+                        className="btn btn-small btn-cancel-inline"
+                        onClick={() => hideAddField("")}
+                        title="Cancel"
+                      >
+                        ✕
+                      </button>
+                    </div>
+                  ) : null}
+                </div>
+              ) : (
+                <p className="empty-config">
+                  {`No settings match "${searchQuery.trim()}"`}
+                </p>
+              )}
             </div>
           ) : (
             <p className="empty-config">No properties found</p>
