@@ -99,12 +99,8 @@ export type AppUpdateStatus =
   | { state: "ready"; version: string }
   | { state: "error"; message: string };
 
-/** Main → renderer push events (not invoke channels). */
-export type IpcEventMap = {
-  "app-update-status": AppUpdateStatus;
-};
-
-export type IpcEventChannel = keyof IpcEventMap;
+/** Main → renderer push event channels (not invoke). */
+export type IpcEventChannel = "app-update-status";
 
 /**
  * Request/response contract for every `ipcRenderer.invoke` channel.

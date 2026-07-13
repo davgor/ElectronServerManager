@@ -10,9 +10,9 @@ import type { AppUpdateStatus } from "../types/ipc";
 
 import * as logger from "./logger";
 
-export const APP_UPDATE_STATUS_EVENT = "app-update-status";
+const APP_UPDATE_STATUS_EVENT = "app-update-status";
 
-export interface AppUpdaterDeps {
+interface AppUpdaterDeps {
   autoUpdater: Pick<
     AppUpdater,
     | "checkForUpdates"

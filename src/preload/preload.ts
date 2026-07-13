@@ -42,7 +42,7 @@ export const ALLOWED_CHANNELS: readonly IpcChannel[] = [
   "window-close",
 ] as const;
 
-export const ALLOWED_EVENTS: readonly IpcEventChannel[] = [
+const ALLOWED_EVENTS: readonly IpcEventChannel[] = [
   "app-update-status",
 ] as const;
 
@@ -50,7 +50,7 @@ export function isAllowedChannel(channel: string): channel is IpcChannel {
   return (ALLOWED_CHANNELS as readonly string[]).includes(channel);
 }
 
-export function isAllowedEvent(channel: string): channel is IpcEventChannel {
+function isAllowedEvent(channel: string): channel is IpcEventChannel {
   return (ALLOWED_EVENTS as readonly string[]).includes(channel);
 }
 
