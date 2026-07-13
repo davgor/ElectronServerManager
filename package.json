@@ -1,7 +1,7 @@
 {
   "name": "electron-server-manager",
-  "version": "1.0.16",
-  "description": "Steam Server Manager — detect and manage Steam dedicated servers",
+  "version": "1.0.17",
+  "description": "Electron Server Manager Application",
   "main": "dist/main/main.js",
   "homepage": "./",
   "author": {
