@@ -1,82 +1,103 @@
 # Adding a new dedicated server to the catalog
 
-Steam Server Manager only detects and manages servers listed in the
-`STEAM_DEDICATED_SERVERS` catalog in `src/main/steamDetection.ts`. Adding
-support for a new game is a matter of adding one well-formed entry to that
-catalog and verifying it.
+Steam Server Manager loads its game catalog from a SQLite database
+(`server-catalog.sqlite` under Electron `userData`). Schema and seed data are
+applied by ordered migrations in `src/main/catalog/migrations/`. Adding support
+for a new game is a new numbered migration (plus tests), not an edit to a
+TypeScript object literal.
 
 ## The catalog schema
 
-Each entry is keyed by the server's **Steam app ID** and must satisfy the
-`ServerInfo` interface (defined in `src/main/steamDetection.ts`):
+Each server row is keyed by Steam **app ID** and maps to the `ServerInfo`
+shape used at runtime (`src/main/steamDetection.ts`):
 
-| Field             | Required | Description                                                                                                     |
-| ----------------- | -------- | --------------------------------------------------------------------------------------------------------------- |
-| `name`            | yes      | Display name shown in the UI.                                                                                     |
-| `folderName`      | no       | Folder name under `steamapps/common/` (used when the install folder isn't the numeric app ID).                    |
-| `executable`      | yes      | Default server executable, relative to the install path. Used when no per-platform override matches.              |
-| `executables`     | no       | Per-platform executable overrides, keyed by `process.platform` (`win32`, `linux`, `darwin`).                      |
-| `saveLocation`    | no       | Default save-data directory, relative to the install path (used by backups).                                      |
-| `saveLocations`   | no       | Per-platform save location overrides.                                                                             |
-| `configLocation`  | no       | Default config file, relative to the install path (used by the config editor).                                    |
-| `configLocations` | no       | Per-platform config file overrides.                                                                                |
+| Column / override        | Required | Maps to `ServerInfo` | Description |
+| ------------------------ | -------- | -------------------- | ----------- |
+| `app_id`                 | yes      | record key           | Steam dedicated server app ID |
+| `name`                   | yes      | `name`               | Display name in the UI |
+| `folder_name`            | no       | `folderName`         | Folder under `steamapps/common/` |
+| `executable`             | yes      | `executable`         | Default executable (relative to install) |
+| `save_location`          | no       | `saveLocation`       | Default save directory (relative) |
+| `config_location`        | no       | `configLocation`     | Default config file (relative) |
+| platform override row    | no       | `executables` / `saveLocations` / `configLocations` | Per-`win32`/`linux`/`darwin` overrides |
 
-Resolution rules: at runtime the app resolves the executable, config, and save
-paths for the current OS via `resolveServerExecutable`,
-`resolveServerConfigLocation`, and `resolveServerSaveLocation`. Each checks the
-per-platform map first (`executables[platform]`, etc.) and falls back to the
-default field (`executable`, etc.) when no override exists. Omit the
-per-platform maps entirely when every OS uses the same paths.
+Resolution rules are unchanged: `resolveServerExecutable`,
+`resolveServerConfigLocation`, and `resolveServerSaveLocation` prefer the
+platform override and fall back to the default column.
 
 ## Steps to add a server
 
 1. **Find the dedicated server's Steam app ID.** Search
-   [SteamDB](https://steamdb.info/) for "`<game name>` dedicated server". Note:
-   the *server* app ID usually differs from the game's app ID.
-2. **Find the folder and file names.** Install the server via Steam or SteamCMD
-   and inspect `steamapps/common/<folder>`:
-   - the install folder name (`folderName`),
-   - the server executable(s) per OS (`executable` / `executables`),
-   - where it writes saves (`saveLocation` / `saveLocations`),
-   - where its config file lives (`configLocation` / `configLocations`).
-     Only `.json` and `.ini` configs are supported by the config editor.
-3. **Add the entry** to `STEAM_DEDICATED_SERVERS` in
-   `src/main/steamDetection.ts` (template below).
-4. **Add unit tests.** At minimum, cover executable resolution for the
-   platforms the server supports (see
-   `src/__tests__/main/platformResolution.test.ts` for examples).
+   [SteamDB](https://steamdb.info/) for "`<game name>` dedicated server". The
+   *server* app ID usually differs from the game's app ID.
+2. **Find the folder and file names.** Install via Steam or SteamCMD and inspect
+   `steamapps/common/<folder>` for `folder_name`, executables, save path, and
+   config path (`.json` / `.ini` only for the config editor).
+3. **Add a new migration** under `src/main/catalog/migrations/` (next version
+   number after the highest existing file). Register it in
+   `src/main/catalog/catalogMigrations.ts`. Use the template below.
+4. **Add unit tests.** Assert the new rows (and platform overrides) via
+   `openAndMigrateCatalogDb(":memory:")` / `CatalogRepository`, and cover
+   executable resolution in `platformResolution.test.ts` (or a sibling test).
 5. **Verify.** Run `npm run lint`, `npm test`, and `npm run type-check`, then
-   launch the app (`npm start`) with the server installed and confirm it is
-   detected and can be started/stopped.
+   launch the app (`npm start`) with the server installed and confirm detection
+   and start/stop.
 
-## Example entry template
+On first launch after upgrade, pending migrations apply automatically when
+`initCatalog()` opens the DB.
+
+## Example migration template
 
 ```typescript
-export const STEAM_DEDICATED_SERVERS: Record<number, ServerInfo> = {
-  // ... existing entries ...
-  1234567: {
-    name: "My Game Dedicated Server",
-    folderName: "MyGameServer",
-    // Default (Windows) executable
-    executable: "MyGameServer.exe",
-    // Only needed when another OS uses a different binary
-    executables: {
-      linux: "MyGameServer.sh",
-    },
-    saveLocation: "MyGame/Saved/SaveGames",
-    configLocation: "MyGame/Saved/Config/WindowsServer/Settings.ini",
-    // Only needed when another OS uses a different config path
-    configLocations: {
-      linux: "MyGame/Saved/Config/LinuxServer/Settings.ini",
-    },
+// src/main/catalog/migrations/003_seed_my_game.ts
+import type { CatalogMigration } from "./types";
+
+export const migration003SeedMyGame: CatalogMigration = {
+  version: 3,
+  name: "seed_my_game",
+  up(db) {
+    db.prepare(
+      `INSERT INTO servers (
+         app_id, name, folder_name, executable, save_location, config_location
+       ) VALUES (
+         @app_id, @name, @folder_name, @executable, @save_location, @config_location
+       )`
+    ).run({
+      app_id: 1234567,
+      name: "My Game Dedicated Server",
+      folder_name: "MyGameServer",
+      executable: "MyGameServer.exe",
+      save_location: "MyGame/Saved/SaveGames",
+      config_location: "MyGame/Saved/Config/WindowsServer/Settings.ini",
+    });
+
+    // Only when another OS uses a different binary or config path:
+    db.prepare(
+      `INSERT INTO server_platform_overrides (
+         app_id, platform, executable, save_location, config_location
+       ) VALUES (
+         @app_id, @platform, @executable, @save_location, @config_location
+       )`
+    ).run({
+      app_id: 1234567,
+      platform: "linux",
+      executable: "MyGameServer.sh",
+      save_location: null,
+      config_location: "MyGame/Saved/Config/LinuxServer/Settings.ini",
+    });
   },
 };
 ```
 
+Then append `migration003SeedMyGame` to `CATALOG_MIGRATIONS` in
+`src/main/catalog/catalogMigrations.ts`.
+
 Notes:
 
-- Windows-only servers (no native Linux/macOS build, e.g. Enshrouded) should
-  define only the default fields; users on Linux typically run the same `.exe`
-  through Wine/Proton.
-- Paths are always relative to the server's install directory and use forward
-  slashes; they are joined with `path.join` at runtime.
+- Windows-only servers (e.g. Enshrouded) need only the `servers` insert; Linux
+  users typically run the same `.exe` through Wine/Proton.
+- Do not edit old migrations that already shipped — always add a new version.
+- Native module: `better-sqlite3` must match the runtime ABI.
+  - Electron / `npm start` / packaging: `npm run rebuild:native` (force rebuild via `@electron/rebuild`; also runs at the start of `npm run dev`)
+  - Jest / Node tests: `npm run rebuild:native:node` (also runs via `pretest`)
+  - Smoke check: `npm run verify:native:electron`

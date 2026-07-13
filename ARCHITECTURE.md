@@ -16,6 +16,7 @@ Versions match `package.json` (pin/range as declared there):
 | Packaging | electron-builder **^24.6** |
 | App updates | electron-updater **^6.8** |
 | Settings persistence | electron-store **^8.1** |
+| Server catalog | better-sqlite3 (main process) |
 | Dev env detection | `process.env.NODE_ENV` / `ELECTRON_START_URL` in main bootstrap |
 
 Build outputs: renderer → Vite `dist/`; main/preload → `tsc -p tsconfig.main.json` → `dist/main/`, `dist/preload/`.
@@ -57,7 +58,8 @@ src/
 │   ├── appWindow.ts            # Frameless BrowserWindow
 │   ├── registerIpcHandlers.ts  # Most ipcMain.handle registrations
 │   ├── windowControls.ts       # Minimize / maximize / close IPC
-│   ├── steamDetection.ts       # Catalog + findInstalledServers()
+│   ├── steamDetection.ts       # Detection + path resolution helpers
+│   ├── catalog/                # SQLite server catalog + migrations
 │   ├── steamIpc.ts             # Diagnostics / path listing helpers
 │   ├── steamCmd.ts             # SteamCMD path + update helpers
 │   ├── serverProcess.ts        # Run / stop server processes
@@ -89,14 +91,20 @@ Ticket board lives under `/board` (`backlog/`, `in-progress/`, `done/`).
 
 ## Server catalog
 
-`STEAM_DEDICATED_SERVERS` in `steamDetection.ts` currently has **2** entries:
+The known dedicated-server catalog lives in SQLite (`better-sqlite3`), opened
+from `userData/server-catalog.sqlite` on app ready via `initCatalog()`. Schema
+and seed data come from versioned migrations in `src/main/catalog/migrations/`.
+`CatalogRepository` exposes `ServerInfo`-compatible records to detection,
+process control, config I/O, and backups.
+
+Currently seeded (**2** entries):
 
 | App ID | Name |
 |--------|------|
 | `2278520` | Enshrouded Dedicated Server |
 | `1623730` | Palworld Dedicated Server |
 
-Add games via [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
+Add games via a new migration — see [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
 
 ## IPC channels
 

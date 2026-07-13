@@ -38,6 +38,7 @@ describe("Main Process Build", () => {
     expect(content).toContain("registerAppLifecycle");
     expect(content).toContain("registerIpcHandlers");
     expect(content).toContain("setApplicationMenu(null)");
+    expect(content).toContain("initCatalog");
   });
 
   it("should use __dirname in appWindow for preload and renderer paths", () => {

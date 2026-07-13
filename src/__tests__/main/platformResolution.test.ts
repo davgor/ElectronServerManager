@@ -4,12 +4,12 @@ import { promises as fs } from "fs";
 import { execSync } from "child_process";
 
 import {
-  STEAM_DEDICATED_SERVERS,
   ServerInfo,
   resolveServerExecutable,
   resolveServerConfigLocation,
   resolveServerSaveLocation,
   findInstalledServers,
+  getSteamDedicatedServers,
 } from "../../main/steamDetection";
 
 jest.mock("fs", () => ({
@@ -45,8 +45,9 @@ function restorePlatform(original: PropertyDescriptor | null): void {
 }
 
 describe("platform-aware resolution", () => {
-  const palworld = STEAM_DEDICATED_SERVERS[PALWORLD_APP_ID];
-  const enshrouded = STEAM_DEDICATED_SERVERS[ENSHROUDED_APP_ID];
+  const catalog = getSteamDedicatedServers();
+  const palworld = catalog[PALWORLD_APP_ID];
+  const enshrouded = catalog[ENSHROUDED_APP_ID];
 
   beforeEach(() => {
     jest.resetAllMocks();
