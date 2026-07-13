@@ -72,11 +72,22 @@ npm run format:check
 npm test
 npm run type-check
 npm run deadcode
+npm run test:diff-coverage   # fails if newly added/changed lines aren't covered
 npm run electron-build   # when main/preload changed
 npm run build            # when renderer/build output affected
 ```
 
 **Targeted tests during iteration** are fine (`npx jest path/to/foo.test.ts`), but **finish with full `npm test`** unless the user scoped a subset.
+
+`test:diff-coverage` runs Jest with coverage, then checks only the lines you
+added or changed (diffed against `origin/main`, or the working tree if run
+locally) via `.github/scripts/diff-coverage-gate.cjs` — currently gated at
+80%. It won't flag pre-existing untested code you didn't touch, only new
+lines this task introduced. If it fails, add a test for the flagged lines;
+don't lower the threshold or exclude the file to make it pass. The only
+exception is genuinely untestable glue (e.g. raw Electron `BrowserWindow`
+bootstrap) — if you skip coverage for that reason, say so explicitly in the
+completion report.
 
 **IPC / main-process changes** (`src/main/main.ts`, `src/preload/preload.ts`): see complete-ticket §4 — `npm test` alone is not enough; exercise the path in the real Electron app after `npm run electron-build`.
 
@@ -101,6 +112,7 @@ Delivery:
 - [ ] npm test — pass
 - [ ] npm run type-check — pass
 - [ ] npm run deadcode — pass
+- [ ] npm run test:diff-coverage — pass
 - [ ] npm run build — pass (when applicable)
 - [ ] Acceptance criteria checked off only when verified
 ```

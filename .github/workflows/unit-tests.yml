@@ -16,6 +16,10 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
+        with:
+          # Full history needed so the diff-coverage gate can diff against
+          # the PR base / previous push commit.
+          fetch-depth: 0
 
       - name: Use Node.js
         uses: actions/setup-node@v4
@@ -26,9 +30,30 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Run unit tests
+      - name: Run unit tests with coverage
         id: run-tests
-        run: npm test -- --ci --reporters=default
+        run: npm run test:coverage -- --ci --reporters=default
+
+      - name: Determine diff range
+        id: diffrange
+        run: |
+          if [ "${{ github.event_name }}" = "pull_request" ]; then
+            git fetch origin "${{ github.event.pull_request.base.ref }}" --depth=1
+            BASE_SHA=$(git merge-base "origin/${{ github.event.pull_request.base.ref }}" HEAD)
+          else
+            BASE_SHA="${{ github.event.before }}"
+            if [ -z "$BASE_SHA" ] || [ "$BASE_SHA" = "0000000000000000000000000000000000000000" ]; then
+              BASE_SHA=$(git rev-parse HEAD~1 2>/dev/null || git rev-parse HEAD)
+            fi
+          fi
+          echo "base_sha=$BASE_SHA" >> "$GITHUB_OUTPUT"
+
+      - name: Diff coverage gate (changed lines only)
+        run: node .github/scripts/diff-coverage-gate.cjs
+        env:
+          BASE_SHA: ${{ steps.diffrange.outputs.base_sha }}
+          HEAD_SHA: ${{ github.sha }}
+          DIFF_COVERAGE_THRESHOLD: 80
 
       - name: Upload test results (optional)
         if: always()

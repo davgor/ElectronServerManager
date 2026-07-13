@@ -1,0 +1,81 @@
+name: Coverage Report
+
+# Informational only — does not fail on coverage deltas. Posts/updates a sticky
+# PR comment with base vs head totals and coverage on newly added lines.
+on:
+  pull_request:
+    branches: ["main", "master"]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+concurrency:
+  group: coverage-report-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  coverage-report:
+    name: PR coverage comment
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR head
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+          ref: ${{ github.event.pull_request.head.sha }}
+
+      - name: Use Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: "npm"
+
+      - name: Install dependencies (head)
+        run: npm ci
+
+      - name: Run coverage on head
+        run: >
+          npm test -- --ci --coverage
+          --coverageReporters=json-summary
+          --coverageReporters=lcov
+          --coverageReporters=text-summary
+
+      - name: Stash head coverage artifacts
+        run: |
+          mkdir -p .coverage-compare/head
+          cp coverage/coverage-summary.json .coverage-compare/head/coverage-summary.json
+          cp coverage/lcov.info .coverage-compare/head/lcov.info
+          git diff --unified=0 ${{ github.event.pull_request.base.sha }}...${{ github.event.pull_request.head.sha }} -- "src/**/*.ts" "src/**/*.tsx" > .coverage-compare/diff.patch || true
+
+      - name: Checkout base and run coverage
+        continue-on-error: true
+        id: base-coverage
+        run: |
+          git checkout --force ${{ github.event.pull_request.base.sha }}
+          npm ci
+          npm test -- --ci --coverage \
+            --coverageReporters=json-summary \
+            --coverageReporters=lcov \
+            --coverageReporters=text-summary
+          mkdir -p .coverage-compare/base
+          cp coverage/coverage-summary.json .coverage-compare/base/coverage-summary.json
+
+      - name: Restore reporter scripts from head
+        run: |
+          git checkout --force ${{ github.event.pull_request.head.sha }} -- \
+            .github/scripts/coverage-report-policy.cjs \
+            .github/scripts/coverage-report-run.cjs
+
+      - name: Post sticky coverage comment
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          PR_NUMBER: ${{ github.event.pull_request.number }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          HEAD_SUMMARY_PATH: .coverage-compare/head/coverage-summary.json
+          HEAD_LCOV_PATH: .coverage-compare/head/lcov.info
+          DIFF_PATH: .coverage-compare/diff.patch
+          BASE_SUMMARY_PATH: ${{ steps.base-coverage.outcome == 'success' && '.coverage-compare/base/coverage-summary.json' || '' }}
+        run: node .github/scripts/coverage-report-run.cjs
