@@ -37,6 +37,10 @@ const mockElectronApi: ElectronAPI = {
   checkForAppUpdate: jest.fn().mockResolvedValue({ success: true }),
   installAppUpdate: jest.fn().mockResolvedValue({ success: true }),
   onAppUpdateStatus: jest.fn(() => () => undefined),
+  getPalworldRestStatus: jest
+    .fn()
+    .mockResolvedValue({ success: true, enabled: false, isPalworld: false }),
+  palworldRestRequest: jest.fn().mockResolvedValue({ success: true, data: {} }),
   windowControls: {
     minimize: jest.fn().mockResolvedValue({ success: true }),
     toggleMaximize: jest

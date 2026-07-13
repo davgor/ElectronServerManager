@@ -44,6 +44,8 @@ const EXPECTED_CHANNELS = [
   "window-minimize",
   "window-maximize-toggle",
   "window-close",
+  "palworld-rest-status",
+  "palworld-rest-request",
 ] as const;
 
 type ExpectedChannel = (typeof EXPECTED_CHANNELS)[number];
@@ -55,7 +57,7 @@ const channelsAreExpected: readonly ExpectedChannel[] = [] as IpcChannel[];
 
 describe("IPC types", () => {
   it("covers every registered IPC channel", () => {
-    expect(expectedAreChannels).toHaveLength(20);
+    expect(expectedAreChannels).toHaveLength(22);
     expect(channelsAreExpected).toHaveLength(0);
   });
 

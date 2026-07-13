@@ -37,6 +37,8 @@ function App(): JSX.Element {
     setAutoUpdate,
     setBackupPath,
     setBackupInterval,
+    setPalworldOpsEnabled,
+    setPalworldOpsInterval,
     setSelectedSteamPath,
     setSteamCmdPath,
   } = useServerSettings();
@@ -196,6 +198,12 @@ function App(): JSX.Element {
                       DEFAULT_BACKUP_INTERVAL_SECONDS
                     }
                     lastBackup={lastBackups[server.appId]}
+                    palworldOpsEnabled={
+                      serverSettings?.palworldOpsEnabled ?? false
+                    }
+                    palworldOpsIntervalSeconds={
+                      serverSettings?.palworldOpsIntervalSeconds
+                    }
                     onRunServer={handleRunServer}
                     onStopServer={handleStopServer}
                     onToggleAutoRestart={setAutoRestart}
@@ -204,6 +212,8 @@ function App(): JSX.Element {
                     onChangeBackupInterval={setBackupInterval}
                     onBackupNow={backupNow}
                     onEditConfig={handleEditConfig}
+                    onTogglePalworldOps={setPalworldOpsEnabled}
+                    onChangePalworldOpsInterval={setPalworldOpsInterval}
                   />
                 );
               })}

@@ -106,6 +106,31 @@ describe("useServerSettings", () => {
     expect(result.current.settings).toEqual(expected);
   });
 
+  it("persists clamped palworld ops interval and toggle", async () => {
+    const mock = installElectronMock({ servers: {} });
+
+    const { result } = renderHook(() => useServerSettings());
+    await waitFor(() => {
+      expect(result.current.settingsLoaded).toBe(true);
+    });
+
+    act(() => {
+      result.current.setPalworldOpsEnabled(1623730, true);
+      result.current.setPalworldOpsInterval(1623730, 1);
+    });
+
+    expect(mock.saveSettings).toHaveBeenLastCalledWith({
+      servers: {
+        "1623730": {
+          autoRestart: false,
+          autoUpdate: false,
+          palworldOpsEnabled: true,
+          palworldOpsIntervalSeconds: 2,
+        },
+      },
+    });
+  });
+
   it("preserves other servers' entries when updating one server", async () => {
     const persisted: AppSettings = {
       servers: {

@@ -1,6 +1,11 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 
 import type { SteamServer } from "../types/ipc";
+import { PALWORLD_APP_ID } from "../types/ipc";
+
+import { PalworldAdminModal } from "./PalworldAdminModal";
+import { PalworldOpsPanel } from "./PalworldOpsPanel";
+import { resolvePalworldOpsIntervalSeconds } from "./palworldOpsSettings";
 
 export interface ServerCardProps {
   server: SteamServer;
@@ -9,6 +14,8 @@ export interface ServerCardProps {
   backupPath: string | undefined;
   backupIntervalSeconds: number;
   lastBackup: string | undefined;
+  palworldOpsEnabled: boolean;
+  palworldOpsIntervalSeconds: number | undefined;
   onRunServer: (appId: number, installPath: string) => void;
   onStopServer: (appId: number, installPath: string) => void;
   onToggleAutoRestart: (appId: number, enabled: boolean) => void;
@@ -17,7 +24,12 @@ export interface ServerCardProps {
   onChangeBackupInterval: (appId: number, seconds: number) => void;
   onBackupNow: (appId: number, installPath: string) => void;
   onEditConfig: (server: SteamServer) => void;
+  onTogglePalworldOps: (appId: number, enabled: boolean) => void;
+  onChangePalworldOpsInterval: (appId: number, seconds: number) => void;
 }
+
+const REST_DISABLED_TOOLTIP =
+  "Please enable REST API from the config settings.";
 
 export function ServerCard({
   server,
@@ -26,6 +38,8 @@ export function ServerCard({
   backupPath,
   backupIntervalSeconds,
   lastBackup,
+  palworldOpsEnabled,
+  palworldOpsIntervalSeconds,
   onRunServer,
   onStopServer,
   onToggleAutoRestart,
@@ -34,11 +48,41 @@ export function ServerCard({
   onChangeBackupInterval,
   onBackupNow,
   onEditConfig,
+  onTogglePalworldOps,
+  onChangePalworldOpsInterval,
 }: ServerCardProps): JSX.Element {
   const hasBackupPath = backupPath !== undefined && backupPath !== "";
   const hasLastBackup = lastBackup !== undefined && lastBackup !== "";
+  const isPalworld = server.appId === PALWORLD_APP_ID;
   const [showOutput, setShowOutput] = useState(false);
   const [serverOutput, setServerOutput] = useState("");
+  const [restEnabled, setRestEnabled] = useState(false);
+  const [showAdminModal, setShowAdminModal] = useState(false);
+
+  useEffect(() => {
+    if (!isPalworld) {
+      setRestEnabled(false);
+      return;
+    }
+
+    let cancelled = false;
+    void window.electron
+      .getPalworldRestStatus(server.appId, server.installPath)
+      .then((status) => {
+        if (!cancelled) {
+          setRestEnabled(status.success && status.enabled);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) {
+          setRestEnabled(false);
+        }
+      });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [isPalworld, server.appId, server.installPath]);
 
   async function toggleServerOutput(): Promise<void> {
     if (showOutput) {
@@ -92,6 +136,26 @@ export function ServerCard({
           >
             ⚙️ Edit Config
           </button>
+          {isPalworld && (
+            <span
+              className="palworld-admin-btn-wrap"
+              title={restEnabled ? undefined : REST_DISABLED_TOOLTIP}
+            >
+              <button
+                type="button"
+                className="btn btn-palworld-admin-open"
+                disabled={!restEnabled}
+                title={
+                  restEnabled
+                    ? "Open Palworld REST admin"
+                    : REST_DISABLED_TOOLTIP
+                }
+                onClick={() => setShowAdminModal(true)}
+              >
+                Admin
+              </button>
+            </span>
+          )}
           <button
             className="btn btn-server-output"
             onClick={() => {
@@ -107,6 +171,22 @@ export function ServerCard({
               ? serverOutput
               : "(no recent output captured)"}
           </pre>
+        )}
+        {isPalworld && (
+          <PalworldOpsPanel
+            server={server}
+            restEnabled={restEnabled}
+            opsEnabled={palworldOpsEnabled}
+            opsIntervalSeconds={resolvePalworldOpsIntervalSeconds(
+              palworldOpsIntervalSeconds
+            )}
+            onToggleOps={(enabled) =>
+              onTogglePalworldOps(server.appId, enabled)
+            }
+            onChangeInterval={(seconds) =>
+              onChangePalworldOpsInterval(server.appId, seconds)
+            }
+          />
         )}
         <div className="server-settings">
           <label className="auto-restart-checkbox">
@@ -181,6 +261,12 @@ export function ServerCard({
           </div>
         </div>
       </div>
+      {showAdminModal && (
+        <PalworldAdminModal
+          server={server}
+          onClose={() => setShowAdminModal(false)}
+        />
+      )}
     </div>
   );
 }

@@ -1,6 +1,6 @@
 import { app, ipcMain, dialog, BrowserWindow } from "electron";
 
-import type { AppSettings } from "../types/ipc";
+import type { AppSettings, PalworldRestEndpoint } from "../types/ipc";
 
 import { registerWindowControlHandlers } from "./windowControls";
 import {
@@ -16,6 +16,7 @@ import { backupServerSaveHandler, selectBackupFolder } from "./serverBackup";
 import { getSettings, saveSettings } from "./settingsStore";
 import { getServerOutput } from "./serverOutputBuffer";
 import { checkForAppUpdate, installAppUpdate } from "./appUpdater";
+import { getPalworldRestStatus, invokePalworldRest } from "./palworldRestIpc";
 
 interface IpcRegistrationDeps {
   getMainWindow: () => BrowserWindow | null;
@@ -104,4 +105,25 @@ export function registerIpcHandlers(deps: IpcRegistrationDeps): void {
   ipcMain.handle("app-update-check", () => checkForAppUpdate());
 
   ipcMain.handle("app-update-install", () => installAppUpdate());
+
+  ipcMain.handle(
+    "palworld-rest-status",
+    async (_event, appId: number, installPath: string) => {
+      return getPalworldRestStatus(appId, installPath);
+    }
+  );
+
+  ipcMain.handle(
+    "palworld-rest-request",
+    async (
+      _event,
+      appId: number,
+      installPath: string,
+      method: "GET" | "POST",
+      endpoint: PalworldRestEndpoint,
+      body?: Record<string, unknown>
+    ) => {
+      return invokePalworldRest(appId, installPath, method, endpoint, body);
+    }
+  );
 }

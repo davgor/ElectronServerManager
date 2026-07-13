@@ -20,6 +20,8 @@ function makeProps(overrides: Partial<ServerCardProps> = {}): ServerCardProps {
     backupPath: undefined,
     backupIntervalSeconds: 3600,
     lastBackup: undefined,
+    palworldOpsEnabled: false,
+    palworldOpsIntervalSeconds: undefined,
     onRunServer: jest.fn(),
     onStopServer: jest.fn(),
     onToggleAutoRestart: jest.fn(),
@@ -28,6 +30,8 @@ function makeProps(overrides: Partial<ServerCardProps> = {}): ServerCardProps {
     onChangeBackupInterval: jest.fn(),
     onBackupNow: jest.fn(),
     onEditConfig: jest.fn(),
+    onTogglePalworldOps: jest.fn(),
+    onChangePalworldOpsInterval: jest.fn(),
     ...overrides,
   };
 }
@@ -265,5 +269,47 @@ describe("ServerCard Component", () => {
     expect(await screen.findByTestId("server-output")).toHaveTextContent(
       "server booted"
     );
+  });
+
+  it("shows a disabled Admin button with tooltip when Palworld REST is off", async () => {
+    Object.defineProperty(window, "electron", {
+      value: {
+        getPalworldRestStatus: jest.fn().mockResolvedValue({
+          success: true,
+          enabled: false,
+          isPalworld: true,
+        }),
+      },
+      configurable: true,
+    });
+
+    render(
+      <ServerCard
+        {...makeProps({
+          server: {
+            name: "Palworld Dedicated Server",
+            appId: 1623730,
+            installPath: "C:\\servers\\pal",
+            isRunning: true,
+          },
+        })}
+      />
+    );
+
+    const admin = await screen.findByRole("button", { name: "Admin" });
+    expect(admin).toBeDisabled();
+    expect(admin).toHaveAttribute(
+      "title",
+      "Please enable REST API from the config settings."
+    );
+    expect(screen.queryByRole("button", { name: "Admin" })).toBeInTheDocument();
+    expect(screen.getByText("Live ops panel")).toBeInTheDocument();
+  });
+
+  it("does not show Admin on non-Palworld cards", () => {
+    render(<ServerCard {...makeProps()} />);
+    expect(
+      screen.queryByRole("button", { name: "Admin" })
+    ).not.toBeInTheDocument();
   });
 });

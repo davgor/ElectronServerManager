@@ -1,0 +1,67 @@
+.palworld-ops {
+  margin-top: 14px;
+  padding-top: 14px;
+  border-top: 1px solid #4a5a7c;
+}
+
+.palworld-ops-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px 18px;
+  align-items: center;
+}
+
+.palworld-ops-interval {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #c7d5e0;
+  font-size: 0.9em;
+}
+
+.palworld-ops-interval select {
+  padding: 6px 8px;
+  background: #2a3f5f;
+  color: #c7d5e0;
+  border: 1px solid #4a5a7c;
+  border-radius: 4px;
+  font-size: 0.85em;
+}
+
+.palworld-ops-hint {
+  margin: 8px 0 0;
+  color: #a0aab8;
+  font-size: 0.85em;
+}
+
+.palworld-ops-terminal {
+  margin-top: 10px;
+  padding: 10px 12px;
+  background: #0d1520;
+  border: 1px solid #2a3f5f;
+  border-radius: 6px;
+  font-family: Consolas, "Courier New", monospace;
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.palworld-ops-line {
+  display: flex;
+  gap: 10px;
+}
+
+.palworld-ops-key {
+  color: #5aa0ff;
+  min-width: 64px;
+  text-transform: lowercase;
+}
+
+.palworld-ops-val {
+  color: #9fe870;
+  word-break: break-word;
+}
+
+.palworld-ops-error .palworld-ops-key,
+.palworld-ops-error .palworld-ops-val {
+  color: #e85a4a;
+}
