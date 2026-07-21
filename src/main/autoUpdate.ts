@@ -2,13 +2,24 @@ import type { AutoUpdateServerResponse } from "../types/ipc";
 
 import { getServerBuildId } from "./steamDetection";
 import { getServerMapping, startServer, stopServer } from "./serverProcess";
-import { resolveSteamCmdPath, runSteamCmdUpdate } from "./steamCmd";
+import {
+  fetchRemoteAppBuildId,
+  resolveSteamCmdPath,
+  runSteamCmdUpdate,
+} from "./steamCmd";
+import { getPalworldRestStatus, invokePalworldRest } from "./palworldRestIpc";
 
 /**
  * Backoff schedule for re-reading the app manifest after steamcmd finishes;
  * the manifest write can lag slightly behind the process exiting.
  */
 const DEFAULT_BUILDID_POLL_DELAYS_MS = [1000, 2000, 4000];
+
+/** Player warn window before stop/update when Palworld REST announce is available. */
+const DEFAULT_WARN_BEFORE_UPDATE_MS = 5 * 60 * 1000;
+
+export const UPDATE_REBOOT_WARN_MESSAGE =
+  "An update is available. The server will reboot in 5 minutes.";
 
 interface AutoUpdateOptions {
   /** Explicit steamcmd path (from user settings). */
@@ -17,6 +28,14 @@ interface AutoUpdateOptions {
   buildIdPollDelaysMs?: number[];
   /** Override the steamcmd timeout (used by tests). */
   steamCmdTimeoutMs?: number;
+  /** Override the REST announce → reboot delay (used by tests). */
+  warnBeforeUpdateMs?: number;
+}
+
+const inFlightAppIds = new Set<number>();
+
+export function resetAutoUpdateForTests(): void {
+  inFlightAppIds.clear();
 }
 
 function delay(ms: number): Promise<void> {
@@ -24,13 +43,36 @@ function delay(ms: number): Promise<void> {
 }
 
 /**
- * Auto-update state machine: validate -> resolve steamcmd -> stop server ->
- * run steamcmd app_update (into installPath) -> verify buildid (with backoff)
- * -> always restart after a successful stop. `updated: true` means the
- * buildid changed; `stage: "no-update"` still restarts so the checkbox keeps
- * the server running after a check.
+ * Auto-update state machine: validate -> resolve steamcmd -> compare local vs
+ * remote buildid (no stop) -> only if they differ: optionally announce + wait
+ * when Palworld REST is enabled -> stop server -> run steamcmd app_update
+ * (into installPath) -> verify buildid (with backoff) -> always restart after
+ * a successful stop. `updated: true` means the buildid changed; matching
+ * versions return `stage: "no-update"` without interrupting the server.
  */
 export async function autoUpdateServer(
+  appId: number,
+  installPath: string,
+  steamPath: string,
+  options?: AutoUpdateOptions
+): Promise<AutoUpdateServerResponse> {
+  if (inFlightAppIds.has(appId)) {
+    return {
+      success: true,
+      stage: "no-update",
+      updated: false,
+    };
+  }
+  inFlightAppIds.add(appId);
+
+  try {
+    return await runAutoUpdate(appId, installPath, steamPath, options);
+  } finally {
+    inFlightAppIds.delete(appId);
+  }
+}
+
+async function runAutoUpdate(
   appId: number,
   installPath: string,
   steamPath: string,
@@ -68,7 +110,67 @@ export async function autoUpdateServer(
 
   const previousBuildId = await getServerBuildId(appId, steamPath);
 
-  // Stage: stopping
+  // Stage: checking — compare local vs remote without interrupting the server.
+  if (previousBuildId === null) {
+    return {
+      success: false,
+      stage: "checking",
+      updated: false,
+      previousBuildId,
+      error: `Could not read local buildid for app ${String(appId)}; left server running.`,
+    };
+  }
+
+  const remoteResult = await fetchRemoteAppBuildId(steamCmdPath, appId, {
+    timeoutMs: options?.steamCmdTimeoutMs,
+  });
+  if (!remoteResult.success || remoteResult.buildId === undefined) {
+    return {
+      success: false,
+      stage: "checking",
+      updated: false,
+      previousBuildId,
+      error: `${remoteResult.error ?? "Failed to check remote buildid"} Server was left running.`,
+    };
+  }
+
+  if (remoteResult.buildId === previousBuildId) {
+    return {
+      success: true,
+      stage: "no-update",
+      updated: false,
+      previousBuildId,
+      newBuildId: previousBuildId,
+    };
+  }
+
+  // Stage: notifying — Palworld REST announce + warn window before downtime.
+  const restStatus = await getPalworldRestStatus(appId, installPath);
+  if (restStatus.success && restStatus.isPalworld && restStatus.enabled) {
+    const announceResult = await invokePalworldRest(
+      appId,
+      installPath,
+      "POST",
+      "announce",
+      { message: UPDATE_REBOOT_WARN_MESSAGE }
+    );
+    if (!announceResult.success) {
+      return {
+        success: false,
+        stage: "notifying",
+        updated: false,
+        previousBuildId,
+        error: `Failed to announce update warning: ${announceResult.error ?? "unknown error"} Server was left running.`,
+      };
+    }
+
+    const warnMs = options?.warnBeforeUpdateMs ?? DEFAULT_WARN_BEFORE_UPDATE_MS;
+    if (warnMs > 0) {
+      await delay(warnMs);
+    }
+  }
+
+  // Stage: stopping — only when an update is actually available.
   const stopResult = stopServer(appId, installPath);
   if (!stopResult.success) {
     return {
@@ -120,10 +222,7 @@ export async function autoUpdateServer(
     newBuildId = await getServerBuildId(appId, steamPath);
   }
 
-  const buildChanged =
-    newBuildId !== null &&
-    previousBuildId !== null &&
-    newBuildId !== previousBuildId;
+  const buildChanged = newBuildId !== null && newBuildId !== previousBuildId;
 
   // Stage: restarting — always bring the server back after a successful stop.
   const startResult = await startServer(appId, installPath);

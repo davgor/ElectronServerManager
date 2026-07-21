@@ -1,7 +1,8 @@
 # App auto-update runbook
 
 Installed builds of Game Server Manager can check GitHub Releases for a newer
-version, download it in the background, and restart to apply it.
+version, download it in the background, and restart to apply it silently
+(Discord-style: no interactive NSIS wizard on the in-app update path).
 
 ## How a release becomes an update
 
@@ -11,11 +12,17 @@ version, download it in the background, and restart to apply it.
 3. Release assets uploaded to the GitHub Release include:
    - Installers (`.exe` NSIS / portable, `.AppImage`, `.deb`)
    - Updater metadata: `latest.yml`, `latest-linux.yml`, and `*.blockmap`
-4. A previously installed **packaged** app starts, `electron-updater` reads the
-   GitHub feed (see `publish` in `electron-builder.json`), and downloads when a
-   newer version is published.
-5. The UI banner prompts **Restart & Install**; after restart the title bar
-   version (`vX.Y.Z`) should match the release tag / `package.json`.
+4. A previously installed **packaged** app starts and `electron-updater` reads
+   the GitHub feed (see `publish` in `electron-builder.json`). It checks once
+   on launch, then again every **4 hours** while the app stays open. Overlapping
+   checks are skipped when a check/download is already in flight or an update
+   is ready. When a newer version is published, the update downloads in the
+   background.
+5. The UI banner prompts **Restart & Install**. That CTA calls
+   `quitAndInstall(true, true)` (silent + relaunch). The app does **not** quit
+   on its own when the download finishes — the user must click the button.
+6. After restart the title bar version (`vX.Y.Z`) should match the release tag /
+   `package.json`.
 
 Dev runs (`npm start` / `npm run dev`) never hit the public update feed.
 
@@ -50,6 +57,9 @@ newer fixed release from `main`, or re-upload hyphenated copies of the assets
 3. Publish a newer GitHub Release that includes `latest.yml` /
    `latest-linux.yml` and matching installers (normal `main` release workflow).
 4. Launch the older install — banner should show update available / downloading /
-   ready.
-5. Choose **Restart & Install**.
+   ready. (Optional: leave the app open past a poll interval / trigger a manual
+   check via IPC `app-update-check` to confirm background polling.)
+5. Choose **Restart & Install** — Windows NSIS should apply silently (no
+   installer wizard); AppImage relaunches with the new binary (silent flag is a
+   no-op there).
 6. Confirm the title bar version matches the new release.

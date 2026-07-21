@@ -10,8 +10,14 @@ import * as logger from "./logger";
 /** Default upper bound for a steamcmd app_update run (large depots are slow). */
 const DEFAULT_STEAMCMD_TIMEOUT_MS = 15 * 60 * 1000;
 
+/** App-info checks are metadata-only and should finish quickly. */
+const DEFAULT_APP_INFO_TIMEOUT_MS = 60 * 1000;
+
 /** Cap captured output so a chatty steamcmd cannot grow buffers unbounded. */
 const MAX_CAPTURED_OUTPUT_CHARS = 8192;
+
+/** app_info_print can be large; keep enough to reach branches.public.buildid. */
+const MAX_APP_INFO_OUTPUT_CHARS = 256 * 1024;
 
 interface RunSteamCmdOptions {
   timeoutMs?: number;
@@ -26,6 +32,12 @@ interface SteamCmdFileDialog {
       filters?: Array<{ name: string; extensions: string[] }>;
     }
   ): Promise<{ canceled: boolean; filePaths: string[] }>;
+}
+
+interface RemoteBuildIdResult {
+  success: boolean;
+  buildId?: string;
+  error?: string;
 }
 
 function wellKnownSteamCmdLocations(): string[] {
@@ -81,6 +93,112 @@ export function resolveSteamCmdPath(configuredPath?: string): string | null {
   }
 
   return null;
+}
+
+/**
+ * Extract the public-branch buildid from SteamCMD `app_info_print` output.
+ * Prefers the buildid under `"branches" → "public"`, ignoring other branches.
+ */
+export function parsePublicBranchBuildId(appInfoOutput: string): string | null {
+  const branchesIdx = appInfoOutput.search(/"branches"\s*\{/i);
+  if (branchesIdx < 0) {
+    return null;
+  }
+  const afterBranches = appInfoOutput.slice(branchesIdx);
+  const publicIdx = afterBranches.search(/"public"\s*\{/i);
+  if (publicIdx < 0) {
+    return null;
+  }
+  const afterPublic = afterBranches.slice(publicIdx);
+  const buildMatch = afterPublic.match(/"buildid"\s+"(\d+)"/i);
+  return buildMatch?.[1] ?? null;
+}
+
+/**
+ * Query the remote public-branch buildid via SteamCMD without touching the
+ * install directory (`app_info_update` + `app_info_print`, no `app_update`).
+ * Print is issued twice because the first call often only refreshes the cache.
+ */
+export function fetchRemoteAppBuildId(
+  steamCmdPath: string,
+  appId: number,
+  options?: RunSteamCmdOptions
+): Promise<RemoteBuildIdResult> {
+  const timeoutMs = options?.timeoutMs ?? DEFAULT_APP_INFO_TIMEOUT_MS;
+
+  return new Promise((resolve) => {
+    let settled = false;
+    let output = "";
+
+    const settle = (result: RemoteBuildIdResult): void => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      clearTimeout(timeoutHandle);
+      resolve(result);
+    };
+
+    const child = spawn(
+      steamCmdPath,
+      [
+        "+login",
+        "anonymous",
+        "+app_info_update",
+        "1",
+        "+app_info_print",
+        String(appId),
+        "+app_info_print",
+        String(appId),
+        "+quit",
+      ],
+      { shell: false, windowsHide: true, stdio: ["ignore", "pipe", "pipe"] }
+    );
+
+    const timeoutHandle = setTimeout(() => {
+      child.kill();
+      settle({
+        success: false,
+        error: `steamcmd timed out after ${String(timeoutMs)}ms while checking app info for ${String(appId)}`,
+      });
+    }, timeoutMs);
+
+    const captureOutput = (data: Buffer): void => {
+      if (output.length < MAX_APP_INFO_OUTPUT_CHARS) {
+        output += data.toString();
+      }
+    };
+    child.stdout.on("data", captureOutput);
+    child.stderr.on("data", captureOutput);
+
+    child.on("error", (err: Error) => {
+      settle({
+        success: false,
+        error: `Failed to run steamcmd at ${steamCmdPath}: ${err.message}`,
+      });
+    });
+
+    child.on("exit", (code) => {
+      if (code === 0 || code === 7) {
+        const buildId = parsePublicBranchBuildId(output);
+        if (buildId === null) {
+          settle({
+            success: false,
+            error: `Could not parse remote public buildid from steamcmd app info for app ${String(appId)}`,
+          });
+          return;
+        }
+        settle({ success: true, buildId });
+        return;
+      }
+      const detail =
+        output.trim().length > 0 ? ` Output: ${output.trim()}` : "";
+      settle({
+        success: false,
+        error: `steamcmd exited with exit code ${String(code)} while checking app info for app ${String(appId)}.${detail}`,
+      });
+    });
+  });
 }
 
 /**
