@@ -16,7 +16,7 @@ import { getPalworldRestStatus, invokePalworldRest } from "./palworldRestIpc";
 const DEFAULT_BUILDID_POLL_DELAYS_MS = [1000, 2000, 4000];
 
 /** Player warn window before stop/update when Palworld REST announce is available. */
-export const DEFAULT_WARN_BEFORE_UPDATE_MS = 5 * 60 * 1000;
+const DEFAULT_WARN_BEFORE_UPDATE_MS = 5 * 60 * 1000;
 
 export const UPDATE_REBOOT_WARN_MESSAGE =
   "An update is available. The server will reboot in 5 minutes.";

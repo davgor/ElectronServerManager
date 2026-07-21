@@ -34,7 +34,7 @@ interface SteamCmdFileDialog {
   ): Promise<{ canceled: boolean; filePaths: string[] }>;
 }
 
-export interface RemoteBuildIdResult {
+interface RemoteBuildIdResult {
   success: boolean;
   buildId?: string;
   error?: string;
