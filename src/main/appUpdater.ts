@@ -12,6 +12,9 @@ import * as logger from "./logger";
 
 const APP_UPDATE_STATUS_EVENT = "app-update-status";
 
+/** How often to re-check while the app stays open (Discord-style background polling). */
+export const DEFAULT_POLL_INTERVAL_MS = 4 * 60 * 60 * 1000;
+
 interface AppUpdaterDeps {
   autoUpdater: Pick<
     AppUpdater,
@@ -26,18 +29,33 @@ interface AppUpdaterDeps {
   getMainWindow: () => BrowserWindow | null;
   isPackaged: boolean;
   currentVersion: string;
+  /** Injectable poll interval for tests; defaults to DEFAULT_POLL_INTERVAL_MS. */
+  pollIntervalMs?: number;
 }
 
 let activeDeps: AppUpdaterDeps | null = null;
 let lastStatus: AppUpdateStatus = { state: "idle" };
+let checkInFlight = false;
+let pollTimer: ReturnType<typeof setInterval> | null = null;
 
 export function resetAppUpdaterForTests(): void {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
   activeDeps = null;
   lastStatus = { state: "idle" };
+  checkInFlight = false;
 }
 
 export function getLastAppUpdateStatus(): AppUpdateStatus {
   return lastStatus;
+}
+
+export function canStartAppUpdateCheck(
+  state: AppUpdateStatus["state"]
+): boolean {
+  return state === "idle" || state === "not-available" || state === "error";
 }
 
 function broadcast(status: AppUpdateStatus): void {
@@ -48,15 +66,7 @@ function broadcast(status: AppUpdateStatus): void {
   }
 }
 
-export function registerAppUpdater(deps: AppUpdaterDeps): void {
-  activeDeps = deps;
-
-  if (!deps.isPackaged) {
-    logger.info("App updater skipped (unpackaged / development build)");
-    broadcast({ state: "idle" });
-    return;
-  }
-
+function wireAutoUpdaterEvents(deps: AppUpdaterDeps): void {
   const { autoUpdater } = deps;
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
@@ -106,8 +116,26 @@ export function registerAppUpdater(deps: AppUpdaterDeps): void {
       message: error.message || "Update check failed",
     });
   });
+}
 
+function schedulePolling(pollIntervalMs: number): void {
+  pollTimer = setInterval(() => {
+    void checkForAppUpdate();
+  }, pollIntervalMs);
+}
+
+export function registerAppUpdater(deps: AppUpdaterDeps): void {
+  activeDeps = deps;
+
+  if (!deps.isPackaged) {
+    logger.info("App updater skipped (unpackaged / development build)");
+    broadcast({ state: "idle" });
+    return;
+  }
+
+  wireAutoUpdaterEvents(deps);
   void checkForAppUpdate();
+  schedulePolling(deps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS);
 }
 
 export async function checkForAppUpdate(): Promise<{
@@ -120,7 +148,11 @@ export async function checkForAppUpdate(): Promise<{
   if (!activeDeps.isPackaged) {
     return { success: true };
   }
+  if (checkInFlight || !canStartAppUpdateCheck(lastStatus.state)) {
+    return { success: true };
+  }
 
+  checkInFlight = true;
   try {
     await activeDeps.autoUpdater.checkForUpdates();
     return { success: true };
@@ -129,6 +161,8 @@ export async function checkForAppUpdate(): Promise<{
       error instanceof Error ? error.message : "Failed to check for updates";
     broadcast({ state: "error", message });
     return { success: false, error: message };
+  } finally {
+    checkInFlight = false;
   }
 }
 
@@ -150,8 +184,8 @@ export function installAppUpdate(): {
   }
 
   try {
-    // isSilent=false, isForceRunAfter=true
-    activeDeps.autoUpdater.quitAndInstall(false, true);
+    // isSilent=true, isForceRunAfter=true — Discord-style silent apply
+    activeDeps.autoUpdater.quitAndInstall(true, true);
     return { success: true };
   } catch (error) {
     const message =

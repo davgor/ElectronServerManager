@@ -5,7 +5,9 @@ import { existsSync } from "fs";
 import * as childProcess from "child_process";
 
 import {
+  parsePublicBranchBuildId,
   resolveSteamCmdPath,
+  fetchRemoteAppBuildId,
   runSteamCmdUpdate,
   selectSteamCmdPath,
 } from "../../main/steamCmd";
@@ -122,6 +124,105 @@ describe("steamCmd", () => {
       });
 
       expect(resolveSteamCmdPath()).toBeNull();
+    });
+  });
+
+  describe("parsePublicBranchBuildId", () => {
+    it("extracts the public branch buildid from app_info_print output", () => {
+      const output = `
+AppID : 2278520
+"2278520"
+{
+	"depots"
+	{
+		"branches"
+		{
+			"beta"
+			{
+				"buildid"		"999"
+			}
+			"public"
+			{
+				"buildid"		"14567890"
+				"timeupdated"		"1710000000"
+			}
+		}
+	}
+}
+`;
+      expect(parsePublicBranchBuildId(output)).toBe("14567890");
+    });
+
+    it("returns null when public buildid is missing", () => {
+      expect(
+        parsePublicBranchBuildId('"branches" { "beta" { "buildid" "1" } }')
+      ).toBeNull();
+      expect(parsePublicBranchBuildId("")).toBeNull();
+    });
+  });
+
+  describe("fetchRemoteAppBuildId", () => {
+    it("runs app_info_update/print without force_install_dir or app_update", async () => {
+      const child = createFakeChild();
+      mockSpawn.mockReturnValue(
+        child as unknown as ReturnType<typeof childProcess.spawn>
+      );
+
+      const pending = fetchRemoteAppBuildId("/usr/bin/steamcmd", 2278520);
+      child.stdout.emit(
+        "data",
+        Buffer.from('"branches" { "public" { "buildid" "14567890" } }')
+      );
+      child.emit("exit", 0, null);
+
+      await expect(pending).resolves.toEqual({
+        success: true,
+        buildId: "14567890",
+      });
+      expect(mockSpawn).toHaveBeenCalledWith(
+        "/usr/bin/steamcmd",
+        [
+          "+login",
+          "anonymous",
+          "+app_info_update",
+          "1",
+          "+app_info_print",
+          "2278520",
+          "+app_info_print",
+          "2278520",
+          "+quit",
+        ],
+        expect.objectContaining({ shell: false })
+      );
+    });
+
+    it("fails when steamcmd exits without a parseable public buildid", async () => {
+      const child = createFakeChild();
+      mockSpawn.mockReturnValue(
+        child as unknown as ReturnType<typeof childProcess.spawn>
+      );
+
+      const pending = fetchRemoteAppBuildId("/usr/bin/steamcmd", 2278520);
+      child.stdout.emit("data", Buffer.from("No app info"));
+      child.emit("exit", 0, null);
+
+      const result = await pending;
+      expect(result.success).toBe(false);
+      expect(result.error).toMatch(/buildid/i);
+    });
+
+    it("fails on non-zero steamcmd exit", async () => {
+      const child = createFakeChild();
+      mockSpawn.mockReturnValue(
+        child as unknown as ReturnType<typeof childProcess.spawn>
+      );
+
+      const pending = fetchRemoteAppBuildId("/usr/bin/steamcmd", 2278520);
+      child.emit("exit", 8, null);
+
+      const result = await pending;
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("exit code 8");
     });
   });
 

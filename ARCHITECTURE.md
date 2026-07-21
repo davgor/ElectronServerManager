@@ -163,11 +163,16 @@ easy to confirm.
 3. **Auto-restart** — Renderer settings flag; polling in `useSteamServers`
    restarts if a watched server exits unexpectedly.
 4. **Auto-update (game files)** — SteamCMD via `autoUpdate.ts` when enabled per
-   server: stop → `+force_install_dir <installPath>` + `app_update validate` →
-   verify buildid → always restart after a successful stop (`updated` reflects
-   whether the build changed; `no-update` still brings the process back up).
+   server: compare local appmanifest buildid to remote public buildid
+   (`app_info_print`, no stop) → only if they differ, optionally announce a
+   5-minute reboot warning via Palworld REST (when `RESTAPIEnabled`) and wait →
+   stop → `+force_install_dir <installPath>` + `app_update validate` → verify
+   buildid → restart (`updated` reflects whether the build changed; matching
+   versions leave the running server alone).
 5. **App auto-update** — Packaged builds use `electron-updater` (`appUpdater.ts`)
-   against GitHub Releases metadata; see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
+   against GitHub Releases metadata: check on launch + every 4h while open,
+   background download, silent apply on the **Restart & Install** CTA; see
+   [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
 6. **Backup** — Copies configured save location into a user-chosen backup root.
 7. **Config editor** — Loads config over IPC; `ConfigEditor` edits nested
    values with type preservation; saves back through main.

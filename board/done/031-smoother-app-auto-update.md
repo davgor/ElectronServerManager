@@ -9,11 +9,11 @@ Packaged builds already use `electron-updater` against GitHub Releases (epic 012
 
 ## Acceptance criteria (epic)
 
-- [ ] Packaged app polls for updates on a fixed interval while running (in addition to the existing startup check)
-- [ ] Applying a downloaded update uses a silent install path (no interactive NSIS wizard); app relaunches on the new version
-- [ ] Update banner UX still covers checking / downloading / ready / error; ready state still requires an explicit restart CTA (no surprise quit)
-- [ ] Unit tests cover interval scheduling (or injectable timer) and silent `quitAndInstall` args; unpackaged/dev still skips real checks
-- [ ] `docs/AUTO_UPDATE.md` notes polling + silent install; `npm run lint`, `npm test`, `npm run type-check`, `npm run deadcode`, `npm run electron-build` pass
+- [x] Packaged app polls for updates on a fixed interval while running (in addition to the existing startup check)
+- [x] Applying a downloaded update uses a silent install path (no interactive NSIS wizard); app relaunches on the new version
+- [x] Update banner UX still covers checking / downloading / ready / error; ready state still requires an explicit restart CTA (no surprise quit)
+- [x] Unit tests cover interval scheduling (or injectable timer) and silent `quitAndInstall` args; unpackaged/dev still skips real checks
+- [x] `docs/AUTO_UPDATE.md` notes polling + silent install; `npm run lint`, `npm test`, `npm run type-check`, `npm run deadcode`, `npm run electron-build` pass
 
 ## Sub-tickets
 
@@ -31,11 +31,11 @@ Extend `registerAppUpdater` so packaged builds call `checkForUpdates` periodical
 
 #### Acceptance criteria
 
-- [ ] Packaged builds schedule recurring update checks after the initial startup check
-- [ ] Interval is configurable/injectable in tests; overlapping checks are skipped or coalesced
-- [ ] Unpackaged/dev still does not hit the public feed
-- [ ] Unit tests cover interval registration and “skip when not packaged”
-- [ ] `npm test` for `appUpdater` passes
+- [x] Packaged builds schedule recurring update checks after the initial startup check
+- [x] Interval is configurable/injectable in tests; overlapping checks are skipped or coalesced
+- [x] Unpackaged/dev still does not hit the public feed
+- [x] Unit tests cover interval registration and “skip when not packaged”
+- [x] `npm test` for `appUpdater` passes
 
 ### 031.2 — Silent `quitAndInstall` on Restart & Install
 
@@ -45,10 +45,10 @@ Change `installAppUpdate` to call `quitAndInstall(true, true)` (`isSilent=true`,
 
 #### Acceptance criteria
 
-- [ ] `installAppUpdate` uses silent + force-run-after (`quitAndInstall(true, true)` or equivalent)
-- [ ] Unit test expectation updated from `(false, true)` to `(true, true)`
-- [ ] Ready-state banner still requires explicit **Restart & Install** (no auto-quit on download)
-- [ ] `npm test` for `appUpdater` / `UpdateBanner` passes
+- [x] `installAppUpdate` uses silent + force-run-after (`quitAndInstall(true, true)` or equivalent)
+- [x] Unit test expectation updated from `(false, true)` to `(true, true)`
+- [x] Ready-state banner still requires explicit **Restart & Install** (no auto-quit on download)
+- [x] `npm test` for `appUpdater` / `UpdateBanner` passes
 
 ### 031.3 — Document Discord-like update flow
 
@@ -56,6 +56,6 @@ Update `docs/AUTO_UPDATE.md` (and a brief note in `ARCHITECTURE.md` if needed) s
 
 #### Acceptance criteria
 
-- [ ] Runbook describes polling interval and silent install behavior
-- [ ] Verification checklist still works for NSIS / AppImage
-- [ ] No stale “installer wizard” language for the in-app update path
+- [x] Runbook describes polling interval and silent install behavior
+- [x] Verification checklist still works for NSIS / AppImage
+- [x] No stale “installer wizard” language for the in-app update path

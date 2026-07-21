@@ -61,6 +61,8 @@ export interface WindowMaximizeToggleResponse extends IpcActionResult {
 export type AutoUpdateStage =
   | "validating"
   | "resolving-steamcmd"
+  | "checking"
+  | "notifying"
   | "stopping"
   | "updating"
   | "verifying"
