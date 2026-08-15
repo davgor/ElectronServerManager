@@ -78,6 +78,8 @@ src/
 │   ├── main.tsx / App.tsx      # Shell + server list
 │   ├── TitleBar.tsx            # Custom window controls + app version
 │   ├── UpdateBanner.tsx        # App auto-update status / restart CTA
+│   ├── CheckForUpdatesButton.tsx # Manual app-update check + feedback
+│   ├── manualCheckMessage.ts   # Manual-check result → UI copy/tone
 │   ├── ServerCard.tsx          # Per-server actions
 │   ├── ConfigEditor.tsx        # Nested JSON/INI editor
 │   ├── SteamPathSelector.tsx / SteamCmdPathInput.tsx
@@ -95,6 +97,17 @@ Ticket board lives under `/board` (`backlog/`, `in-progress/`, `done/`).
 GitHub Actions runs lint, type-check, unit tests, dead-code, and security audit
 on pushes/PRs. Failed required checks on direct `main`/`master` pushes can
 trigger an automatic kickback revert (see `src/ci/kickbackPolicy.ts`).
+
+The dead-code job is baseline-aware: `npm run deadcode` fails only on **new**
+unused exports relative to `.tsprune-ignore` (`src/ci/deadcodePolicy.ts`,
+`scripts/deadcode-check.cjs`); refresh the baseline with
+`npm run deadcode:refresh` after intentional cleanups.
+
+Pull requests also run **Fireguard** (`fireguard/`, vendored from BoosterSeat) —
+a unit-test quality grader that inspects tests covering changed production
+modules for mock-heavy/tautological assertions, flakiness (repeated runs), and
+mutation-survival, then posts a sticky PR comment. Configured via
+`.fireguardrc.json`; run locally with `npm run fireguard`.
 
 On pull requests, **Coverage Report** runs Jest coverage on the base and head
 SHAs and posts (or updates) a sticky comment with before/after totals and
@@ -140,7 +153,7 @@ All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
 | `save-server-config` | Persist edited config |
 | `open-file-default` | Open a path with the OS default app |
 | `get-settings` / `save-settings` | Persisted UI/server flags |
-| `app-update-check` | Trigger packaged app update check |
+| `app-update-check` | Manual app update check (structured `ManualUpdateCheckResult`) |
 | `app-update-install` | Quit and install a downloaded app update |
 | `window-minimize` | Frameless window minimize |
 | `window-maximize-toggle` | Maximize / restore |
@@ -170,9 +183,11 @@ easy to confirm.
    buildid → restart (`updated` reflects whether the build changed; matching
    versions leave the running server alone).
 5. **App auto-update** — Packaged builds use `electron-updater` (`appUpdater.ts`)
-   against GitHub Releases metadata: check on launch + every 4h while open,
-   background download, silent apply on the **Restart & Install** CTA; see
-   [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
+   against GitHub Releases metadata: first check ~8s after launch + every 4h
+   while open (`DISABLE_AUTO_UPDATE=1` opts out), background download, silent
+   apply on the **Restart and update** CTA. A manual **Check for updates**
+   button returns structured checking / up-to-date / found / busy / disabled /
+   error feedback; see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
 6. **Backup** — Copies configured save location into a user-chosen backup root.
 7. **Config editor** — Loads config over IPC; `ConfigEditor` edits nested
    values with type preservation; saves back through main.
