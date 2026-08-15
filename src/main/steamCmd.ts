@@ -13,7 +13,11 @@ const DEFAULT_STEAMCMD_TIMEOUT_MS = 15 * 60 * 1000;
 /** App-info checks are metadata-only and should finish quickly. */
 const DEFAULT_APP_INFO_TIMEOUT_MS = 60 * 1000;
 
-/** Cap captured output so a chatty steamcmd cannot grow buffers unbounded. */
+/**
+ * Cap captured output so a chatty steamcmd cannot grow buffers unbounded.
+ * The tail is kept (not the head): depot/login errors print right before
+ * steamcmd exits, after megabytes of progress noise.
+ */
 const MAX_CAPTURED_OUTPUT_CHARS = 8192;
 
 /** app_info_print can be large; keep enough to reach branches.public.buildid. */
@@ -255,9 +259,7 @@ export function runSteamCmdUpdate(
     }, timeoutMs);
 
     const captureOutput = (data: Buffer): void => {
-      if (output.length < MAX_CAPTURED_OUTPUT_CHARS) {
-        output += data.toString();
-      }
+      output = (output + data.toString()).slice(-MAX_CAPTURED_OUTPUT_CHARS);
     };
     child.stdout.on("data", captureOutput);
     child.stderr.on("data", captureOutput);
@@ -278,6 +280,9 @@ export function runSteamCmdUpdate(
       }
       const detail =
         output.trim().length > 0 ? ` Output: ${output.trim()}` : "";
+      logger.error(
+        `steamcmd app_update ${String(appId)} failed with exit code ${String(code)}.${detail}`
+      );
       settle({
         success: false,
         error: `steamcmd exited with exit code ${String(code)} while updating app ${String(appId)}.${detail}`,

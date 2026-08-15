@@ -35,11 +35,11 @@ No host or per-server resource metrics exist today. `serverProcess` already trac
 
 ## Acceptance criteria (epic)
 
-- [ ] Auto-update resolves buildid from the library steamapps that owns `installPath` (not a guessed Steam root alone)
-- [ ] Successful auto-update leaves the install at the remote buildid and restarts the server without requiring a manual Steam “finish download” step in the happy path
-- [ ] Failures surface a clear stage/error when SteamCMD/Steam cannot fully apply (no silent 99.9% success)
-- [ ] Running managed servers expose CPU and RAM **current / average / p95** via IPC and UI
-- [ ] Unit tests cover manifest resolution, update completion checks, metric aggregation; verification gate passes
+- [x] Auto-update resolves buildid from the library steamapps that owns `installPath` (not a guessed Steam root alone)
+- [x] Successful auto-update leaves the install at the remote buildid and restarts the server without requiring a manual Steam “finish download” step in the happy path
+- [x] Failures surface a clear stage/error when SteamCMD/Steam cannot fully apply (no silent 99.9% success)
+- [x] Running managed servers expose CPU and RAM **current / average / p95** via IPC and UI
+- [x] Unit tests cover manifest resolution, update completion checks, metric aggregation; verification gate passes
 
 ## Sub-tickets
 
@@ -62,11 +62,11 @@ Make the SteamCMD update path authoritative for the detected install and prove c
 
 #### Acceptance criteria
 
-- [ ] `getServerBuildId` (or successor) reads the manifest for the library that contains `installPath`; unit tests cover common/library layouts
-- [ ] Auto-update success requires remote buildid == post-update library manifest buildid; partial downloads are `success: false` with stage `verifying` or `updating`
-- [ ] On success, server is running again without manual Steam finish or manual reboot in the automated happy-path tests
-- [ ] Documented operator notes for cases that still need Steam login / Steam client closed
-- [ ] `npm test` for autoUpdate/steamCmd/steamDetection + full verification gate pass
+- [x] `getServerBuildId` (or successor) reads the manifest for the library that contains `installPath`; unit tests cover common/library layouts
+- [x] Auto-update success requires remote buildid == post-update library manifest buildid; partial downloads are `success: false` with stage `verifying` or `updating`
+- [x] On success, server is running again without manual Steam finish or manual reboot in the automated happy-path tests
+- [x] Documented operator notes for cases that still need Steam login / Steam client closed
+- [x] `npm test` for autoUpdate/steamCmd/steamDetection + full verification gate pass
 
 ### 038.2 — CPU/RAM usage current / average / p95
 
@@ -81,8 +81,8 @@ Track resource usage for managed server processes (and optionally overall host s
 
 #### Acceptance criteria
 
-- [ ] While a server is tracked/running, metrics expose current, average, and p95 for CPU and RAM
-- [ ] When not running, metrics are empty/cleared (no stale PID samples)
-- [ ] Unit tests cover aggregation (p95/average) with fixture samples; IPC typed and tested
-- [ ] Renderer shows the three stats without breaking existing card actions
-- [ ] Verification gate passes; `ARCHITECTURE.md` IPC table updated
+- [x] While a server is tracked/running, metrics expose current, average, and p95 for CPU and RAM
+- [x] When not running, metrics are empty/cleared (no stale PID samples)
+- [x] Unit tests cover aggregation (p95/average) with fixture samples; IPC typed and tested
+- [x] Renderer shows the three stats without breaking existing card actions
+- [x] Verification gate passes; `ARCHITECTURE.md` IPC table updated

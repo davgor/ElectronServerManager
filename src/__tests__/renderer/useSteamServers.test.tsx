@@ -308,6 +308,27 @@ describe("useSteamServers", () => {
     expect(mockAutoUpdateServer).toHaveBeenCalledTimes(1);
   });
 
+  it("surfaces a failed auto-update (e.g. restart failure) as the hook error", async () => {
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: [runningServer],
+    });
+    mockAutoUpdateServer.mockResolvedValue({
+      success: false,
+      stage: "restarting",
+      updated: true,
+      error: "Server updated to build 101 but failed to restart: bind failed",
+    });
+
+    const { result } = renderHook(() =>
+      useSteamServers({ autoUpdateAppIds: new Set([runningServer.appId]) })
+    );
+    await flushPromises();
+
+    expect(result.current.error).toContain("failed to restart");
+    expect(result.current.error).toContain(runningServer.name);
+  });
+
   it("does not auto-update servers that are not running", async () => {
     mockGetSteamServers.mockResolvedValue({
       success: true,

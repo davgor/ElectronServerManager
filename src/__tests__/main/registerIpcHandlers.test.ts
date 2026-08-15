@@ -54,6 +54,10 @@ jest.mock("../../main/serverOutputBuffer", () => ({
   getServerOutput: jest.fn(),
 }));
 
+jest.mock("../../main/serverMetrics", () => ({
+  getServerMetrics: jest.fn(),
+}));
+
 jest.mock("../../main/appUpdater", () => ({
   checkForAppUpdate: jest.fn(),
   installAppUpdate: jest.fn(),
@@ -70,6 +74,7 @@ import { startServer, stopServer } from "../../main/serverProcess";
 import { fetchSteamServers } from "../../main/steamIpc";
 import { getServerConfig, saveServerConfig } from "../../main/serverConfig";
 import { checkForAppUpdate, installAppUpdate } from "../../main/appUpdater";
+import { getServerMetrics } from "../../main/serverMetrics";
 import {
   getPalworldRestStatus,
   invokePalworldRest,
@@ -83,6 +88,7 @@ const mockSaveServerConfig = saveServerConfig as jest.Mock;
 const mockCheckForAppUpdate = checkForAppUpdate as jest.Mock;
 const mockInstallAppUpdate = installAppUpdate as jest.Mock;
 const mockGetPalworldRestStatus = getPalworldRestStatus as jest.Mock;
+const mockGetServerMetrics = getServerMetrics as jest.Mock;
 const mockInvokePalworldRest = invokePalworldRest as jest.Mock;
 
 function getHandler(channel: string): (...args: unknown[]) => unknown {
@@ -115,6 +121,7 @@ describe("registerIpcHandlers", () => {
       "get-steam-servers",
       "get-server-config",
       "save-server-config",
+      "get-server-metrics",
       "get-app-version",
       "app-update-check",
       "app-update-install",
@@ -189,6 +196,22 @@ describe("registerIpcHandlers", () => {
       { a: 1 },
       "json"
     );
+
+    mockGetServerMetrics.mockReturnValue({
+      success: true,
+      running: true,
+      sampleCount: 1,
+      cpu: { current: 25, average: 25, p95: 25 },
+      memory: { current: 2048, average: 2048, p95: 2048 },
+    });
+    expect(getHandler("get-server-metrics")({}, 1396110)).toEqual({
+      success: true,
+      running: true,
+      sampleCount: 1,
+      cpu: { current: 25, average: 25, p95: 25 },
+      memory: { current: 2048, average: 2048, p95: 2048 },
+    });
+    expect(mockGetServerMetrics).toHaveBeenCalledWith(1396110);
 
     await expect(getHandler("app-update-check")()).resolves.toEqual({
       outcome: "up-to-date",

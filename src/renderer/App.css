@@ -261,6 +261,40 @@ p {
   word-break: break-all;
 }
 
+.server-metrics {
+  margin-top: 10px;
+  padding: 8px 10px;
+  background: #0f1419;
+  border: 1px solid #3d495c;
+  border-radius: 5px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.85em;
+}
+
+.metric-row {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+}
+
+.metric-name {
+  color: #c7d5e0;
+  font-weight: 600;
+  min-width: 32px;
+}
+
+.metric-stat {
+  color: #6cc24a;
+  font-family: "Courier New", monospace;
+  white-space: nowrap;
+}
+
+.metric-stat-dim {
+  color: #8f98a0;
+}
+
 .server-actions {
   margin-top: 15px;
   display: flex;

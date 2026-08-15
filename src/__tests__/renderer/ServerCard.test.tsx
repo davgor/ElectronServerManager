@@ -272,6 +272,103 @@ describe("ServerCard Component", () => {
     );
   });
 
+  it("shows the metrics strip with current/avg/p95 while running", async () => {
+    const getServerMetrics = jest.fn().mockResolvedValue({
+      success: true,
+      running: true,
+      sampleCount: 5,
+      cpu: { current: 42.5, average: 40.25, p95: 55 },
+      memory: {
+        current: 512 * 1024 * 1024,
+        average: 256 * 1024 * 1024,
+        p95: 1.5 * 1024 * 1024 * 1024,
+      },
+    });
+    Object.defineProperty(window, "electron", {
+      value: { getServerMetrics },
+      configurable: true,
+    });
+
+    render(
+      <ServerCard
+        {...makeProps({ server: { ...baseServer, isRunning: true } })}
+      />
+    );
+
+    const strip = await screen.findByTestId("server-metrics");
+    expect(getServerMetrics).toHaveBeenCalledWith(1396110);
+    expect(strip).toHaveTextContent("CPU");
+    expect(strip).toHaveTextContent("42.5%");
+    expect(strip).toHaveTextContent("avg 40.3%");
+    expect(strip).toHaveTextContent("p95 55.0%");
+    expect(strip).toHaveTextContent("RAM");
+    expect(strip).toHaveTextContent("512.0 MiB");
+    expect(strip).toHaveTextContent("avg 256.0 MiB");
+    expect(strip).toHaveTextContent("p95 1.50 GiB");
+  });
+
+  it("does not show the metrics strip or poll metrics when stopped", () => {
+    const getServerMetrics = jest.fn();
+    Object.defineProperty(window, "electron", {
+      value: { getServerMetrics },
+      configurable: true,
+    });
+
+    render(<ServerCard {...makeProps()} />);
+
+    expect(screen.queryByTestId("server-metrics")).not.toBeInTheDocument();
+    expect(getServerMetrics).not.toHaveBeenCalled();
+  });
+
+  it("hides the metrics strip while running until samples exist", async () => {
+    const getServerMetrics = jest.fn().mockResolvedValue({
+      success: true,
+      running: true,
+      sampleCount: 0,
+    });
+    Object.defineProperty(window, "electron", {
+      value: { getServerMetrics },
+      configurable: true,
+    });
+
+    render(
+      <ServerCard
+        {...makeProps({ server: { ...baseServer, isRunning: true } })}
+      />
+    );
+
+    await waitFor(() => {
+      expect(getServerMetrics).toHaveBeenCalledWith(1396110);
+    });
+    expect(screen.queryByTestId("server-metrics")).not.toBeInTheDocument();
+  });
+
+  it("keeps card actions working while the metrics strip is shown", async () => {
+    const user = userEvent.setup();
+    const getServerMetrics = jest.fn().mockResolvedValue({
+      success: true,
+      running: true,
+      sampleCount: 1,
+      cpu: { current: 10, average: 10, p95: 10 },
+      memory: { current: 1024, average: 1024, p95: 1024 },
+    });
+    Object.defineProperty(window, "electron", {
+      value: { getServerMetrics },
+      configurable: true,
+    });
+
+    const props = makeProps({ server: { ...baseServer, isRunning: true } });
+    render(<ServerCard {...props} />);
+
+    expect(await screen.findByTestId("server-metrics")).toBeInTheDocument();
+
+    await user.click(screen.getByText("Stop Server"));
+    expect(props.onStopServer).toHaveBeenCalledWith(
+      1396110,
+      "C:\\servers\\valheim"
+    );
+  });
+
   it("shows a disabled Admin button with tooltip when Palworld REST is off", async () => {
     Object.defineProperty(window, "electron", {
       value: {

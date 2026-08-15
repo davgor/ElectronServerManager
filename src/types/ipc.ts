@@ -127,6 +127,24 @@ export interface GetSettingsResponse extends IpcActionResult {
   settings: AppSettings;
 }
 
+/** Rolling-window statistics for one resource metric. */
+export interface MetricStats {
+  current: number;
+  average: number;
+  p95: number;
+}
+
+export interface GetServerMetricsResponse extends IpcActionResult {
+  /** True while the main process is actively sampling this server. */
+  running: boolean;
+  /** Number of samples currently in the rolling window. */
+  sampleCount: number;
+  /** CPU usage in percent of one core's wall time; absent until sampled. */
+  cpu?: MetricStats;
+  /** Resident memory in bytes; absent until sampled. */
+  memory?: MetricStats;
+}
+
 /** App auto-update status pushed from main → renderer (epic 012). */
 export type AppUpdateStatus =
   | { state: "idle" }
@@ -190,6 +208,10 @@ export interface IpcInvokeMap {
   "get-server-output": {
     args: [appId: number];
     result: string;
+  };
+  "get-server-metrics": {
+    args: [appId: number];
+    result: GetServerMetricsResponse;
   };
   "open-file-default": { args: [filePath: string]; result: IpcActionResult };
   "save-server-config": {
@@ -264,6 +286,7 @@ export interface ElectronAPI {
     installPath: string
   ) => Promise<GetServerConfigResponse>;
   getServerOutput: (appId: number) => Promise<string>;
+  getServerMetrics: (appId: number) => Promise<GetServerMetricsResponse>;
   openFileDefault: (filePath: string) => Promise<IpcActionResult>;
   saveServerConfig: (
     appId: number,

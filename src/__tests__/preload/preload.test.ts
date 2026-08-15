@@ -55,6 +55,7 @@ describe("Preload IPC bridge", () => {
         "select-steamcmd-path",
         "get-server-config",
         "get-server-output",
+        "get-server-metrics",
         "open-file-default",
         "save-server-config",
         "get-settings",
@@ -241,6 +242,24 @@ describe("Preload IPC bridge", () => {
         "boot ok\n"
       );
       expect(mockIpcInvoke).toHaveBeenCalledWith("get-server-output", 1396110);
+    });
+
+    it("invokes get-server-metrics for getServerMetrics", async () => {
+      mockIpcInvoke.mockResolvedValue({
+        success: true,
+        running: true,
+        sampleCount: 2,
+        cpu: { current: 10, average: 8, p95: 12 },
+        memory: { current: 1024, average: 900, p95: 1100 },
+      });
+      await expect(getExposedApi().getServerMetrics(1396110)).resolves.toEqual({
+        success: true,
+        running: true,
+        sampleCount: 2,
+        cpu: { current: 10, average: 8, p95: 12 },
+        memory: { current: 1024, average: 900, p95: 1100 },
+      });
+      expect(mockIpcInvoke).toHaveBeenCalledWith("get-server-metrics", 1396110);
     });
 
     it("invokes open-file-default for openFileDefault", async () => {
