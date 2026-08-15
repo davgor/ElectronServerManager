@@ -229,6 +229,47 @@ ActiveModList=ExistingMod
       }).success
     ).toBe(true);
 
+    const restored = fs.readFileSync(
+      path.join(installPath, "Mods", "PalModSettings.ini"),
+      "utf8"
+    );
+    expect(listActiveMods(restored)).toEqual(["ExistingMod"]);
+    expect(restored).toContain("ActiveModList=ExistingMod");
+    expect(restored).not.toContain("NewOne");
+    expect(
+      fs.existsSync(path.join(installPath, "Mods", "Workshop", "NewOne"))
+    ).toBe(false);
+  });
+
+  it("does not wipe sibling ActiveModList entries when removing an earlier mod", () => {
+    const first = importModZip({
+      repo,
+      appId: PALWORLD_APP_ID,
+      installPath,
+      zipBytes: makeZip({
+        "Info.json": JSON.stringify({
+          ModName: "First",
+          PackageName: "FirstPkg",
+        }),
+        "Scripts/a.lua": "a",
+      }),
+      sourceZipName: "first.zip",
+    });
+    const second = importModZip({
+      repo,
+      appId: PALWORLD_APP_ID,
+      installPath,
+      zipBytes: makeZip({
+        "Info.json": JSON.stringify({
+          ModName: "Second",
+          PackageName: "SecondPkg",
+        }),
+        "Scripts/b.lua": "b",
+      }),
+      sourceZipName: "second.zip",
+    });
+    expect(first.success).toBe(true);
+    expect(second.success).toBe(true);
     expect(
       listActiveMods(
         fs.readFileSync(
@@ -236,7 +277,24 @@ ActiveModList=ExistingMod
           "utf8"
         )
       )
-    ).toEqual(["ExistingMod"]);
+    ).toEqual(["FirstPkg", "SecondPkg"]);
+
+    expect(
+      removeMod({
+        repo,
+        paths: { stashRoot },
+        modId: first.modId as string,
+      }).success
+    ).toBe(true);
+
+    expect(
+      listActiveMods(
+        fs.readFileSync(
+          path.join(installPath, "Mods", "PalModSettings.ini"),
+          "utf8"
+        )
+      )
+    ).toEqual(["SecondPkg"]);
   });
 
   it("soft-disables and re-enables path_deploy overwrites via stash", () => {
@@ -254,9 +312,9 @@ ActiveModList=ExistingMod
       sourceZipName: "ow.zip",
     });
     expect(imported.success).toBe(true);
-    expect(
-      fs.readFileSync(path.join(installPath, pakRel), "utf8")
-    ).toBe("MODDED");
+    expect(fs.readFileSync(path.join(installPath, pakRel), "utf8")).toBe(
+      "MODDED"
+    );
 
     expect(
       setModEnabled({
@@ -266,9 +324,9 @@ ActiveModList=ExistingMod
         enabled: false,
       }).success
     ).toBe(true);
-    expect(
-      fs.readFileSync(path.join(installPath, pakRel), "utf8")
-    ).toBe("ORIGINAL");
+    expect(fs.readFileSync(path.join(installPath, pakRel), "utf8")).toBe(
+      "ORIGINAL"
+    );
 
     expect(
       setModEnabled({
@@ -278,9 +336,9 @@ ActiveModList=ExistingMod
         enabled: true,
       }).success
     ).toBe(true);
-    expect(
-      fs.readFileSync(path.join(installPath, pakRel), "utf8")
-    ).toBe("MODDED");
+    expect(fs.readFileSync(path.join(installPath, pakRel), "utf8")).toBe(
+      "MODDED"
+    );
   });
 
   it("soft-disables path_deploy mods and re-enables from stash", () => {

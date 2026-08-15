@@ -373,18 +373,25 @@ export function removeMod(options: {
     const changes = options.repo.listFileChanges(mod.id);
 
     if (mod.kind === "workshop") {
+      const otherMods = options.repo
+        .listMods(mod.appId, mod.installPath)
+        .filter((m) => m.id !== mod.id);
       const settingsChanges = changes.filter(
         (c) => c.relativePath === SETTINGS_REL
       );
       for (const change of settingsChanges) {
         if (change.changeType === "overwritten") {
-          const backup = options.repo.getBackup(change.id);
-          if (backup) {
-            writeSettingsText(mod.installPath, backup.toString("utf8"));
+          // Only restore a full settings snapshot when no other tracked mods
+          // remain — otherwise we'd wipe their ActiveModList entries.
+          if (otherMods.length === 0) {
+            const backup = options.repo.getBackup(change.id);
+            if (backup !== null) {
+              writeSettingsText(mod.installPath, backup.toString("utf8"));
+            }
           }
         } else if (change.changeType === "settings") {
           const text = readSettingsText(mod.installPath);
-          if (!text.includes("ActiveModList=")) {
+          if (!text.includes("ActiveModList=") && otherMods.length === 0) {
             const p = settingsAbs(mod.installPath);
             if (fs.existsSync(p)) {
               fs.unlinkSync(p);

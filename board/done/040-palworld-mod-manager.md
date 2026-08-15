@@ -39,11 +39,11 @@ overwritten originals stored as SQLite BLOBs.
 
 ## Acceptance criteria (epic)
 
-- [ ] Palworld card exposes **Mod Manager**; modal can import a `.zip`, list mods, enable/disable, and trash
-- [ ] Import resolves destination from zip layout and/or official `Info.json` workshop package; records file changes; auto-enables
-- [ ] Overwrites store prior file contents as SQLite BLOBs; trash restores them and removes created files / workshop staging / settings entries
-- [ ] Disable soft-removes the mod from the game; Enable re-applies it
-- [ ] Unit tests cover resolver, DB, import/disable/remove; IPC/preload typed; docs updated; verification gate + red-team pass
+- [x] Palworld card exposes **Mod Manager**; modal can import a `.zip`, list mods, enable/disable, and trash
+- [x] Import resolves destination from zip layout and/or official `Info.json` workshop package; records file changes; auto-enables
+- [x] Overwrites store prior file contents as SQLite BLOBs; trash restores them and removes created files / workshop staging / settings entries
+- [x] Disable soft-removes the mod from the game; Enable re-applies it
+- [x] Unit tests cover resolver, DB, import/disable/remove; IPC/preload typed; docs updated; verification gate + red-team pass
 
 ## Sub-tickets
 
@@ -55,6 +55,9 @@ overwritten originals stored as SQLite BLOBs.
 | 040.4 | IPC + preload + typed ElectronAPI |
 | 040.5 | Mod Manager modal UI on Palworld ServerCard |
 | 040.6 | Docs (README, ARCHITECTURE, DOCUMENTATION_INDEX) |
+| 040.7 | Path-deploy multi-mod file collision handling (follow-up) |
+
+## Sub-tickets
 
 ### 040.1 — Zip destination resolver
 
@@ -65,8 +68,8 @@ when present. Reject empty zips and path-traversal entries.
 
 #### Acceptance criteria
 
-- [ ] Unit tests cover workshop `Info.json`, path-rooted `Pal/`/`Mods/` zips, wrapper-folder strip, and zip-slip rejection
-- [ ] No Electron imports in the resolver module
+- [x] Unit tests cover workshop `Info.json`, path-rooted `Pal/`/`Mods/` zips, wrapper-folder strip, and zip-slip rejection
+- [x] No Electron imports in the resolver module
 
 ### 040.2 — Mod-manager SQLite schema + repository
 
@@ -75,9 +78,9 @@ backups. Repository CRUD used by import/enable/disable/remove.
 
 #### Acceptance criteria
 
-- [ ] Migrations create schema; tests use `:memory:` / temp DB
-- [ ] Can insert mod + changes + backup blobs and read them back
-- [ ] Cascade delete cleans changes/backups when a mod row is deleted
+- [x] Migrations create schema; tests use `:memory:` / temp DB
+- [x] Can insert mod + changes + backup blobs and read them back
+- [x] Cascade delete cleans changes/backups when a mod row is deleted
 
 ### 040.3 — Import / enable / disable / remove services
 
@@ -87,10 +90,10 @@ change log + BLOBs.
 
 #### Acceptance criteria
 
-- [ ] Import of fixture zips into a temp install tree records changes and enables
-- [ ] Overwrite path stores original bytes in SQLite and trash restores them
-- [ ] Workshop import stages under `Mods/Workshop/...` and updates `PalModSettings.ini`
-- [ ] Disable removes from game; Enable restores; trash leaves no mod files/settings entries
+- [x] Import of fixture zips into a temp install tree records changes and enables
+- [x] Overwrite path stores original bytes in SQLite and trash restores them
+- [x] Workshop import stages under `Mods/Workshop/...` and updates `PalModSettings.ini`
+- [x] Disable removes from game; Enable restores; trash leaves no mod files/settings entries
 
 ### 040.4 — IPC + preload + typed ElectronAPI
 
@@ -99,8 +102,8 @@ mirrored in `IpcInvokeMap` / preload / tests.
 
 #### Acceptance criteria
 
-- [ ] Channels registered and allowlisted; ipc/preload tests updated
-- [ ] Handlers gate to Palworld app id (or clear error for others)
+- [x] Channels registered and allowlisted; ipc/preload tests updated
+- [x] Handlers gate to Palworld app id (or clear error for others)
 
 ### 040.5 — Mod Manager modal UI
 
@@ -109,8 +112,8 @@ enable/disable toggle, trash control, status/errors.
 
 #### Acceptance criteria
 
-- [ ] Button visible only for Palworld; modal matches existing admin modal patterns
-- [ ] Renderer tests cover open/list/import/disable/remove wiring with mocked IPC
+- [x] Button visible only for Palworld; modal matches existing admin modal patterns
+- [x] Renderer tests cover open/list/import/disable/remove wiring with mocked IPC
 
 ### 040.6 — Docs
 
@@ -119,5 +122,5 @@ DOCUMENTATION_INDEX as needed.
 
 #### Acceptance criteria
 
-- [ ] Docs mention Mod Manager + Windows-server caveat for official loader
-- [ ] ARCHITECTURE IPC table and file layout updated
+- [x] Docs mention Mod Manager + Windows-server caveat for official loader
+- [x] ARCHITECTURE IPC table and file layout updated
