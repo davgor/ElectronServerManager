@@ -28,13 +28,13 @@ export function resolvePalworldOpsIntervalSeconds(
 }
 
 export function shouldPollPalworldOps(options: {
-  isPalworld: boolean;
+  hasLiveOps: boolean;
   isRunning: boolean;
   restEnabled: boolean;
   opsEnabled: boolean;
 }): boolean {
   return (
-    options.isPalworld &&
+    options.hasLiveOps &&
     options.isRunning &&
     options.restEnabled &&
     options.opsEnabled

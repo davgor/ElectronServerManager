@@ -1,5 +1,6 @@
 import type { AutoUpdateServerResponse } from "../types/ipc";
 
+import { getCatalogRepository } from "./catalog/catalogRepository";
 import { getServerBuildId } from "./steamDetection";
 import { getServerMapping, startServer, stopServer } from "./serverProcess";
 import {
@@ -144,29 +145,32 @@ async function runAutoUpdate(
     };
   }
 
-  // Stage: notifying — Palworld REST announce + warn window before downtime.
-  const restStatus = await getPalworldRestStatus(appId, installPath);
-  if (restStatus.success && restStatus.isPalworld && restStatus.enabled) {
-    const announceResult = await invokePalworldRest(
-      appId,
-      installPath,
-      "POST",
-      "announce",
-      { message: UPDATE_REBOOT_WARN_MESSAGE }
-    );
-    if (!announceResult.success) {
-      return {
-        success: false,
-        stage: "notifying",
-        updated: false,
-        previousBuildId,
-        error: `Failed to announce update warning: ${announceResult.error ?? "unknown error"} Server was left running.`,
-      };
-    }
+  // Stage: notifying — REST announce + warn window when catalog says so.
+  if (getCatalogRepository().hasCapability(appId, "update_announce")) {
+    const restStatus = await getPalworldRestStatus(appId, installPath);
+    if (restStatus.success && restStatus.isPalworld && restStatus.enabled) {
+      const announceResult = await invokePalworldRest(
+        appId,
+        installPath,
+        "POST",
+        "announce",
+        { message: UPDATE_REBOOT_WARN_MESSAGE }
+      );
+      if (!announceResult.success) {
+        return {
+          success: false,
+          stage: "notifying",
+          updated: false,
+          previousBuildId,
+          error: `Failed to announce update warning: ${announceResult.error ?? "unknown error"} Server was left running.`,
+        };
+      }
 
-    const warnMs = options?.warnBeforeUpdateMs ?? DEFAULT_WARN_BEFORE_UPDATE_MS;
-    if (warnMs > 0) {
-      await delay(warnMs);
+      const warnMs =
+        options?.warnBeforeUpdateMs ?? DEFAULT_WARN_BEFORE_UPDATE_MS;
+      if (warnMs > 0) {
+        await delay(warnMs);
+      }
     }
   }
 

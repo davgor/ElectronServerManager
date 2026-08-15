@@ -389,6 +389,7 @@ describe("ServerCard Component", () => {
             appId: 1623730,
             installPath: "C:\\servers\\pal",
             isRunning: true,
+            capabilities: ["rest_admin", "live_ops", "update_announce"],
           },
         })}
       />
@@ -436,6 +437,7 @@ describe("ServerCard Component", () => {
         appId: 1623730,
         installPath: "C:\\servers\\pal",
         isRunning: true,
+        capabilities: ["rest_admin", "live_ops", "update_announce"],
       },
       configRevision: 0,
     });
@@ -479,6 +481,7 @@ describe("ServerCard Component", () => {
         appId: 1623730,
         installPath: "C:\\servers\\pal",
         isRunning: true,
+        capabilities: ["rest_admin", "live_ops", "update_announce"],
       },
       configRevision: 0,
     });

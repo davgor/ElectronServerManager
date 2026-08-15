@@ -13,11 +13,26 @@ export interface SteamServer {
   installPath: string;
   isRunning: boolean;
   coverArt?: string;
+  /**
+   * Catalog capability flags for this app (e.g. rest_admin, live_ops).
+   * Empty when the game has no optional features.
+   */
+  capabilities?: ServerCapabilityId[];
 }
+
+/**
+ * Optional per-game features owned by the SQLite catalog
+ * (`server_capabilities`). Renderer UI keys off these instead of app ids.
+ */
+export type ServerCapabilityId = "rest_admin" | "live_ops" | "update_announce";
 
 export type ConfigFormat = "json" | "ini";
 
-/** Steam app id for Palworld Dedicated Server. */
+/**
+ * Steam app id for Palworld Dedicated Server.
+ * Prefer catalog capability checks for feature gating; this constant remains
+ * for tests and seed/docs references.
+ */
 export const PALWORLD_APP_ID = 1623730;
 
 /** Base shape returned by action-style IPC handlers. */

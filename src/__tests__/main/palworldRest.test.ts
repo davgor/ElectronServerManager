@@ -4,7 +4,6 @@ import {
   buildPalworldRestUrl,
   callPalworldRest,
   extractPalworldRestConfig,
-  PALWORLD_APP_ID,
   type PalworldRestFetch,
 } from "../../main/palworldRest";
 
@@ -193,7 +192,26 @@ OptionSettings=(AdminPassword="x",RESTAPIEnabled=True)
     });
   });
 
-  it("exports Palworld Steam app id constant", () => {
-    expect(PALWORLD_APP_ID).toBe(1623730);
+  it("honors catalog REST metadata bindings for config keys and default port", () => {
+    const parsed = {
+      OptionSettings: {
+        RestEnabled: "True",
+        RestPort: "9001",
+        RestPassword: "secret",
+      },
+    };
+
+    expect(
+      extractPalworldRestConfig(parsed, {
+        defaultPort: 9000,
+        enabledConfigKey: "RestEnabled",
+        portConfigKey: "RestPort",
+        passwordConfigKey: "RestPassword",
+      })
+    ).toEqual({
+      enabled: true,
+      port: 9001,
+      adminPassword: "secret",
+    });
   });
 });
