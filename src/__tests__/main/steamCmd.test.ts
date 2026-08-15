@@ -295,6 +295,31 @@ AppID : 2278520
       expect(result.error).toContain("No subscription");
     });
 
+    it("keeps the tail of long steamcmd output so late depot errors survive", async () => {
+      const child = createFakeChild();
+      mockSpawn.mockReturnValue(
+        child as unknown as ReturnType<typeof childProcess.spawn>
+      );
+
+      const pending = runSteamCmdUpdate(
+        "/usr/bin/steamcmd",
+        2278520,
+        INSTALL_PATH
+      );
+      // Flood well past the capture cap, then emit the diagnostic line that
+      // steamcmd prints right before exiting.
+      child.stdout.emit("data", Buffer.from("x".repeat(20000)));
+      child.stderr.emit(
+        "data",
+        Buffer.from("ERROR! Failed to install app '2278520' (Invalid platform)")
+      );
+      child.emit("exit", 8, null);
+
+      const result = await pending;
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Invalid platform");
+    });
+
     it("resolves failure when spawn errors", async () => {
       const child = createFakeChild();
       mockSpawn.mockReturnValue(

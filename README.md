@@ -19,8 +19,10 @@ platform-specific executables and config paths (see
 - **Run / stop** — Launch or shut down the dedicated server process
 - **Server output** — View recent captured stdout/stderr for a managed server
 - **Auto-restart** — Optional restart if a managed server crashes
-- **Auto-update (game files)** — Optional SteamCMD update before/around runs
-  (SteamCMD path configurable in the UI)
+- **Auto-update (game files)** — Optional SteamCMD update with verified
+  completion against the remote buildid and automatic restart; see
+  [docs/GAME_UPDATES.md](docs/GAME_UPDATES.md) (SteamCMD path configurable in
+  the UI)
 - **Save backups** — Manual backup or timed intervals to a folder you choose
 - **Config editor** — View and edit JSON/INI server configs in-app, with search
   that filters the tree to matching keys
@@ -99,6 +101,7 @@ totals + coverage on new lines) and a **Fireguard** test-quality report. See
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Process model, IPC map, file layout, stack versions |
 | [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md) | How to extend the server catalog |
 | [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) | GitHub Releases → electron-updater runbook |
+| [docs/GAME_UPDATES.md](docs/GAME_UPDATES.md) | SteamCMD game-update flow + operator notes |
 | [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) | Index of maintained docs |
 | [docs/archive/](docs/archive/) | Historical / superseded write-ups |
 

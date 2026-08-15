@@ -138,6 +138,24 @@ describe("autoUpdateServer", () => {
     expect(mockRunSteamCmdUpdate).not.toHaveBeenCalled();
   });
 
+  it("resolves the local buildid from the library that owns installPath", async () => {
+    mockGetServerBuildId.mockResolvedValue("100");
+    mockFetchRemoteAppBuildId.mockResolvedValue({
+      success: true,
+      buildId: "100",
+    });
+
+    await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+      buildIdPollDelaysMs: NO_POLL_DELAYS,
+    });
+
+    expect(mockGetServerBuildId).toHaveBeenCalledWith(
+      APP_ID,
+      STEAM_PATH,
+      INSTALL_PATH
+    );
+  });
+
   it("fails at checking without stopping when remote buildid cannot be fetched", async () => {
     mockGetServerBuildId.mockResolvedValue("100");
     mockFetchRemoteAppBuildId.mockResolvedValue({
@@ -230,7 +248,7 @@ describe("autoUpdateServer", () => {
     expect(result.error).toContain("bind failed");
   });
 
-  it("stops and updates when remote buildid differs, then restarts on unchanged post-update buildid", async () => {
+  it("fails at verifying (partial download) when the post-update buildid is unchanged, but still restarts", async () => {
     mockGetServerBuildId.mockResolvedValue("100");
     mockFetchRemoteAppBuildId.mockResolvedValue({
       success: true,
@@ -243,15 +261,36 @@ describe("autoUpdateServer", () => {
 
     expect(mockStopServer).toHaveBeenCalledWith(APP_ID, INSTALL_PATH);
     expect(mockRunSteamCmdUpdate).toHaveBeenCalled();
-    expect(result.success).toBe(true);
-    expect(result.stage).toBe("no-update");
+    expect(result.success).toBe(false);
+    expect(result.stage).toBe("verifying");
     expect(result.updated).toBe(false);
     expect(result.previousBuildId).toBe("100");
     expect(result.newBuildId).toBe("100");
+    expect(result.error).toContain("100");
+    expect(result.error).toContain("101");
     expect(mockStartServer).toHaveBeenCalledWith(APP_ID, INSTALL_PATH);
   });
 
-  it("restarts and reports complete when the buildid changed", async () => {
+  it("fails at verifying when the post-update buildid does not match the remote buildid", async () => {
+    mockGetServerBuildId.mockResolvedValueOnce("100").mockResolvedValue("102");
+    mockFetchRemoteAppBuildId.mockResolvedValue({
+      success: true,
+      buildId: "101",
+    });
+
+    const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+      buildIdPollDelaysMs: NO_POLL_DELAYS,
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.stage).toBe("verifying");
+    expect(result.updated).toBe(false);
+    expect(result.newBuildId).toBe("102");
+    expect(result.error).toContain("101");
+    expect(mockStartServer).toHaveBeenCalledWith(APP_ID, INSTALL_PATH);
+  });
+
+  it("restarts and reports complete when the buildid reached the remote buildid", async () => {
     mockGetServerBuildId.mockResolvedValueOnce("100").mockResolvedValue("101");
 
     const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
@@ -267,11 +306,11 @@ describe("autoUpdateServer", () => {
     expect(mockStartServer).toHaveBeenCalledWith(APP_ID, INSTALL_PATH);
   });
 
-  it("polls the buildid with backoff until it changes", async () => {
+  it("polls the buildid with backoff until it matches the remote buildid", async () => {
     mockGetServerBuildId
       .mockResolvedValueOnce("100") // before update
       .mockResolvedValueOnce("100") // first verify poll: unchanged
-      .mockResolvedValue("101"); // second verify poll: changed
+      .mockResolvedValue("101"); // second verify poll: matches remote
 
     const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
       buildIdPollDelaysMs: [0, 0],
@@ -300,20 +339,21 @@ describe("autoUpdateServer", () => {
     expect(result.error).toContain("exited immediately");
   });
 
-  it("reports no-update and restarts when the buildid cannot be read after the update", async () => {
+  it("fails at verifying and restarts when the buildid cannot be read after the update", async () => {
     mockGetServerBuildId.mockResolvedValueOnce("100").mockResolvedValue(null);
 
     const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
       buildIdPollDelaysMs: NO_POLL_DELAYS,
     });
 
-    expect(result.success).toBe(true);
-    expect(result.stage).toBe("no-update");
+    expect(result.success).toBe(false);
+    expect(result.stage).toBe("verifying");
     expect(result.updated).toBe(false);
+    expect(result.error).toMatch(/manifest/i);
     expect(mockStartServer).toHaveBeenCalledWith(APP_ID, INSTALL_PATH);
   });
 
-  it("fails at restarting when no-update restart fails", async () => {
+  it("fails at restarting with both errors when an incomplete update also fails to restart", async () => {
     mockGetServerBuildId.mockResolvedValue("100");
     mockStartServer.mockResolvedValue({
       success: false,
@@ -328,6 +368,7 @@ describe("autoUpdateServer", () => {
     expect(result.stage).toBe("restarting");
     expect(result.updated).toBe(false);
     expect(result.error).toContain("exited immediately");
+    expect(result.error).toMatch(/did not complete|incomplete/i);
   });
 
   it("skips announce and delay when Palworld REST is disabled", async () => {

@@ -11,6 +11,7 @@ Maintained docs for Steam Server Manager. Prefer these over anything under
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Process model, IPC channels, file layout, stack versions |
 | [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md) | Extend the Steam dedicated-server catalog |
 | [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) | GitHub Releases → electron-updater runbook |
+| [docs/GAME_UPDATES.md](docs/GAME_UPDATES.md) | SteamCMD game-update flow + operator notes |
 
 ## Project process
 

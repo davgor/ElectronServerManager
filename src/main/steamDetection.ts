@@ -441,39 +441,80 @@ function parseBuildIdFromManifest(content: string): number | null {
 }
 
 /**
- * Get the current buildid for a Steam app
- * Returns the buildid string, or null if it cannot be determined
+ * Candidate appmanifest_<appId>.acf locations, most authoritative first:
+ *
+ * 1. `<installPath>/steamapps/` — written by `steamcmd +force_install_dir`
+ *    directly into the managed install.
+ * 2. `<library>/steamapps/` — the Steam library that owns `installPath`
+ *    (installs live at `<library>/steamapps/common/<folder>`), covering
+ *    multi-library setups where the manifest is not under the Steam root.
+ * 3. `<steamPath>/steamapps/` — `steamPath` is the Steam install root
+ *    (what the renderer's path selector provides).
+ * 4. `<steamPath>/` — `steamPath` is already a steamapps directory.
+ */
+export function buildManifestCandidatePaths(
+  appId: number,
+  steamPath: string,
+  installPath?: string
+): string[] {
+  const manifestName = `appmanifest_${appId}.acf`;
+  const candidates: string[] = [];
+
+  if (installPath !== undefined && installPath.length > 0) {
+    candidates.push(path.join(installPath, "steamapps", manifestName));
+    candidates.push(
+      path.join(path.dirname(path.dirname(installPath)), manifestName)
+    );
+  }
+
+  if (steamPath.length > 0) {
+    candidates.push(path.join(steamPath, "steamapps", manifestName));
+    candidates.push(path.join(steamPath, manifestName));
+  }
+
+  return [...new Set(candidates)];
+}
+
+/**
+ * Get the current buildid for a Steam app by reading the first candidate
+ * manifest that exists and contains a buildid (see
+ * {@link buildManifestCandidatePaths} for the resolution order).
+ * Returns the buildid string, or null if it cannot be determined.
  */
 export async function getServerBuildId(
   appId: number,
-  steamPath: string
+  steamPath: string,
+  installPath?: string
 ): Promise<string | null> {
-  try {
-    const manifestPath = path.join(steamPath, `appmanifest_${appId}.acf`);
+  const candidates = buildManifestCandidatePaths(appId, steamPath, installPath);
 
+  for (const manifestPath of candidates) {
     try {
       const content = await fs.readFile(manifestPath, "utf8");
       const buildId = parseBuildIdFromManifest(content);
 
       if (buildId === null) {
-        logger.warn(`Could not parse buildid from manifest for app ${appId}`);
-        return null;
+        logger.warn(
+          `Manifest at ${manifestPath} has no buildid for app ${appId}; trying next candidate`
+        );
+        continue;
       }
 
-      logger.debug(`App ${appId} current buildid: ${buildId}`);
+      logger.debug(
+        `App ${appId} current buildid: ${buildId} (from ${manifestPath})`
+      );
       return buildId.toString();
     } catch (err) {
       logger.debug(
-        `Could not read manifest for app ${appId}: ${err instanceof Error ? err.message : String(err)}`
+        `Could not read manifest at ${manifestPath} for app ${appId}: ${err instanceof Error ? err.message : String(err)}`
       );
-      return null;
     }
-  } catch (err) {
-    logger.error(
-      `Error checking buildid for app ${appId}: ${err instanceof Error ? err.message : String(err)}`
-    );
-    return null;
   }
+
+  logger.warn(
+    `No readable appmanifest with a buildid found for app ${appId} (checked: ${candidates.join(", ")})`
+  );
+  return null;
 }
 
 /**
