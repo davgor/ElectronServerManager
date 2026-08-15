@@ -1,7 +1,7 @@
 module.exports = {
   preset: "ts-jest",
   testEnvironment: "jsdom",
-  roots: ["<rootDir>/src"],
+  roots: ["<rootDir>/src", "<rootDir>/fireguard"],
   testMatch: ["**/__tests__/**/*.test.ts?(x)", "**/?(*.)+(spec).ts?(x)"],
   moduleFileExtensions: ["ts", "tsx", "js", "jsx", "json", "node"],
   collectCoverageFrom: [

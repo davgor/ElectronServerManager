@@ -79,14 +79,16 @@ function UpdateBanner(): JSX.Element | null {
   if (status.state === "ready") {
     return (
       <div className="update-banner update-banner-ready" role="status">
-        <span>Update v{status.version} ready — restart to apply</span>
+        <span>
+          Update v{status.version} ready — restart and update to apply
+        </span>
         <button
           type="button"
           className="update-banner-action"
           onClick={handleInstall}
           disabled={installing}
         >
-          {installing ? "Restarting…" : "Restart & Install"}
+          {installing ? "Restarting…" : "Restart and update"}
         </button>
         {installError !== null ? (
           <span className="update-banner-error">{installError}</span>

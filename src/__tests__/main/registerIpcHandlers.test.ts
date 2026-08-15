@@ -140,7 +140,7 @@ describe("registerIpcHandlers", () => {
       format: "json",
     });
     mockSaveServerConfig.mockResolvedValue({ success: true });
-    mockCheckForAppUpdate.mockResolvedValue({ success: true });
+    mockCheckForAppUpdate.mockResolvedValue({ outcome: "up-to-date" });
     mockInstallAppUpdate.mockResolvedValue({ success: true });
     mockGetPalworldRestStatus.mockResolvedValue({
       success: true,
@@ -191,7 +191,7 @@ describe("registerIpcHandlers", () => {
     );
 
     await expect(getHandler("app-update-check")()).resolves.toEqual({
-      success: true,
+      outcome: "up-to-date",
     });
     expect(mockCheckForAppUpdate).toHaveBeenCalled();
 

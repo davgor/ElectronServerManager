@@ -13,18 +13,38 @@ version, download it in the background, and restart to apply it silently
    - Installers (`.exe` NSIS / portable, `.AppImage`, `.deb`)
    - Updater metadata: `latest.yml`, `latest-linux.yml`, and `*.blockmap`
 4. A previously installed **packaged** app starts and `electron-updater` reads
-   the GitHub feed (see `publish` in `electron-builder.json`). It checks once
-   on launch, then again every **4 hours** while the app stays open. Overlapping
-   checks are skipped when a check/download is already in flight or an update
-   is ready. When a newer version is published, the update downloads in the
-   background.
-5. The UI banner prompts **Restart & Install**. That CTA calls
+   the GitHub feed (see `publish` in `electron-builder.json`). The first check
+   runs **~8 seconds after launch** (so startup work and the renderer finish
+   before update traffic starts), then again every **4 hours** while the app
+   stays open. Overlapping checks are skipped when a check/download is already
+   in flight or an update is ready. When a newer version is published, the
+   update downloads in the background.
+5. The UI banner prompts **Restart and update**. That CTA calls
    `quitAndInstall(true, true)` (silent + relaunch). The app does **not** quit
    on its own when the download finishes — the user must click the button.
 6. After restart the title bar version (`vX.Y.Z`) should match the release tag /
    `package.json`.
 
 Dev runs (`npm start` / `npm run dev`) never hit the public update feed.
+Setting `DISABLE_AUTO_UPDATE=1` in the environment disables update checks in
+packaged builds too (useful for kiosk/managed installs and update-flow testing).
+
+## Manual "Check for updates"
+
+The main screen has a **Check for updates** button (next to the update banner).
+It invokes the `app-update-check` IPC channel, which returns a structured
+`ManualUpdateCheckResult` instead of a silent success:
+
+| Outcome | UI message |
+|---------|------------|
+| `update-available` | `Update found: vX.Y.Z` |
+| `up-to-date` | `No updates found — you're on the latest version.` |
+| `disabled` | `Update checks are only available in installed builds.` (dev builds or `DISABLE_AUTO_UPDATE=1`) |
+| `busy` | `An update is already downloading.` / `An update is ready to install.` / generic busy message |
+| `error` | `Update check failed: <reason>` |
+
+The button shows `Checking for updates…` immediately and is disabled while a
+check is in flight.
 
 ## Artifact naming (required for GitHub)
 
@@ -56,10 +76,11 @@ newer fixed release from `main`, or re-upload hyphenated copies of the assets
 2. Confirm the title bar shows that older version (e.g. `v1.0.18`).
 3. Publish a newer GitHub Release that includes `latest.yml` /
    `latest-linux.yml` and matching installers (normal `main` release workflow).
-4. Launch the older install — banner should show update available / downloading /
-   ready. (Optional: leave the app open past a poll interval / trigger a manual
-   check via IPC `app-update-check` to confirm background polling.)
-5. Choose **Restart & Install** — Windows NSIS should apply silently (no
+4. Launch the older install — after the ~8s initial delay the banner should
+   show update available / downloading / ready. (Optional: use the
+   **Check for updates** button for immediate feedback, or leave the app open
+   past a poll interval to confirm background polling.)
+5. Choose **Restart and update** — Windows NSIS should apply silently (no
    installer wizard); AppImage relaunches with the new binary (silent flag is a
    no-op there).
 6. Confirm the title bar version matches the new release.

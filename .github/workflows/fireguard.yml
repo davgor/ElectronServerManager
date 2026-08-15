@@ -1,0 +1,56 @@
+name: Fireguard
+
+# Grades added/changed unit tests on PRs (AST honesty, flake isolation,
+# mutation kill rate) and upserts a sticky grade comment. Fails the job on
+# grade F. See fireguard/README.md and .fireguardrc.json.
+on:
+  pull_request:
+    branches: ["main", "master"]
+
+jobs:
+  fireguard:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Fetch base ref for git diff
+        run: |
+          BASE="${{ github.base_ref || 'main' }}"
+          git fetch --no-tags origin "$BASE:refs/remotes/origin/$BASE" || git fetch --no-tags origin "$BASE"
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Rebuild native modules for Node
+        run: npm run rebuild:native:node
+
+      - name: Grade new unit tests (fireguard)
+        # Fork PRs get a read-only GITHUB_TOKEN, so posting the sticky comment
+        # would fail the job; skip --comment-pr there (report still uploads).
+        run: npm run fireguard -- $COMMENT_FLAG --markdown-out fireguard-pr.md --json-out fireguard-report.json
+        env:
+          COMMENT_FLAG: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--comment-pr' || '' }}
+          FIREGUARD_BASE_REF: origin/${{ github.base_ref || 'main' }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Upload fireguard report
+        if: always()
+        continue-on-error: true
+        uses: actions/upload-artifact@v4
+        with:
+          name: fireguard-report
+          path: |
+            fireguard-pr.md
+            fireguard-report.json

@@ -2,6 +2,7 @@ import type { BrowserWindow } from "electron";
 import type { AppUpdater as ElectronAppUpdater } from "electron-updater";
 
 import {
+  DEFAULT_INITIAL_CHECK_DELAY_MS,
   DEFAULT_POLL_INTERVAL_MS,
   canStartAppUpdateCheck,
   checkForAppUpdate,
@@ -49,6 +50,13 @@ function createMockAutoUpdater(): {
   };
 }
 
+describe("scheduling constants", () => {
+  it("polls every 4 hours and delays the first check by 8 seconds", () => {
+    expect(DEFAULT_POLL_INTERVAL_MS).toBe(14_400_000);
+    expect(DEFAULT_INITIAL_CHECK_DELAY_MS).toBe(8_000);
+  });
+});
+
 describe("canStartAppUpdateCheck", () => {
   it("allows idle, not-available, and error; blocks busy/ready states", () => {
     expect(canStartAppUpdateCheck("idle")).toBe(true);
@@ -85,7 +93,11 @@ describe("appUpdater", () => {
     jest.useRealTimers();
   });
 
-  it("skips update checks when unpackaged and reports idle", async () => {
+  it("exposes an 8s default initial check delay", () => {
+    expect(DEFAULT_INITIAL_CHECK_DELAY_MS).toBe(8_000);
+  });
+
+  it("skips update checks when unpackaged and reports disabled", async () => {
     registerAppUpdater({
       autoUpdater: mock.autoUpdater,
       getMainWindow,
@@ -93,24 +105,56 @@ describe("appUpdater", () => {
       currentVersion: "1.0.0",
     });
 
-    await expect(checkForAppUpdate()).resolves.toEqual({ success: true });
+    await expect(checkForAppUpdate()).resolves.toEqual({
+      outcome: "disabled",
+    });
     expect(mock.checkForUpdates).not.toHaveBeenCalled();
     expect(getLastAppUpdateStatus()).toEqual({ state: "idle" });
 
-    await jest.advanceTimersByTimeAsync(DEFAULT_POLL_INTERVAL_MS);
+    await jest.advanceTimersByTimeAsync(
+      DEFAULT_INITIAL_CHECK_DELAY_MS + DEFAULT_POLL_INTERVAL_MS
+    );
     expect(mock.checkForUpdates).not.toHaveBeenCalled();
   });
 
-  it("checks on register then polls on the injectable interval", async () => {
+  it("honors DISABLE_AUTO_UPDATE=1 even for packaged builds", async () => {
+    registerAppUpdater({
+      autoUpdater: mock.autoUpdater,
+      getMainWindow,
+      isPackaged: true,
+      currentVersion: "1.0.0",
+      env: { DISABLE_AUTO_UPDATE: "1" },
+    });
+
+    await expect(checkForAppUpdate()).resolves.toEqual({
+      outcome: "disabled",
+    });
+    expect(getLastAppUpdateStatus()).toEqual({ state: "idle" });
+
+    await jest.advanceTimersByTimeAsync(
+      DEFAULT_INITIAL_CHECK_DELAY_MS + DEFAULT_POLL_INTERVAL_MS
+    );
+    expect(mock.checkForUpdates).not.toHaveBeenCalled();
+  });
+
+  it("delays the first check, then polls on the injectable interval", async () => {
+    const initialCheckDelayMs = 5_000;
     const pollIntervalMs = 60_000;
     registerAppUpdater({
       autoUpdater: mock.autoUpdater,
       getMainWindow,
       isPackaged: true,
       currentVersion: "1.0.0",
+      initialCheckDelayMs,
       pollIntervalMs,
     });
 
+    expect(mock.checkForUpdates).not.toHaveBeenCalled();
+
+    await jest.advanceTimersByTimeAsync(initialCheckDelayMs - 1);
+    expect(mock.checkForUpdates).not.toHaveBeenCalled();
+
+    await jest.advanceTimersByTimeAsync(1);
     expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
 
     await jest.advanceTimersByTimeAsync(pollIntervalMs);
@@ -120,7 +164,7 @@ describe("appUpdater", () => {
     expect(mock.checkForUpdates).toHaveBeenCalledTimes(3);
   });
 
-  it("skips overlapping checks while a previous check is in flight", async () => {
+  it("reports busy instead of a silent success while a check is in flight", async () => {
     let resolveCheck: (() => void) | undefined;
     mock.checkForUpdates.mockImplementation(
       () =>
@@ -134,43 +178,130 @@ describe("appUpdater", () => {
       getMainWindow,
       isPackaged: true,
       currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
       pollIntervalMs: 60_000,
     });
+    await jest.advanceTimersByTimeAsync(1_000);
     expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
 
-    const overlapping = checkForAppUpdate();
+    await expect(checkForAppUpdate()).resolves.toEqual({ outcome: "busy" });
     expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
 
     resolveCheck?.();
-    await overlapping;
   });
 
-  it("skips checks after an update is already ready", async () => {
+  it("reports busy with a ready message after an update is downloaded", async () => {
     registerAppUpdater({
       autoUpdater: mock.autoUpdater,
       getMainWindow,
       isPackaged: true,
       currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
       pollIntervalMs: 60_000,
     });
+    await jest.advanceTimersByTimeAsync(1_000);
     expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
 
     mock.emit("update-downloaded", { version: "1.0.1" });
-    await checkForAppUpdate();
+    await expect(checkForAppUpdate()).resolves.toEqual({
+      outcome: "busy",
+      message: "An update is ready to install.",
+    });
     expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
 
     await jest.advanceTimersByTimeAsync(60_000);
     expect(mock.checkForUpdates).toHaveBeenCalledTimes(1);
   });
 
-  it("broadcasts available and ready statuses for packaged builds", () => {
+  it("reports busy with a downloading message while an update downloads", async () => {
     registerAppUpdater({
       autoUpdater: mock.autoUpdater,
       getMainWindow,
       isPackaged: true,
       currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
+      pollIntervalMs: 60_000,
     });
+    await jest.advanceTimersByTimeAsync(1_000);
 
+    mock.emit("download-progress", { percent: 10 });
+    await expect(checkForAppUpdate()).resolves.toEqual({
+      outcome: "busy",
+      message: "An update is already downloading.",
+    });
+  });
+
+  it("returns update-available with the new version from a manual check", async () => {
+    registerAppUpdater({
+      autoUpdater: mock.autoUpdater,
+      getMainWindow,
+      isPackaged: true,
+      currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
+      pollIntervalMs: 60_000,
+    });
+    await jest.advanceTimersByTimeAsync(1_000);
+    mock.emit("update-not-available", { version: "1.0.0" });
+
+    mock.checkForUpdates.mockResolvedValueOnce({
+      isUpdateAvailable: true,
+      updateInfo: { version: "1.0.9" },
+    });
+    await expect(checkForAppUpdate()).resolves.toEqual({
+      outcome: "update-available",
+      version: "1.0.9",
+    });
+  });
+
+  it("returns up-to-date when no newer version exists", async () => {
+    registerAppUpdater({
+      autoUpdater: mock.autoUpdater,
+      getMainWindow,
+      isPackaged: true,
+      currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
+      pollIntervalMs: 60_000,
+    });
+    await jest.advanceTimersByTimeAsync(1_000);
+    mock.emit("update-not-available", { version: "1.0.0" });
+
+    mock.checkForUpdates.mockResolvedValueOnce({
+      isUpdateAvailable: false,
+      updateInfo: { version: "1.0.0" },
+    });
+    await expect(checkForAppUpdate()).resolves.toEqual({
+      outcome: "up-to-date",
+    });
+  });
+
+  it("returns an error outcome when the provider gives no response", async () => {
+    registerAppUpdater({
+      autoUpdater: mock.autoUpdater,
+      getMainWindow,
+      isPackaged: true,
+      currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
+      pollIntervalMs: 60_000,
+    });
+    await jest.advanceTimersByTimeAsync(1_000);
+    mock.emit("update-not-available", { version: "1.0.0" });
+
+    mock.checkForUpdates.mockResolvedValueOnce(null);
+    await expect(checkForAppUpdate()).resolves.toEqual({
+      outcome: "error",
+      message: "No update response from provider",
+    });
+  });
+
+  it("broadcasts available and ready statuses for packaged builds", async () => {
+    registerAppUpdater({
+      autoUpdater: mock.autoUpdater,
+      getMainWindow,
+      isPackaged: true,
+      currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
+    });
+    await jest.advanceTimersByTimeAsync(1_000);
     expect(mock.checkForUpdates).toHaveBeenCalled();
 
     mock.emit("update-available", { version: "1.0.1" });
@@ -201,13 +332,15 @@ describe("appUpdater", () => {
     expect(mock.quitAndInstall).toHaveBeenCalledWith(true, true);
   });
 
-  it("broadcasts not-available when there is no update", () => {
+  it("broadcasts not-available when there is no update", async () => {
     registerAppUpdater({
       autoUpdater: mock.autoUpdater,
       getMainWindow,
       isPackaged: true,
       currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
     });
+    await jest.advanceTimersByTimeAsync(1_000);
 
     mock.emit("update-not-available", { version: "1.0.0" });
     expect(getLastAppUpdateStatus()).toEqual({ state: "not-available" });
@@ -219,15 +352,15 @@ describe("appUpdater", () => {
       getMainWindow,
       isPackaged: true,
       currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
     });
-    // Let the startup check settle so the next call is not coalesced.
-    await Promise.resolve();
+    await jest.advanceTimersByTimeAsync(1_000);
     mock.emit("update-not-available", { version: "1.0.0" });
 
     mock.checkForUpdates.mockRejectedValueOnce(new Error("network down"));
     await expect(checkForAppUpdate()).resolves.toEqual({
-      success: false,
-      error: "network down",
+      outcome: "error",
+      message: "network down",
     });
     expect(getLastAppUpdateStatus()).toEqual({
       state: "error",
@@ -247,11 +380,19 @@ describe("appUpdater", () => {
       getMainWindow,
       isPackaged: true,
       currentVersion: "1.0.0",
+      initialCheckDelayMs: 1_000,
     });
 
     expect(installAppUpdate()).toEqual({
       success: false,
       error: "No update ready to install",
+    });
+  });
+
+  it("returns an error outcome before the updater is registered", async () => {
+    await expect(checkForAppUpdate()).resolves.toEqual({
+      outcome: "error",
+      message: "Updater not initialized",
     });
   });
 });

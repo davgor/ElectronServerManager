@@ -4,6 +4,7 @@ import type { SteamServer } from "../types/electron";
 import type { ServerPersistedSettings } from "../types/ipc";
 
 import "./App.css";
+import CheckForUpdatesButton from "./CheckForUpdatesButton";
 import { ConfigEditor } from "./ConfigEditor";
 import { ServerCard } from "./ServerCard";
 import { SteamCmdPathInput } from "./SteamCmdPathInput";
@@ -151,6 +152,7 @@ function App(): JSX.Element {
       <div className="container">
         <h1>Steam Server Manager</h1>
         <UpdateBanner />
+        <CheckForUpdatesButton />
 
         <p>Detected Steam Dedicated Servers</p>
 

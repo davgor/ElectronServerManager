@@ -17,9 +17,12 @@ Any implementation work in this repo must follow `.cursor/skills/delivery-standa
    - `npm test`
    - `npm run type-check`
    - `npm run deadcode`
+   - `npm run test:diff-coverage`
+   - `npm run fireguard` (when unit tests added/changed — grade must not be F)
    - `npm run build` (when renderer/build output is affected)
    - `npm run electron-build` (when main/preload changed)
 3. **Board traceability** — create a ticket in `/board/backlog/` or update the related epic/ticket before or as you start. If the user named a ticket id, use `complete-ticket` skill.
+4. **Red-team review** — run `.cursor/skills/red-team-review/SKILL.md` before marking work done or merge-ready (see `.cursor/rules/red-team-review.mdc`).
 
 ## Also required
 

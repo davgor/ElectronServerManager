@@ -31,10 +31,12 @@
     "verify:native:electron": "cross-env ELECTRON_RUN_AS_NODE=1 electron ./scripts/verify-better-sqlite3-electron.cjs",
     "lint": "eslint src --ext .ts,.tsx --max-warnings 0",
     "lint:fix": "eslint src --ext .ts,.tsx --fix",
-    "deadcode": "npx -y ts-prune --project tsconfig.json",
-    "format": "prettier --write src",
-    "format:check": "prettier --check src",
-    "type-check": "tsc --noEmit",
+    "deadcode": "node scripts/deadcode-check.cjs",
+    "deadcode:refresh": "node scripts/deadcode-refresh.cjs",
+    "fireguard": "node fireguard/bin/fireguard.mjs",
+    "format": "prettier --write src fireguard .fireguardrc.json",
+    "format:check": "prettier --check src fireguard .fireguardrc.json",
+    "type-check": "tsc --noEmit && tsc --noEmit -p fireguard/tsconfig.json",
     "pretest": "npm run electron-build && npm run rebuild:native:node",
     "test": "jest",
     "test:watch": "jest --watch",
@@ -78,11 +80,13 @@
     "jest": "^29.7.0",
     "jest-environment-jsdom": "^29.7.0",
     "lint-staged": "^15.2.0",
+    "minimatch": "^10.2.6",
     "prettier": "^3.1.0",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "ts-jest": "^29.1.0",
     "ts-prune": "^0.10.3",
+    "tsx": "^4.23.12",
     "typescript": "^5.3.0",
     "vite": "^7.3.6",
     "wait-on": "^7.0.0"
@@ -102,7 +106,10 @@
   "lint-staged": {
     "src/**/*.{ts,tsx}": [
       "prettier --write",
-      "eslint --fix"
+      "eslint --fix --max-warnings 0"
+    ],
+    "fireguard/**/*.ts": [
+      "prettier --write"
     ]
   }
 }

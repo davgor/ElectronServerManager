@@ -6,7 +6,7 @@ import type {
   UpdateInfo,
 } from "electron-updater";
 
-import type { AppUpdateStatus } from "../types/ipc";
+import type { AppUpdateStatus, ManualUpdateCheckResult } from "../types/ipc";
 
 import * as logger from "./logger";
 
@@ -14,6 +14,12 @@ const APP_UPDATE_STATUS_EVENT = "app-update-status";
 
 /** How often to re-check while the app stays open (Discord-style background polling). */
 export const DEFAULT_POLL_INTERVAL_MS = 4 * 60 * 60 * 1000;
+
+/**
+ * Delay before the first check after launch so startup work and the renderer
+ * finish before update traffic starts (epic 037.2, AI-TTRPG parity).
+ */
+export const DEFAULT_INITIAL_CHECK_DELAY_MS = 8_000;
 
 interface AppUpdaterDeps {
   autoUpdater: Pick<
@@ -31,17 +37,31 @@ interface AppUpdaterDeps {
   currentVersion: string;
   /** Injectable poll interval for tests; defaults to DEFAULT_POLL_INTERVAL_MS. */
   pollIntervalMs?: number;
+  /** Injectable first-check delay for tests; defaults to DEFAULT_INITIAL_CHECK_DELAY_MS. */
+  initialCheckDelayMs?: number;
+  /** Injectable environment for tests; defaults to process.env (DISABLE_AUTO_UPDATE). */
+  env?: Record<string, string | undefined>;
 }
 
 let activeDeps: AppUpdaterDeps | null = null;
 let lastStatus: AppUpdateStatus = { state: "idle" };
 let checkInFlight = false;
 let pollTimer: ReturnType<typeof setInterval> | null = null;
+let initialCheckTimer: ReturnType<typeof setTimeout> | null = null;
+
+function updatesEnabled(deps: AppUpdaterDeps): boolean {
+  const env = deps.env ?? process.env;
+  return deps.isPackaged && env.DISABLE_AUTO_UPDATE !== "1";
+}
 
 export function resetAppUpdaterForTests(): void {
   if (pollTimer !== null) {
     clearInterval(pollTimer);
     pollTimer = null;
+  }
+  if (initialCheckTimer !== null) {
+    clearTimeout(initialCheckTimer);
+    initialCheckTimer = null;
   }
   activeDeps = null;
   lastStatus = { state: "idle" };
@@ -127,40 +147,64 @@ function schedulePolling(pollIntervalMs: number): void {
 export function registerAppUpdater(deps: AppUpdaterDeps): void {
   activeDeps = deps;
 
-  if (!deps.isPackaged) {
-    logger.info("App updater skipped (unpackaged / development build)");
+  if (!updatesEnabled(deps)) {
+    logger.info(
+      "App updater skipped (unpackaged / development build or DISABLE_AUTO_UPDATE=1)"
+    );
     broadcast({ state: "idle" });
     return;
   }
 
   wireAutoUpdaterEvents(deps);
-  void checkForAppUpdate();
+  // Delay the first check so launch isn't racing update traffic.
+  initialCheckTimer = setTimeout(() => {
+    initialCheckTimer = null;
+    void checkForAppUpdate();
+  }, deps.initialCheckDelayMs ?? DEFAULT_INITIAL_CHECK_DELAY_MS);
   schedulePolling(deps.pollIntervalMs ?? DEFAULT_POLL_INTERVAL_MS);
 }
 
-export async function checkForAppUpdate(): Promise<{
-  success: boolean;
-  error?: string;
-}> {
-  if (activeDeps === null) {
-    return { success: false, error: "Updater not initialized" };
+function busyResultForState(
+  state: AppUpdateStatus["state"]
+): ManualUpdateCheckResult {
+  if (state === "ready") {
+    return { outcome: "busy", message: "An update is ready to install." };
   }
-  if (!activeDeps.isPackaged) {
-    return { success: true };
+  if (state === "downloading" || state === "available") {
+    return { outcome: "busy", message: "An update is already downloading." };
+  }
+  return { outcome: "busy" };
+}
+
+export async function checkForAppUpdate(): Promise<ManualUpdateCheckResult> {
+  if (activeDeps === null) {
+    return { outcome: "error", message: "Updater not initialized" };
+  }
+  if (!updatesEnabled(activeDeps)) {
+    return { outcome: "disabled" };
   }
   if (checkInFlight || !canStartAppUpdateCheck(lastStatus.state)) {
-    return { success: true };
+    return busyResultForState(lastStatus.state);
   }
 
   checkInFlight = true;
   try {
-    await activeDeps.autoUpdater.checkForUpdates();
-    return { success: true };
+    const result = await activeDeps.autoUpdater.checkForUpdates();
+    if (result === null) {
+      return { outcome: "error", message: "No update response from provider" };
+    }
+    if (result.isUpdateAvailable) {
+      return {
+        outcome: "update-available",
+        version: result.updateInfo.version,
+      };
+    }
+    return { outcome: "up-to-date" };
   } catch (error) {
     const message =
       error instanceof Error ? error.message : "Failed to check for updates";
     broadcast({ state: "error", message });
-    return { success: false, error: message };
+    return { outcome: "error", message };
   } finally {
     checkInFlight = false;
   }

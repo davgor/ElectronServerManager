@@ -30,7 +30,8 @@ platform-specific executables and config paths (see
 - **Palworld live ops** — Optional on-card polling of info/players/metrics while
   the server is running and REST is enabled (interval persisted per server)
 - **Custom title bar** — Frameless window with minimize / maximize / close
-- **App auto-update** — Packaged builds check GitHub Releases (NSIS / AppImage);
+- **App auto-update** — Packaged builds check GitHub Releases (NSIS / AppImage),
+  with a manual **Check for updates** button and `DISABLE_AUTO_UPDATE=1` opt-out;
   see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md)
 
 ## Supported servers
@@ -83,11 +84,13 @@ dev server, and launches Electron once `http://localhost:5173` is ready.
 | `npm test` | Jest (runs `electron-build` via `pretest`) |
 | `npm run test:coverage` | Jest with coverage |
 | `npm run audit:cve` | Fail if npm audit reports any vulnerability |
-| `npm run deadcode` | `ts-prune` unused export scan |
+| `npm run deadcode` | `ts-prune` scan, fails only on **new** unused exports vs `.tsprune-ignore` |
+| `npm run deadcode:refresh` | Regenerate the `.tsprune-ignore` baseline |
+| `npm run fireguard` | Grade unit-test quality for changed modules (AST / flake / mutation gates) |
 
 Pull requests also get a sticky **Coverage Report** comment (base vs head
-totals + coverage on new lines). See [ARCHITECTURE.md](ARCHITECTURE.md)
-(Continuous integration).
+totals + coverage on new lines) and a **Fireguard** test-quality report. See
+[ARCHITECTURE.md](ARCHITECTURE.md) (Continuous integration).
 
 ## Architecture & docs
 
