@@ -1,11 +1,12 @@
 import { useEffect, useState } from "react";
 
-import type { SteamServer } from "../types/ipc";
+import type { GetServerMetricsResponse, SteamServer } from "../types/ipc";
 import { PALWORLD_APP_ID } from "../types/ipc";
 
 import { PalworldAdminModal } from "./PalworldAdminModal";
 import { PalworldOpsPanel } from "./PalworldOpsPanel";
 import { resolvePalworldOpsIntervalSeconds } from "./palworldOpsSettings";
+import { formatBytes, formatPercent } from "./serverMetricsFormat";
 
 export interface ServerCardProps {
   server: SteamServer;
@@ -31,6 +32,8 @@ export interface ServerCardProps {
 
 const REST_DISABLED_TOOLTIP =
   "Please enable REST API from the config settings.";
+
+const METRICS_POLL_INTERVAL_MS = 3000;
 
 export function ServerCard({
   server,
@@ -60,6 +63,39 @@ export function ServerCard({
   const [serverOutput, setServerOutput] = useState("");
   const [restEnabled, setRestEnabled] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [metrics, setMetrics] = useState<GetServerMetricsResponse | null>(null);
+
+  useEffect(() => {
+    if (!server.isRunning) {
+      setMetrics(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function pollMetrics(): Promise<void> {
+      try {
+        const result = await window.electron.getServerMetrics(server.appId);
+        if (!cancelled) {
+          setMetrics(result);
+        }
+      } catch {
+        if (!cancelled) {
+          setMetrics(null);
+        }
+      }
+    }
+
+    void pollMetrics();
+    const timer = window.setInterval(() => {
+      void pollMetrics();
+    }, METRICS_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [server.isRunning, server.appId]);
 
   useEffect(() => {
     if (!isPalworld) {
@@ -116,6 +152,36 @@ export function ServerCard({
         <p>
           <strong>Path:</strong> <code>{server.installPath}</code>
         </p>
+        {server.isRunning &&
+          metrics?.cpu !== undefined &&
+          metrics.memory !== undefined && (
+            <div className="server-metrics" data-testid="server-metrics">
+              <div className="metric-row">
+                <span className="metric-name">CPU</span>
+                <span className="metric-stat">
+                  {formatPercent(metrics.cpu.current)}
+                </span>
+                <span className="metric-stat metric-stat-dim">
+                  avg {formatPercent(metrics.cpu.average)}
+                </span>
+                <span className="metric-stat metric-stat-dim">
+                  p95 {formatPercent(metrics.cpu.p95)}
+                </span>
+              </div>
+              <div className="metric-row">
+                <span className="metric-name">RAM</span>
+                <span className="metric-stat">
+                  {formatBytes(metrics.memory.current)}
+                </span>
+                <span className="metric-stat metric-stat-dim">
+                  avg {formatBytes(metrics.memory.average)}
+                </span>
+                <span className="metric-stat metric-stat-dim">
+                  p95 {formatBytes(metrics.memory.p95)}
+                </span>
+              </div>
+            </div>
+          )}
         <div className="server-actions">
           {server.isRunning ? (
             <button

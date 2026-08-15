@@ -6,6 +6,10 @@ import * as childProcess from "child_process";
 
 import { isProcessRunning } from "../../main/steamDetection";
 import {
+  startServerMetricsSampling,
+  stopServerMetricsSampling,
+} from "../../main/serverMetrics";
+import {
   buildKillCommand,
   killServerProcessByName,
   getTrackedPid,
@@ -30,10 +34,17 @@ jest.mock("../../main/steamDetection", () => ({
   isProcessRunning: jest.fn(),
 }));
 
+jest.mock("../../main/serverMetrics", () => ({
+  startServerMetricsSampling: jest.fn(),
+  stopServerMetricsSampling: jest.fn(),
+}));
+
 const mockExistsSync = existsSync as jest.MockedFunction<typeof existsSync>;
 const mockSpawn = jest.mocked(childProcess.spawn);
 const mockSpawnSync = jest.mocked(childProcess.spawnSync);
 const mockIsProcessRunning = jest.mocked(isProcessRunning);
+const mockStartMetricsSampling = jest.mocked(startServerMetricsSampling);
+const mockStopMetricsSampling = jest.mocked(stopServerMetricsSampling);
 
 function spawnSyncResult(
   status: number | null,
@@ -243,6 +254,53 @@ describe("serverProcess", () => {
       expect(getTrackedPid(2278520)).toBe(31337);
     });
 
+    it("starts metrics sampling for the tracked pid on successful start", async () => {
+      mockExistsSync.mockReturnValue(true);
+      mockSpawn.mockImplementationOnce(
+        () =>
+          createFakeChild(31337) as unknown as ReturnType<
+            typeof childProcess.spawn
+          >
+      );
+
+      const result = await startServer(2278520, "C:\\Games\\EnshroudedServer", {
+        startupVerifyDelayMs: 0,
+      });
+
+      expect(result).toEqual({ success: true });
+      expect(mockStartMetricsSampling).toHaveBeenCalledWith(2278520, 31337);
+    });
+
+    it("does not start metrics sampling when startup verification fails", async () => {
+      mockExistsSync.mockReturnValue(true);
+      mockIsProcessRunning.mockReturnValue(false);
+
+      const result = await startServer(2278520, "C:\\Games\\EnshroudedServer", {
+        startupVerifyDelayMs: 0,
+      });
+
+      expect(result.success).toBe(false);
+      expect(mockStartMetricsSampling).not.toHaveBeenCalled();
+      expect(mockStopMetricsSampling).toHaveBeenCalledWith(2278520);
+    });
+
+    it("stops metrics sampling when the process exits within the verify window", async () => {
+      mockExistsSync.mockReturnValue(true);
+      const child = createFakeChild();
+      mockSpawn.mockImplementationOnce(
+        () => child as unknown as ReturnType<typeof childProcess.spawn>
+      );
+
+      const pending = startServer(2278520, "C:\\Games\\EnshroudedServer", {
+        startupVerifyDelayMs: 0,
+      });
+      child.emit("exit", 1, null);
+      await pending;
+
+      expect(mockStartMetricsSampling).not.toHaveBeenCalled();
+      expect(mockStopMetricsSampling).toHaveBeenCalledWith(2278520);
+    });
+
     it("untracks the pid when the process later exits", async () => {
       mockExistsSync.mockReturnValue(true);
       const child = createFakeChild(31337);
@@ -258,6 +316,7 @@ describe("serverProcess", () => {
       child.emit("exit", 0, null);
 
       expect(getTrackedPid(2278520)).toBeUndefined();
+      expect(mockStopMetricsSampling).toHaveBeenCalledWith(2278520);
     });
 
     it("returns failure when the process exits within the verify window", async () => {
@@ -366,6 +425,7 @@ describe("serverProcess", () => {
       // Name-based kill must not run when a pid is tracked.
       expect(mockSpawnSync).not.toHaveBeenCalled();
       expect(getTrackedPid(1623730)).toBeUndefined();
+      expect(mockStopMetricsSampling).toHaveBeenCalledWith(1623730);
 
       killSpy.mockRestore();
       restorePlatform(original);
@@ -393,6 +453,7 @@ describe("serverProcess", () => {
         "/T",
         "/F",
       ]);
+      expect(mockStopMetricsSampling).toHaveBeenCalledWith(2278520);
 
       restorePlatform(original);
     });

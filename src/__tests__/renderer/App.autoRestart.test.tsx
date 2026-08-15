@@ -33,6 +33,9 @@ const mockElectronApi: ElectronAPI = {
     .mockResolvedValue({ success: true, path: null }),
   getServerConfig: jest.fn().mockResolvedValue({ success: true }),
   getServerOutput: jest.fn().mockResolvedValue(""),
+  getServerMetrics: jest
+    .fn()
+    .mockResolvedValue({ success: true, running: false, sampleCount: 0 }),
   saveServerConfig: jest.fn().mockResolvedValue({ success: true }),
   openFileDefault: jest.fn().mockResolvedValue({ success: true }),
   getSettings: mockGetSettings,

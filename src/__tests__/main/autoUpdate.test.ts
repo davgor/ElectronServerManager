@@ -428,6 +428,45 @@ describe("autoUpdateServer", () => {
     expect(result.updated).toBe(true);
   });
 
+  it("waits the full default 5-minute warn window before stopping", async () => {
+    jest.useFakeTimers();
+    try {
+      mockGetServerBuildId
+        .mockResolvedValueOnce("100")
+        .mockResolvedValue("101");
+      mockGetPalworldRestStatus.mockResolvedValue({
+        success: true,
+        enabled: true,
+        isPalworld: true,
+        port: 8212,
+      });
+      mockInvokePalworldRest.mockResolvedValue({ success: true, data: {} });
+
+      // No warnBeforeUpdateMs override: the default 5-minute window applies.
+      const pending = autoUpdateServer(
+        PALWORLD_APP_ID,
+        PALWORLD_INSTALL,
+        STEAM_PATH,
+        { buildIdPollDelaysMs: NO_POLL_DELAYS }
+      );
+
+      await jest.advanceTimersByTimeAsync(0);
+      expect(mockInvokePalworldRest).toHaveBeenCalled();
+
+      // 1s shy of 5 minutes: still inside the warn window, no downtime yet.
+      await jest.advanceTimersByTimeAsync(5 * 60 * 1000 - 1000);
+      expect(mockStopServer).not.toHaveBeenCalled();
+
+      await jest.advanceTimersByTimeAsync(1000);
+      const result = await pending;
+
+      expect(mockStopServer).toHaveBeenCalled();
+      expect(result.stage).toBe("complete");
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
   it("fails at notifying without stopping when announce fails", async () => {
     mockGetServerBuildId.mockResolvedValue("100");
     mockGetPalworldRestStatus.mockResolvedValue({

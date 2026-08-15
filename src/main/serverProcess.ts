@@ -12,6 +12,10 @@ import {
 } from "./steamDetection";
 import * as logger from "./logger";
 import { appendServerOutput, clearServerOutput } from "./serverOutputBuffer";
+import {
+  startServerMetricsSampling,
+  stopServerMetricsSampling,
+} from "./serverMetrics";
 
 type ServerActionResult = IpcActionResult;
 
@@ -117,6 +121,7 @@ function killTrackedPid(appId: number, pid: number): ServerActionResult {
       (result.status === 0 || result.status === 128)
     ) {
       trackedPids.delete(appId);
+      stopServerMetricsSampling(appId);
       return { success: true };
     }
     return {
@@ -128,12 +133,14 @@ function killTrackedPid(appId: number, pid: number): ServerActionResult {
   try {
     process.kill(pid, "SIGTERM");
     trackedPids.delete(appId);
+    stopServerMetricsSampling(appId);
     return { success: true };
   } catch (error) {
     const errno = error as NodeJS.ErrnoException;
     if (errno.code === "ESRCH") {
       // Process already exited.
       trackedPids.delete(appId);
+      stopServerMetricsSampling(appId);
       return { success: true };
     }
     return {
@@ -224,6 +231,7 @@ export async function startServer(
         trackedPids.get(appId) === serverProcess.pid
       ) {
         trackedPids.delete(appId);
+        stopServerMetricsSampling(appId);
       }
     });
 
@@ -235,6 +243,7 @@ export async function startServer(
 
     if (outcome.errored !== null) {
       trackedPids.delete(appId);
+      stopServerMetricsSampling(appId);
       return {
         success: false,
         error: `Failed to start server: ${outcome.errored.message}`,
@@ -243,6 +252,7 @@ export async function startServer(
 
     if (outcome.exited !== null) {
       trackedPids.delete(appId);
+      stopServerMetricsSampling(appId);
       const { code, signal } = outcome.exited;
       const detail =
         outcome.stderr.trim().length > 0
@@ -256,6 +266,7 @@ export async function startServer(
 
     if (!isProcessRunning(executable)) {
       trackedPids.delete(appId);
+      stopServerMetricsSampling(appId);
       return {
         success: false,
         error: `Server process is not detectable after startup. It may have failed to launch.`,
@@ -263,6 +274,10 @@ export async function startServer(
     }
 
     serverProcess.unref();
+
+    if (serverProcess.pid !== undefined) {
+      startServerMetricsSampling(appId, serverProcess.pid);
+    }
 
     return { success: true };
   } catch (error) {

@@ -16,6 +16,7 @@ import { backupServerSaveHandler, selectBackupFolder } from "./serverBackup";
 import { selectSteamCmdPath } from "./steamCmd";
 import { getSettings, saveSettings } from "./settingsStore";
 import { getServerOutput } from "./serverOutputBuffer";
+import { getServerMetrics } from "./serverMetrics";
 import { checkForAppUpdate, installAppUpdate } from "./appUpdater";
 import { getPalworldRestStatus, invokePalworldRest } from "./palworldRestIpc";
 
@@ -82,6 +83,10 @@ export function registerIpcHandlers(deps: IpcRegistrationDeps): void {
 
   ipcMain.handle("get-server-output", (_event, appId: number) => {
     return getServerOutput(appId);
+  });
+
+  ipcMain.handle("get-server-metrics", (_event, appId: number) => {
+    return getServerMetrics(appId);
   });
 
   ipcMain.handle("open-file-default", async (_event, filePath: string) => {

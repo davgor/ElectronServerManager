@@ -39,6 +39,9 @@ const mockElectronApi: ElectronAPI = {
   selectSteamCmdPath: mockSelectSteamCmdPath,
   getServerConfig: mockGetServerConfig,
   getServerOutput: jest.fn().mockResolvedValue(""),
+  getServerMetrics: jest
+    .fn()
+    .mockResolvedValue({ success: true, running: false, sampleCount: 0 }),
   saveServerConfig: mockSaveServerConfig,
   openFileDefault: mockOpenFileDefault,
   getSettings: mockGetSettings,

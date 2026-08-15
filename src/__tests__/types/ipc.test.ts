@@ -37,6 +37,7 @@ const EXPECTED_CHANNELS = [
   "select-steamcmd-path",
   "get-server-config",
   "get-server-output",
+  "get-server-metrics",
   "open-file-default",
   "save-server-config",
   "get-settings",
@@ -59,7 +60,7 @@ const channelsAreExpected: readonly ExpectedChannel[] = [] as IpcChannel[];
 
 describe("IPC types", () => {
   it("covers every registered IPC channel", () => {
-    expect(expectedAreChannels).toHaveLength(23);
+    expect(expectedAreChannels).toHaveLength(24);
     expect(channelsAreExpected).toHaveLength(0);
   });
 

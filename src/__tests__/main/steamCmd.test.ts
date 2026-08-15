@@ -224,6 +224,64 @@ AppID : 2278520
       expect(result.success).toBe(false);
       expect(result.error).toContain("exit code 8");
     });
+
+    it("includes captured output detail in non-zero exit errors", async () => {
+      const child = createFakeChild();
+      mockSpawn.mockReturnValue(
+        child as unknown as ReturnType<typeof childProcess.spawn>
+      );
+
+      const pending = fetchRemoteAppBuildId("/usr/bin/steamcmd", 2278520);
+      child.stdout.emit("data", Buffer.from("Login Failure: Invalid Password"));
+      child.emit("exit", 5, null);
+
+      const result = await pending;
+      expect(result.success).toBe(false);
+      expect(result.error).toContain("Login Failure");
+    });
+
+    it("captures app info output across multiple chunks", async () => {
+      const child = createFakeChild();
+      mockSpawn.mockReturnValue(
+        child as unknown as ReturnType<typeof childProcess.spawn>
+      );
+
+      const pending = fetchRemoteAppBuildId("/usr/bin/steamcmd", 2278520);
+      child.stdout.emit("data", Buffer.from("AppID : 2278520 header noise\n"));
+      child.stdout.emit(
+        "data",
+        Buffer.from('"branches" { "public" { "buildid" "14567890" } }')
+      );
+      child.emit("exit", 0, null);
+
+      await expect(pending).resolves.toEqual({
+        success: true,
+        buildId: "14567890",
+      });
+    });
+
+    it("does not time out before the 60s default app-info timeout", async () => {
+      jest.useFakeTimers();
+      try {
+        const child = createFakeChild();
+        mockSpawn.mockReturnValue(
+          child as unknown as ReturnType<typeof childProcess.spawn>
+        );
+
+        const pending = fetchRemoteAppBuildId("/usr/bin/steamcmd", 2278520);
+        await jest.advanceTimersByTimeAsync(59_000);
+        expect(child.kill).not.toHaveBeenCalled();
+
+        child.stdout.emit(
+          "data",
+          Buffer.from('"branches" { "public" { "buildid" "1" } }')
+        );
+        child.emit("exit", 0, null);
+        await expect(pending).resolves.toEqual({ success: true, buildId: "1" });
+      } finally {
+        jest.useRealTimers();
+      }
+    });
   });
 
   describe("runSteamCmdUpdate", () => {
@@ -356,6 +414,29 @@ AppID : 2278520
       expect(result.success).toBe(false);
       expect(result.error).toContain("timed out");
       expect(child.kill).toHaveBeenCalled();
+    });
+
+    it("does not time out before the 15-minute default update timeout", async () => {
+      jest.useFakeTimers();
+      try {
+        const child = createFakeChild();
+        mockSpawn.mockReturnValue(
+          child as unknown as ReturnType<typeof childProcess.spawn>
+        );
+
+        const pending = runSteamCmdUpdate(
+          "/usr/bin/steamcmd",
+          2278520,
+          INSTALL_PATH
+        );
+        await jest.advanceTimersByTimeAsync(15 * 60 * 1000 - 1000);
+        expect(child.kill).not.toHaveBeenCalled();
+
+        child.emit("exit", 0, null);
+        await expect(pending).resolves.toEqual({ success: true });
+      } finally {
+        jest.useRealTimers();
+      }
     });
 
     it("resolves only once when exit follows a timeout kill", async () => {

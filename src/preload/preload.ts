@@ -33,6 +33,7 @@ export const ALLOWED_CHANNELS: readonly IpcChannel[] = [
   "select-steamcmd-path",
   "get-server-config",
   "get-server-output",
+  "get-server-metrics",
   "open-file-default",
   "save-server-config",
   "get-settings",
@@ -88,6 +89,7 @@ const electronApi: ElectronAPI = {
   getServerConfig: (appId: number, installPath: string) =>
     invokeIpc("get-server-config", appId, installPath),
   getServerOutput: (appId: number) => invokeIpc("get-server-output", appId),
+  getServerMetrics: (appId: number) => invokeIpc("get-server-metrics", appId),
   openFileDefault: (filePath: string) =>
     invokeIpc("open-file-default", filePath),
   saveServerConfig: (

@@ -18,6 +18,8 @@ platform-specific executables and config paths (see
 - **Multi-library Steam paths** — Prefer a Steam install when more than one exists
 - **Run / stop** — Launch or shut down the dedicated server process
 - **Server output** — View recent captured stdout/stderr for a managed server
+- **Resource metrics** — Live CPU / RAM (current, average, p95) on the card
+  while a managed server is running
 - **Auto-restart** — Optional restart if a managed server crashes
 - **Auto-update (game files)** — Optional SteamCMD update with verified
   completion against the remote buildid and automatic restart; see

@@ -150,6 +150,7 @@ All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
 | `select-steamcmd-path` | Native file picker for SteamCMD executable |
 | `get-server-config` | Load server config (JSON/INI) |
 | `get-server-output` | Recent capped stdout/stderr for a server |
+| `get-server-metrics` | CPU/RAM usage stats (current / average / p95) for a tracked server |
 | `save-server-config` | Persist edited config |
 | `open-file-default` | Open a path with the OS default app |
 | `get-settings` / `save-settings` | Persisted UI/server flags |
@@ -176,12 +177,14 @@ easy to confirm.
 3. **Auto-restart** — Renderer settings flag; polling in `useSteamServers`
    restarts if a watched server exits unexpectedly.
 4. **Auto-update (game files)** — SteamCMD via `autoUpdate.ts` when enabled per
-   server: compare local appmanifest buildid to remote public buildid
-   (`app_info_print`, no stop) → only if they differ, optionally announce a
-   5-minute reboot warning via Palworld REST (when `RESTAPIEnabled`) and wait →
-   stop → `+force_install_dir <installPath>` + `app_update validate` → verify
-   buildid → restart (`updated` reflects whether the build changed; matching
-   versions leave the running server alone).
+   server: read the local buildid from the manifest of the library that owns
+   `installPath` (see `buildManifestCandidatePaths`) and compare to the remote
+   public buildid (`app_info_print`, no stop) → only if they differ, optionally
+   announce a 5-minute reboot warning via Palworld REST (when `RESTAPIEnabled`)
+   and wait → stop → `+force_install_dir <installPath>` + `app_update validate`
+   → verify the post-update manifest buildid **matches remote** (partial
+   downloads fail at `verifying`) → always restart (matching versions leave
+   the running server alone). Operator notes: [docs/GAME_UPDATES.md](docs/GAME_UPDATES.md).
 5. **App auto-update** — Packaged builds use `electron-updater` (`appUpdater.ts`)
    against GitHub Releases metadata: first check ~8s after launch + every 4h
    while open (`DISABLE_AUTO_UPDATE=1` opts out), background download, silent
