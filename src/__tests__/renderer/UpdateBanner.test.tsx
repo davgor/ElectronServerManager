@@ -91,6 +91,27 @@ describe("UpdateBanner", () => {
     expect(await screen.findByText("quit failed")).toBeInTheDocument();
   });
 
+  it("clears a stale install error once a new update cycle starts", async () => {
+    const user = userEvent.setup();
+    mockInstallAppUpdate.mockResolvedValue({
+      success: false,
+      error: "quit failed",
+    });
+    render(<UpdateBanner />);
+    emit({ state: "ready", version: "1.0.3" });
+
+    await user.click(
+      screen.getByRole("button", { name: "Restart and update" })
+    );
+    expect(await screen.findByText("quit failed")).toBeInTheDocument();
+
+    // A fresh (non-error) status from main invalidates the old install error.
+    emit({ state: "downloading", percent: 10 });
+    emit({ state: "ready", version: "1.0.4" });
+
+    expect(screen.queryByText("quit failed")).not.toBeInTheDocument();
+  });
+
   it("shows updater errors from main", () => {
     render(<UpdateBanner />);
     emit({ state: "error", message: "GitHub unreachable" });

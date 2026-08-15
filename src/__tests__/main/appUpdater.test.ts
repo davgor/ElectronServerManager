@@ -50,6 +50,13 @@ function createMockAutoUpdater(): {
   };
 }
 
+describe("scheduling constants", () => {
+  it("polls every 4 hours and delays the first check by 8 seconds", () => {
+    expect(DEFAULT_POLL_INTERVAL_MS).toBe(14_400_000);
+    expect(DEFAULT_INITIAL_CHECK_DELAY_MS).toBe(8_000);
+  });
+});
+
 describe("canStartAppUpdateCheck", () => {
   it("allows idle, not-available, and error; blocks busy/ready states", () => {
     expect(canStartAppUpdateCheck("idle")).toBe(true);
