@@ -1,6 +1,10 @@
 import { useEffect, useState } from "react";
 
-import type { GetServerMetricsResponse, SteamServer } from "../types/ipc";
+import type {
+  GetServerMetricsResponse,
+  ServerCapabilityId,
+  SteamServer,
+} from "../types/ipc";
 
 import { PalworldAdminModal } from "./PalworldAdminModal";
 import { PalworldOpsPanel } from "./PalworldOpsPanel";
@@ -9,7 +13,7 @@ import { formatBytes, formatPercent } from "./serverMetricsFormat";
 
 function serverHasCapability(
   server: SteamServer,
-  capability: "rest_admin" | "live_ops" | "update_announce"
+  capability: ServerCapabilityId
 ): boolean {
   return server.capabilities?.includes(capability) ?? false;
 }

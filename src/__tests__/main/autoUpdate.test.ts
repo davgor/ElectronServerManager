@@ -538,4 +538,19 @@ describe("autoUpdateServer", () => {
     expect(firstResult.stage).toBe("complete");
     expect(mockStopServer).toHaveBeenCalledTimes(1);
   });
+
+  it("does not query REST status for games without update_announce capability", async () => {
+    mockGetServerBuildId.mockResolvedValueOnce("100").mockResolvedValue("101");
+
+    const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+      buildIdPollDelaysMs: NO_POLL_DELAYS,
+      warnBeforeUpdateMs: 0,
+    });
+
+    expect(mockGetPalworldRestStatus).not.toHaveBeenCalled();
+    expect(mockInvokePalworldRest).not.toHaveBeenCalled();
+    expect(result.success).toBe(true);
+    expect(result.stage).toBe("complete");
+    expect(result.updated).toBe(true);
+  });
 });

@@ -11,7 +11,7 @@ import type { PalworldRestEndpoint } from "../types/ipc";
 
 const DEFAULT_PALWORLD_REST_PORT = 8212;
 
-export interface PalworldRestConfig {
+interface PalworldRestConfig {
   enabled: boolean;
   port: number;
   adminPassword: string;
@@ -44,7 +44,7 @@ export type PalworldRestFetch = (
 }>;
 
 /** Optional catalog REST metadata — keys/port come from SQLite when provided. */
-export interface PalworldRestConfigBinding {
+interface PalworldRestConfigBinding {
   defaultPort: number;
   enabledConfigKey: string;
   portConfigKey: string;

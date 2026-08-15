@@ -3,7 +3,7 @@
  * announce-before-update). Stored in SQLite `server_capabilities`.
  */
 
-export const SERVER_CAPABILITY_IDS = [
+const SERVER_CAPABILITY_IDS = [
   "rest_admin",
   "live_ops",
   "update_announce",

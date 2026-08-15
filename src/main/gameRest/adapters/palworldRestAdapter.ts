@@ -1,11 +1,9 @@
-import type { PalworldRestEndpoint } from "../../../types/ipc";
 import type { ServerRestMetadata } from "../../catalog/serverCapabilities";
 import {
-  buildPalworldRestAuthHeader,
-  buildPalworldRestUrl,
   callPalworldRest,
   extractPalworldRestConfig,
 } from "../../palworldRest";
+import type { PalworldRestEndpoint } from "../../../types/ipc";
 import type {
   GameRestAdapter,
   GameRestCallRequest,
@@ -75,6 +73,3 @@ export const palworldRestAdapter: GameRestAdapter = {
     );
   },
 };
-
-/** Exported for unit tests that assert URL/auth helpers still work. */
-export { buildPalworldRestAuthHeader, buildPalworldRestUrl };
