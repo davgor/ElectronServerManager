@@ -14,8 +14,8 @@ Assisted + custom-directory NSIS does not reliably stay silent on update (known 
 
 ## Acceptance criteria
 
-- [ ] `electron-builder.json` NSIS uses `oneClick: true` and does **not** set `allowToChangeInstallationDirectory`
-- [ ] Unit test asserts the silent-update-friendly NSIS flags (and that assisted custom-dir is absent)
-- [ ] `docs/AUTO_UPDATE.md` notes one-click NSIS is required for silent in-app updates; first install no longer offers a directory page
-- [ ] `installAppUpdate` still calls `quitAndInstall(true, true)`
-- [ ] `npm run lint`, `npm test`, `npm run type-check`, `npm run deadcode`, `npm run format:check` pass
+- [x] `electron-builder.json` NSIS uses `oneClick: true` and does **not** set `allowToChangeInstallationDirectory`
+- [x] Unit test asserts the silent-update-friendly NSIS flags (and that assisted custom-dir is absent)
+- [x] `docs/AUTO_UPDATE.md` notes one-click NSIS is required for silent in-app updates; first install no longer offers a directory page
+- [x] `installAppUpdate` still calls `quitAndInstall(true, true)`
+- [x] `npm run lint`, `npm test`, `npm run type-check`, `npm run deadcode`, `npm run format:check` pass
