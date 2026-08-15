@@ -39,10 +39,10 @@ Reference: `AI-DND-Matrix` `src/main/autoUpdate.ts`, `CheckForUpdatesButton.tsx`
 
 ## Acceptance criteria (epic)
 
-- [ ] BoosterSeat process gaps listed above that are marked **Yes** are present and wired (fireguard job, red-team skill/rule, PR template, husky/lint-staged, deadcode baseline scripts)
-- [ ] Packaged app update UX matches AI-TTRPG fluidity: delayed initial check, Settings manual check with feedback, “Restart and update” copy, `DISABLE_AUTO_UPDATE` support
-- [ ] Unit/component tests cover new CI helpers and updater UX; verification gate passes (`lint`, `format:check`, `test`, `type-check`, `deadcode`, `test:diff-coverage`, `electron-build` / `build` as applicable)
-- [ ] `docs/AUTO_UPDATE.md` + `ARCHITECTURE.md` note the new check UX; delivery docs mention red-team / fireguard where relevant
+- [x] BoosterSeat process gaps listed above that are marked **Yes** are present and wired (fireguard job, red-team skill/rule, PR template, husky/lint-staged, deadcode baseline scripts)
+- [x] Packaged app update UX matches AI-TTRPG fluidity: delayed initial check, Settings manual check with feedback, “Restart and update” copy, `DISABLE_AUTO_UPDATE` support
+- [x] Unit/component tests cover new CI helpers and updater UX; verification gate passes (`lint`, `format:check`, `test`, `type-check`, `deadcode`, `test:diff-coverage`, `electron-build` / `build` as applicable)
+- [x] `docs/AUTO_UPDATE.md` + `ARCHITECTURE.md` note the new check UX; delivery docs mention red-team / fireguard where relevant
 
 ## Sub-tickets
 
@@ -53,7 +53,8 @@ Reference: `AI-DND-Matrix` `src/main/autoUpdate.ts`, `CheckForUpdatesButton.tsx`
 
 ### 037.1 — Import missing BoosterSeat CI/delivery process
 
-Port the quality-process layer from BoosterSeat without replacing Electron release mechanics.
+Port the quality-process layer from [davgor/BoosterSeat](https://github.com/davgor/BoosterSeat)
+without replacing Electron release mechanics. See epic 037 research notes.
 
 **Include:**
 
@@ -67,16 +68,19 @@ Port the quality-process layer from BoosterSeat without replacing Electron relea
 
 #### Acceptance criteria
 
-- [ ] Fireguard runs locally via npm script and in CI on PRs; unit tests for any adapted helpers pass
-- [ ] Red-team skill + Cursor rule exist under `.cursor/` and `.claude/`; delivery docs require it before merge-ready
-- [ ] `.github/PULL_REQUEST_TEMPLATE.md` lists verification + red-team
-- [ ] `prepare` / husky pre-commit formats and lint-fixes staged TS/TSX
-- [ ] `npm run deadcode` uses baseline-aware check; `deadcode:refresh` documented
-- [ ] Existing required CI (lint / typecheck / unit tests / deadcode / security) still green; kickback/release gates still reference the same required check names (update if job names change)
+- [x] Fireguard runs locally via npm script and in CI on PRs; unit tests for any adapted helpers pass
+- [x] Red-team skill + Cursor rule exist under `.cursor/` and `.claude/`; delivery docs require it before merge-ready
+- [x] `.github/PULL_REQUEST_TEMPLATE.md` lists verification + red-team
+- [x] `prepare` / husky pre-commit formats and lint-fixes staged TS/TSX
+- [x] `npm run deadcode` uses baseline-aware check; `deadcode:refresh` documented
+- [x] Existing required CI (lint / typecheck / unit tests / deadcode / security) still green; kickback/release gates still reference the same required check names (update if job names change)
 
 ### 037.2 — AI-TTRPG-parity app update fluidity
 
-Close the UX gap with AI-TTRPG while keeping ESM’s existing feed, polling interval, and silent install.
+Close the packaged-app update UX gap with [davgor/AI-DND-Matrix](https://github.com/davgor/AI-DND-Matrix)
+while keeping ESM’s existing feed, polling interval, and silent install. See
+epic 037 research notes. Reference: AI-DND-Matrix `src/main/autoUpdate.ts`,
+`CheckForUpdatesButton.tsx`, `manualCheckMessage.ts`.
 
 **Include:**
 
@@ -88,9 +92,9 @@ Close the UX gap with AI-TTRPG while keeping ESM’s existing feed, polling inte
 
 #### Acceptance criteria
 
-- [ ] Packaged builds delay the first check; poll interval unchanged; overlapping checks still coalesced
-- [ ] `DISABLE_AUTO_UPDATE=1` skips real checks; unpackaged/dev still skips
-- [ ] UI control triggers check and shows checking / up-to-date / update-found / busy / error feedback
-- [ ] Ready state uses “Restart and update”; silent `quitAndInstall(true, true)` unchanged
-- [ ] Unit + component tests cover scheduling, disable flag, manual-check messaging, and CTA copy
-- [ ] `docs/AUTO_UPDATE.md` updated; verification gate passes
+- [x] Packaged builds delay the first check; poll interval unchanged; overlapping checks still coalesced
+- [x] `DISABLE_AUTO_UPDATE=1` skips real checks; unpackaged/dev still skips
+- [x] UI control triggers check and shows checking / up-to-date / update-found / busy / error feedback
+- [x] Ready state uses “Restart and update”; silent `quitAndInstall(true, true)` unchanged
+- [x] Unit + component tests cover scheduling, disable flag, manual-check messaging, and CTA copy
+- [x] `docs/AUTO_UPDATE.md` updated; verification gate passes
