@@ -10,7 +10,7 @@ Versions match `package.json` (pin/range as declared there):
 
 | Layer | Tech |
 |-------|------|
-| Desktop shell | Electron **39.2.7** |
+| Desktop shell | Electron **41.10.5** |
 | UI | React **^18.2**, TypeScript **^5.3** |
 | Renderer bundler | Vite **7.3.0** |
 | Packaging | electron-builder **^24.6** |
