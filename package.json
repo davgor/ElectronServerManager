@@ -13,6 +13,9 @@
     "email": "davgor4@gmail.com"
   },
   "license": "MIT",
+  "engines": {
+    "node": ">=22.12.0"
+  },
   "scripts": {
     "start": "npm run dev",
     "electron": "wait-on http://localhost:5173 && electron .",
