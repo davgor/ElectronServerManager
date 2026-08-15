@@ -37,8 +37,11 @@ jobs:
         run: npm run rebuild:native:node
 
       - name: Grade new unit tests (fireguard)
-        run: npm run fireguard -- --comment-pr --markdown-out fireguard-pr.md --json-out fireguard-report.json
+        # Fork PRs get a read-only GITHUB_TOKEN, so posting the sticky comment
+        # would fail the job; skip --comment-pr there (report still uploads).
+        run: npm run fireguard -- $COMMENT_FLAG --markdown-out fireguard-pr.md --json-out fireguard-report.json
         env:
+          COMMENT_FLAG: ${{ github.event.pull_request.head.repo.full_name == github.repository && '--comment-pr' || '' }}
           FIREGUARD_BASE_REF: origin/${{ github.base_ref || 'main' }}
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

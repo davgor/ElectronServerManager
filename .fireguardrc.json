@@ -1,7 +1,7 @@
 {
   "thresholds": {
     "maxMockToAssertRatio": 1.5,
-    "maxTautologicalRatio": 0.5,
+    "maxTautologicalRatio": 0.4,
     "minAssertionsPerFile": 1,
     "minMutationScore": 75,
     "flakinessRuns": 3,
