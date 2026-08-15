@@ -36,6 +36,10 @@ const mockElectronApi: ElectronAPI = {
     .fn()
     .mockResolvedValue({ success: true, enabled: false, isPalworld: false }),
   palworldRestRequest: jest.fn().mockResolvedValue({ success: true, data: {} }),
+  listServerMods: jest.fn().mockResolvedValue({ success: true, mods: [] }),
+  selectAndImportModZip: jest.fn().mockResolvedValue({ success: true }),
+  setServerModEnabled: jest.fn().mockResolvedValue({ success: true }),
+  removeServerMod: jest.fn().mockResolvedValue({ success: true }),
   windowControls: {
     minimize: jest.fn().mockResolvedValue({ success: true }),
     toggleMaximize: jest

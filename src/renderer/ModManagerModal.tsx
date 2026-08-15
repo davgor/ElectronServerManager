@@ -45,7 +45,7 @@ export function ModManagerModal({
         server.appId,
         server.installPath
       );
-      if (result.canceled) {
+      if (result.canceled === true) {
         return;
       }
       if (!result.success) {
@@ -53,7 +53,7 @@ export function ModManagerModal({
         return;
       }
       setMessage(
-        result.mod
+        result.mod !== undefined
           ? `Imported and enabled “${result.mod.displayName}”`
           : "Mod imported and enabled"
       );
@@ -78,7 +78,11 @@ export function ModManagerModal({
         setError(result.error ?? "Failed to update mod");
         return;
       }
-      setMessage(mod.enabled ? `Disabled “${mod.displayName}”` : `Enabled “${mod.displayName}”`);
+      setMessage(
+        mod.enabled
+          ? `Disabled “${mod.displayName}”`
+          : `Enabled “${mod.displayName}”`
+      );
       await refresh();
     } catch (err) {
       setError(err instanceof Error ? err.message : String(err));
@@ -138,8 +142,9 @@ export function ModManagerModal({
           <p className="mod-manager-hint">
             Import a downloaded mod <code>.zip</code>. Official packages with{" "}
             <code>Info.json</code> stage under <code>Mods/Workshop</code>;
-            path-rooted zips deploy under <code>Pal/</code> or <code>Mods/</code>.
-            Restart the server to apply official loader deployment.
+            path-rooted zips deploy under <code>Pal/</code> or{" "}
+            <code>Mods/</code>. Restart the server to apply official loader
+            deployment.
           </p>
           <div className="mod-manager-toolbar">
             <button
@@ -153,12 +158,12 @@ export function ModManagerModal({
               Add zip file
             </button>
           </div>
-          {error && (
+          {error !== null && (
             <p className="mod-manager-error" role="alert">
               {error}
             </p>
           )}
-          {message && <p className="mod-manager-message">{message}</p>}
+          {message !== null && <p className="mod-manager-message">{message}</p>}
           {mods.length === 0 ? (
             <p className="mod-manager-empty">No mods imported yet.</p>
           ) : (
@@ -166,11 +171,17 @@ export function ModManagerModal({
               {mods.map((mod) => (
                 <li key={mod.id} className="mod-manager-row">
                   <div className="mod-manager-row-info">
-                    <span className="mod-manager-row-name">{mod.displayName}</span>
+                    <span className="mod-manager-row-name">
+                      {mod.displayName}
+                    </span>
                     <span className="mod-manager-row-meta">
                       {mod.kind === "workshop" ? "Workshop" : "Path deploy"}
-                      {mod.packageName ? ` · ${mod.packageName}` : ""}
-                      {mod.sourceZipName ? ` · ${mod.sourceZipName}` : ""}
+                      {mod.packageName !== null && mod.packageName !== ""
+                        ? ` · ${mod.packageName}`
+                        : ""}
+                      {mod.sourceZipName !== null && mod.sourceZipName !== ""
+                        ? ` · ${mod.sourceZipName}`
+                        : ""}
                     </span>
                   </div>
                   <div className="mod-manager-row-actions">

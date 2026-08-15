@@ -75,9 +75,9 @@ describe("modLifecycle", () => {
     expect(imported.success).toBe(true);
     expect(imported.modId).toBeTruthy();
 
-    expect(
-      fs.readFileSync(path.join(installPath, pakRel), "utf8")
-    ).toBe("MODDED");
+    expect(fs.readFileSync(path.join(installPath, pakRel), "utf8")).toBe(
+      "MODDED"
+    );
     expect(
       fs.readFileSync(
         path.join(installPath, "Pal", "Content", "Paks", "new.pak"),
@@ -88,9 +88,7 @@ describe("modLifecycle", () => {
     const changes = repo.listFileChanges(imported.modId as string);
     const overwritten = changes.find((c) => c.changeType === "overwritten");
     expect(overwritten).toBeTruthy();
-    expect(
-      repo.getBackup(overwritten!.id)?.toString("utf8")
-    ).toBe("ORIGINAL");
+    expect(repo.getBackup(overwritten!.id)?.toString("utf8")).toBe("ORIGINAL");
 
     const removed = removeMod({
       repo,
@@ -98,13 +96,11 @@ describe("modLifecycle", () => {
       modId: imported.modId as string,
     });
     expect(removed.success).toBe(true);
+    expect(fs.readFileSync(path.join(installPath, pakRel), "utf8")).toBe(
+      "ORIGINAL"
+    );
     expect(
-      fs.readFileSync(path.join(installPath, pakRel), "utf8")
-    ).toBe("ORIGINAL");
-    expect(
-      fs.existsSync(
-        path.join(installPath, "Pal", "Content", "Paks", "new.pak")
-      )
+      fs.existsSync(path.join(installPath, "Pal", "Content", "Paks", "new.pak"))
     ).toBe(false);
     expect(repo.getMod(imported.modId as string)).toBeNull();
   });
@@ -187,6 +183,104 @@ describe("modLifecycle", () => {
     expect(
       fs.existsSync(path.join(installPath, "Mods", "Workshop", "ServerLua"))
     ).toBe(false);
+  });
+
+  it("removes a workshop mod and restores prior PalModSettings when present", () => {
+    const settingsDir = path.join(installPath, "Mods");
+    fs.mkdirSync(settingsDir, { recursive: true });
+    fs.writeFileSync(
+      path.join(settingsDir, "PalModSettings.ini"),
+      `[PalModSettings]
+bGlobalEnableMod=true
+ActiveModList=ExistingMod
+`
+    );
+
+    const info = JSON.stringify({
+      ModName: "New One",
+      PackageName: "NewOne",
+    });
+    const zip = makeZip({
+      "Info.json": info,
+      "Scripts/main.lua": "print(1)",
+    });
+    const imported = importModZip({
+      repo,
+      appId: PALWORLD_APP_ID,
+      installPath,
+      zipBytes: zip,
+      sourceZipName: "new.zip",
+    });
+    expect(imported.success).toBe(true);
+    expect(
+      listActiveMods(
+        fs.readFileSync(
+          path.join(installPath, "Mods", "PalModSettings.ini"),
+          "utf8"
+        )
+      )
+    ).toEqual(["ExistingMod", "NewOne"]);
+
+    expect(
+      removeMod({
+        repo,
+        paths: { stashRoot },
+        modId: imported.modId as string,
+      }).success
+    ).toBe(true);
+
+    expect(
+      listActiveMods(
+        fs.readFileSync(
+          path.join(installPath, "Mods", "PalModSettings.ini"),
+          "utf8"
+        )
+      )
+    ).toEqual(["ExistingMod"]);
+  });
+
+  it("soft-disables and re-enables path_deploy overwrites via stash", () => {
+    const pakRel = path.join("Pal", "Content", "Paks", "shared.pak");
+    fs.mkdirSync(path.dirname(path.join(installPath, pakRel)), {
+      recursive: true,
+    });
+    fs.writeFileSync(path.join(installPath, pakRel), Buffer.from("ORIGINAL"));
+
+    const imported = importModZip({
+      repo,
+      appId: PALWORLD_APP_ID,
+      installPath,
+      zipBytes: makeZip({ "Pal/Content/Paks/shared.pak": "MODDED" }),
+      sourceZipName: "ow.zip",
+    });
+    expect(imported.success).toBe(true);
+    expect(
+      fs.readFileSync(path.join(installPath, pakRel), "utf8")
+    ).toBe("MODDED");
+
+    expect(
+      setModEnabled({
+        repo,
+        paths: { stashRoot },
+        modId: imported.modId as string,
+        enabled: false,
+      }).success
+    ).toBe(true);
+    expect(
+      fs.readFileSync(path.join(installPath, pakRel), "utf8")
+    ).toBe("ORIGINAL");
+
+    expect(
+      setModEnabled({
+        repo,
+        paths: { stashRoot },
+        modId: imported.modId as string,
+        enabled: true,
+      }).success
+    ).toBe(true);
+    expect(
+      fs.readFileSync(path.join(installPath, pakRel), "utf8")
+    ).toBe("MODDED");
   });
 
   it("soft-disables path_deploy mods and re-enables from stash", () => {

@@ -7,7 +7,7 @@
 
 const SECTION = "[PalModSettings]";
 
-export interface PalModSettingsState {
+interface PalModSettingsState {
   globalEnable: boolean;
   activeMods: string[];
   /** Other lines inside the section (comments / unknown keys), preserved. */
@@ -47,7 +47,8 @@ export function readPalModSettings(content: string): PalModSettingsState {
       continue;
     }
     if (trimmed.startsWith("bGlobalEnableMod=")) {
-      globalEnable = trimmed.slice("bGlobalEnableMod=".length).toLowerCase() === "true";
+      globalEnable =
+        trimmed.slice("bGlobalEnableMod=".length).toLowerCase() === "true";
       continue;
     }
     if (trimmed.startsWith("ActiveModList=")) {

@@ -36,6 +36,21 @@ describe("palModSettings", () => {
     expect(ini).toContain("bGlobalEnableMod=true");
   });
 
+  it("preserves preamble and unknown section lines", () => {
+    const original = `; comment
+[Other]
+x=1
+[PalModSettings]
+bGlobalEnableMod=false
+ActiveModList=KeepMe
+WorkshopRootDir=C:\\mods
+`;
+    const next = addActiveMod(original, "Added");
+    expect(next).toContain("WorkshopRootDir=C:\\mods");
+    expect(listActiveMods(next)).toEqual(["KeepMe", "Added"]);
+    expect(readPalModSettings(next).globalEnable).toBe(true);
+  });
+
   it("round-trips via read/write helpers", () => {
     const original = `[PalModSettings]
 bGlobalEnableMod=true

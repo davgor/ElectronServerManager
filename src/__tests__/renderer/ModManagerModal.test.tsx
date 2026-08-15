@@ -85,4 +85,53 @@ describe("ModManagerModal", () => {
       expect(window.electron.removeServerMod).toHaveBeenCalledWith("mod-1");
     });
   });
+
+  it("shows import errors from IPC", async () => {
+    Object.defineProperty(window, "electron", {
+      configurable: true,
+      value: {
+        listServerMods: jest.fn().mockResolvedValue({
+          success: true,
+          mods: [],
+        }),
+        selectAndImportModZip: jest.fn().mockResolvedValue({
+          success: false,
+          error: "bad zip",
+        }),
+        setServerModEnabled: jest.fn(),
+        removeServerMod: jest.fn(),
+      },
+    });
+    const user = userEvent.setup();
+    render(<ModManagerModal server={server} onClose={jest.fn()} />);
+    await screen.findByText("No mods imported yet.");
+    await user.click(screen.getByRole("button", { name: "Add zip file" }));
+    expect(await screen.findByRole("alert")).toHaveTextContent("bad zip");
+  });
+
+  it("ignores canceled zip picker", async () => {
+    Object.defineProperty(window, "electron", {
+      configurable: true,
+      value: {
+        listServerMods: jest.fn().mockResolvedValue({
+          success: true,
+          mods: [],
+        }),
+        selectAndImportModZip: jest.fn().mockResolvedValue({
+          success: false,
+          canceled: true,
+        }),
+        setServerModEnabled: jest.fn(),
+        removeServerMod: jest.fn(),
+      },
+    });
+    const user = userEvent.setup();
+    render(<ModManagerModal server={server} onClose={jest.fn()} />);
+    await screen.findByText("No mods imported yet.");
+    await user.click(screen.getByRole("button", { name: "Add zip file" }));
+    await waitFor(() => {
+      expect(window.electron.selectAndImportModZip).toHaveBeenCalled();
+    });
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
 });

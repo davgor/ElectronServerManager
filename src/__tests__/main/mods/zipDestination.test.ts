@@ -15,9 +15,12 @@ describe("resolveZipDestination", () => {
       Version: "1.0.0",
       InstallRule: [{ Type: "Lua", IsServer: true, Targets: ["./Scripts"] }],
     });
-    const result = resolveZipDestination(entries("Info.json", "Scripts/main.lua"), {
-      "Info.json": Buffer.from(info, "utf8"),
-    });
+    const result = resolveZipDestination(
+      entries("Info.json", "Scripts/main.lua"),
+      {
+        "Info.json": Buffer.from(info, "utf8"),
+      }
+    );
 
     expect(result.ok).toBe(true);
     if (!result.ok) {

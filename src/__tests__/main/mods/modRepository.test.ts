@@ -4,11 +4,22 @@ import path from "path";
 
 import {
   getDefaultModManagerDbPath,
+  MOD_MANAGER_SCHEMA_DOC,
   openAndMigrateModManagerDb,
 } from "../../../main/mods/modManagerDb";
 import { ModRepository } from "../../../main/mods/modRepository";
 
 describe("modManagerDb + ModRepository", () => {
+  it("documents schema columns for mods / changes / backups", () => {
+    expect(MOD_MANAGER_SCHEMA_DOC.mods.columns).toContain("id");
+    expect(MOD_MANAGER_SCHEMA_DOC.mod_file_changes.columns).toContain(
+      "change_type"
+    );
+    expect(MOD_MANAGER_SCHEMA_DOC.mod_file_backups.columns).toContain(
+      "content"
+    );
+  });
+
   it("opens an in-memory DB and applies migrations", () => {
     const db = openAndMigrateModManagerDb(":memory:");
     const tables = db

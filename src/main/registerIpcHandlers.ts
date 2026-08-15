@@ -1,5 +1,6 @@
-import { app, ipcMain, dialog, BrowserWindow } from "electron";
 import fs from "fs/promises";
+
+import { app, ipcMain, dialog, BrowserWindow } from "electron";
 
 import type { AppSettings, PalworldRestEndpoint } from "../types/ipc";
 

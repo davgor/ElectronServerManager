@@ -10,15 +10,8 @@ import type {
 } from "../../types/ipc";
 import { PALWORLD_APP_ID } from "../../types/ipc";
 
-import {
-  getModManagerPaths,
-  getModRepository,
-} from "./initModManager";
-import {
-  importModZip,
-  removeMod,
-  setModEnabled,
-} from "./modLifecycle";
+import { getModManagerPaths, getModRepository } from "./initModManager";
+import { importModZip, removeMod, setModEnabled } from "./modLifecycle";
 
 interface FileDialog {
   showOpenDialog(
@@ -63,9 +56,7 @@ export function listServerMods(
     };
   }
   try {
-    const mods = getModRepository()
-      .listMods(appId, installPath)
-      .map(toSummary);
+    const mods = getModRepository().listMods(appId, installPath).map(toSummary);
     return { success: true, mods };
   } catch (error) {
     return {

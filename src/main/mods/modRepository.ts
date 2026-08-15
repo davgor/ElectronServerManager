@@ -1,7 +1,7 @@
 import type { ModInstallKind } from "./zipDestination";
 import type { ModManagerDb } from "./modManagerDb";
 
-export type ModFileChangeType = "created" | "overwritten" | "settings";
+type ModFileChangeType = "created" | "overwritten" | "settings";
 
 export interface ModRecord {
   id: string;
@@ -16,14 +16,14 @@ export interface ModRecord {
   importedAt: string;
 }
 
-export interface ModFileChangeRecord {
+interface ModFileChangeRecord {
   id: number;
   modId: string;
   relativePath: string;
   changeType: ModFileChangeType;
 }
 
-export interface InsertModInput {
+interface InsertModInput {
   id: string;
   appId: number;
   installPath: string;
@@ -81,9 +81,9 @@ function mapChange(row: ChangeRow): ModFileChangeRecord {
 }
 
 export class ModRepository {
-  constructor(private readonly db: ModManagerDb) {}
+  public constructor(private readonly db: ModManagerDb) {}
 
-  insertMod(input: InsertModInput): ModRecord {
+  public insertMod(input: InsertModInput): ModRecord {
     const importedAt = input.importedAt ?? new Date().toISOString();
     this.db
       .prepare(
@@ -111,14 +111,14 @@ export class ModRepository {
     return mod;
   }
 
-  getMod(id: string): ModRecord | null {
-    const row = this.db
-      .prepare(`SELECT * FROM mods WHERE id = ?`)
-      .get(id) as ModRow | undefined;
+  public getMod(id: string): ModRecord | null {
+    const row = this.db.prepare(`SELECT * FROM mods WHERE id = ?`).get(id) as
+      | ModRow
+      | undefined;
     return row ? mapMod(row) : null;
   }
 
-  listMods(appId: number, installPath: string): ModRecord[] {
+  public listMods(appId: number, installPath: string): ModRecord[] {
     const rows = this.db
       .prepare(
         `SELECT * FROM mods WHERE app_id = ? AND install_path = ? ORDER BY imported_at ASC`
@@ -127,17 +127,17 @@ export class ModRepository {
     return rows.map(mapMod);
   }
 
-  setEnabled(id: string, enabled: boolean): void {
+  public setEnabled(id: string, enabled: boolean): void {
     this.db
       .prepare(`UPDATE mods SET enabled = ? WHERE id = ?`)
       .run(enabled ? 1 : 0, id);
   }
 
-  deleteMod(id: string): void {
+  public deleteMod(id: string): void {
     this.db.prepare(`DELETE FROM mods WHERE id = ?`).run(id);
   }
 
-  insertFileChange(input: {
+  public insertFileChange(input: {
     modId: string;
     relativePath: string;
     changeType: ModFileChangeType;
@@ -151,7 +151,7 @@ export class ModRepository {
     return Number(result.lastInsertRowid);
   }
 
-  listFileChanges(modId: string): ModFileChangeRecord[] {
+  public listFileChanges(modId: string): ModFileChangeRecord[] {
     const rows = this.db
       .prepare(
         `SELECT * FROM mod_file_changes WHERE mod_id = ? ORDER BY id ASC`
@@ -160,7 +160,7 @@ export class ModRepository {
     return rows.map(mapChange);
   }
 
-  insertBackup(changeId: number, content: Buffer): void {
+  public insertBackup(changeId: number, content: Buffer): void {
     this.db
       .prepare(
         `INSERT INTO mod_file_backups (change_id, content) VALUES (?, ?)`
@@ -168,7 +168,7 @@ export class ModRepository {
       .run(changeId, content);
   }
 
-  getBackup(changeId: number): Buffer | null {
+  public getBackup(changeId: number): Buffer | null {
     const row = this.db
       .prepare(`SELECT content FROM mod_file_backups WHERE change_id = ?`)
       .get(changeId) as { content: Buffer } | undefined;

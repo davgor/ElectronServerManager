@@ -7,14 +7,11 @@ import { PALWORLD_APP_ID } from "../../types/ipc";
 import type { ModRecord, ModRepository } from "./modRepository";
 import { addActiveMod, removeActiveMod } from "./palModSettings";
 import { readZipEntries } from "./readZip";
-import {
-  resolveZipDestination,
-  type ZipInstallPlan,
-} from "./zipDestination";
+import { resolveZipDestination, type ZipInstallPlan } from "./zipDestination";
 
 const SETTINGS_REL = "Mods/PalModSettings.ini";
 
-export interface ModActionResult {
+interface ModActionResult {
   success: boolean;
   error?: string;
   modId?: string;
@@ -121,10 +118,10 @@ function importWorkshop(
   });
 
   for (const file of plan.files) {
-    const bytes = entries[file.archivePath];
-    if (!bytes) {
+    if (!Object.prototype.hasOwnProperty.call(entries, file.archivePath)) {
       throw new Error(`Missing zip entry: ${file.archivePath}`);
     }
+    const bytes = entries[file.archivePath];
     deployFile(
       repo,
       modId,
@@ -134,7 +131,7 @@ function importWorkshop(
     );
   }
 
-  if (!plan.packageName) {
+  if (plan.packageName === null || plan.packageName === "") {
     throw new Error("Workshop package is missing PackageName");
   }
 
@@ -180,10 +177,10 @@ function importPathDeploy(
   });
 
   for (const file of plan.files) {
-    const bytes = entries[file.archivePath];
-    if (!bytes) {
+    if (!Object.prototype.hasOwnProperty.call(entries, file.archivePath)) {
       throw new Error(`Missing zip entry: ${file.archivePath}`);
     }
+    const bytes = entries[file.archivePath];
     deployFile(repo, modId, options.installPath, file.relativeTarget, bytes);
   }
 }
@@ -196,7 +193,7 @@ export function importModZip(options: {
   sourceZipName: string;
 }): ModActionResult {
   const gate = assertPalworld(options.appId);
-  if (gate) {
+  if (gate !== null) {
     return { success: false, error: gate };
   }
 
@@ -318,7 +315,7 @@ export function setModEnabled(options: {
   enabled: boolean;
 }): ModActionResult {
   const mod = options.repo.getMod(options.modId);
-  if (!mod) {
+  if (mod === null) {
     return { success: false, error: "Mod not found" };
   }
   if (mod.enabled === options.enabled) {
@@ -327,7 +324,7 @@ export function setModEnabled(options: {
 
   try {
     if (mod.kind === "workshop") {
-      if (!mod.packageName) {
+      if (mod.packageName === null || mod.packageName === "") {
         return { success: false, error: "Workshop mod missing PackageName" };
       }
       const before = readSettingsText(mod.installPath);
@@ -356,7 +353,7 @@ export function removeMod(options: {
   modId: string;
 }): ModActionResult {
   const mod = options.repo.getMod(options.modId);
-  if (!mod) {
+  if (mod === null) {
     return { success: false, error: "Mod not found" };
   }
 
@@ -407,7 +404,7 @@ export function removeMod(options: {
           }
         }
       }
-      if (mod.workshopFolder) {
+      if (mod.workshopFolder !== null && mod.workshopFolder !== "") {
         const folderAbs = absUnderInstall(mod.installPath, mod.workshopFolder);
         fs.rmSync(folderAbs, { recursive: true, force: true });
       }

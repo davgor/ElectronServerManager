@@ -11,7 +11,7 @@ export interface ZipEntryMeta {
   path: string;
 }
 
-export interface ResolvedZipFile {
+interface ResolvedZipFile {
   archivePath: string;
   /** Path relative to workshop package root OR server install root. */
   relativeTarget: string;
@@ -28,7 +28,7 @@ export interface ZipInstallPlan {
   files: ResolvedZipFile[];
 }
 
-export type ResolveZipResult =
+type ResolveZipResult =
   | { ok: true; plan: ZipInstallPlan }
   | { ok: false; error: string };
 
@@ -114,7 +114,9 @@ function parseInfoJson(
 }
 
 function sanitizeFolderName(name: string): string {
-  const cleaned = name.replace(/[^a-zA-Z0-9._-]+/g, "_").replace(/^_+|_+$/g, "");
+  const cleaned = name
+    .replace(/[^a-zA-Z0-9._-]+/g, "_")
+    .replace(/^_+|_+$/g, "");
   return cleaned.length > 0 ? cleaned.slice(0, 80) : "ImportedMod";
 }
 
@@ -141,26 +143,25 @@ export function resolveZipDestination(
   }
 
   const infoPath = findInfoJsonPath(normalized);
-  if (infoPath) {
+  if (infoPath !== null) {
     const wrapper = infoPath.includes("/")
       ? (infoPath.split("/")[0] ?? null)
       : null;
-    const relativePaths = wrapper
-      ? normalized.map((p) => stripPrefix(p, wrapper)).filter(Boolean)
-      : normalized;
-    const infoBytes =
-      fileBytes[infoPath] ??
-      (wrapper ? fileBytes[`${wrapper}/Info.json`] : undefined) ??
-      fileBytes["Info.json"];
+    const relativePaths =
+      wrapper !== null
+        ? normalized.map((p) => stripPrefix(p, wrapper)).filter((p) => p !== "")
+        : normalized;
+    const infoBytes = fileBytes[infoPath] ?? fileBytes["Info.json"];
     const info = parseInfoJson(infoBytes);
-    if (!info) {
+    if (info === null) {
       return {
         ok: false,
         error: "Info.json is missing PackageName or is invalid JSON",
       };
     }
     const files: ResolvedZipFile[] = relativePaths.map((relativeTarget) => ({
-      archivePath: wrapper ? `${wrapper}/${relativeTarget}` : relativeTarget,
+      archivePath:
+        wrapper !== null ? `${wrapper}/${relativeTarget}` : relativeTarget,
       relativeTarget,
     }));
     return {
@@ -179,7 +180,7 @@ export function resolveZipDestination(
   let relativePaths = normalized;
   if (!normalized.some(isPathRooted)) {
     wrapper = commonSingleWrapper(normalized);
-    if (wrapper) {
+    if (wrapper !== null) {
       const stripped = normalized.map((p) => stripPrefix(p, wrapper as string));
       if (stripped.some(isPathRooted)) {
         relativePaths = stripped;
@@ -200,7 +201,8 @@ export function resolveZipDestination(
   const files: ResolvedZipFile[] = relativePaths
     .filter(isPathRooted)
     .map((relativeTarget) => ({
-      archivePath: wrapper ? `${wrapper}/${relativeTarget}` : relativeTarget,
+      archivePath:
+        wrapper !== null ? `${wrapper}/${relativeTarget}` : relativeTarget,
       relativeTarget,
     }));
 

@@ -324,7 +324,9 @@ describe("ServerCard Component", () => {
           enabled: false,
           isPalworld: true,
         }),
-        listServerMods: jest.fn().mockResolvedValue({ success: true, mods: [] }),
+        listServerMods: jest
+          .fn()
+          .mockResolvedValue({ success: true, mods: [] }),
       },
     });
 

@@ -30,7 +30,7 @@ export const MOD_MANAGER_SCHEMA_DOC = {
   },
 } as const;
 
-export function openModManagerDb(dbPath: string): ModManagerDb {
+function openModManagerDb(dbPath: string): ModManagerDb {
   const db = new Database(dbPath);
   db.pragma("foreign_keys = ON");
   return db;
