@@ -137,6 +137,18 @@ export type AppUpdateStatus =
   | { state: "ready"; version: string }
   | { state: "error"; message: string };
 
+/**
+ * Structured outcome of a manual app-update check (epic 037.2) — never a
+ * silent success: busy/disabled/error states are reported explicitly so the
+ * UI can show meaningful feedback.
+ */
+export type ManualUpdateCheckResult =
+  | { outcome: "update-available"; version: string }
+  | { outcome: "up-to-date" }
+  | { outcome: "disabled" }
+  | { outcome: "busy"; message?: string }
+  | { outcome: "error"; message: string };
+
 /** Main → renderer push event channels (not invoke). */
 export type IpcEventChannel = "app-update-status";
 
@@ -191,7 +203,7 @@ export interface IpcInvokeMap {
   };
   "get-settings": { args: []; result: GetSettingsResponse };
   "save-settings": { args: [settings: AppSettings]; result: IpcActionResult };
-  "app-update-check": { args: []; result: IpcActionResult };
+  "app-update-check": { args: []; result: ManualUpdateCheckResult };
   "app-update-install": { args: []; result: IpcActionResult };
   "window-minimize": { args: []; result: IpcActionResult };
   "window-maximize-toggle": {
@@ -261,7 +273,7 @@ export interface ElectronAPI {
   ) => Promise<IpcActionResult>;
   getSettings: () => Promise<GetSettingsResponse>;
   saveSettings: (settings: AppSettings) => Promise<IpcActionResult>;
-  checkForAppUpdate: () => Promise<IpcActionResult>;
+  checkForAppUpdate: () => Promise<ManualUpdateCheckResult>;
   installAppUpdate: () => Promise<IpcActionResult>;
   onAppUpdateStatus: (
     callback: (status: AppUpdateStatus) => void

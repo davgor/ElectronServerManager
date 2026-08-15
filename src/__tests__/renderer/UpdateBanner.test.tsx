@@ -63,7 +63,12 @@ describe("UpdateBanner", () => {
     render(<UpdateBanner />);
     emit({ state: "ready", version: "1.0.3" });
 
-    await user.click(screen.getByRole("button", { name: "Restart & Install" }));
+    expect(
+      screen.getByText("Update v1.0.3 ready — restart and update to apply")
+    ).toBeInTheDocument();
+    await user.click(
+      screen.getByRole("button", { name: "Restart and update" })
+    );
 
     await waitFor(() => {
       expect(mockInstallAppUpdate).toHaveBeenCalledTimes(1);
@@ -79,7 +84,9 @@ describe("UpdateBanner", () => {
     render(<UpdateBanner />);
     emit({ state: "ready", version: "1.0.3" });
 
-    await user.click(screen.getByRole("button", { name: "Restart & Install" }));
+    await user.click(
+      screen.getByRole("button", { name: "Restart and update" })
+    );
 
     expect(await screen.findByText("quit failed")).toBeInTheDocument();
   });
