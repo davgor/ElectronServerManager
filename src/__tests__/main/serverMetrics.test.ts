@@ -133,10 +133,12 @@ describe("serverMetrics", () => {
 
     it("computes CPU percent from the delta of cumulative CPU time", async () => {
       jest.useFakeTimers();
-      let nowMs = 0;
+      // Non-zero baseline so elapsed time must be a true delta of the two
+      // wall-clock readings, not just the newest reading.
+      let nowMs = 1000;
       const reader = createSequenceReader([
-        { cpuSeconds: 0, memoryBytes: 100 * 1024 * 1024 },
-        { cpuSeconds: 1.5, memoryBytes: 200 * 1024 * 1024 },
+        { cpuSeconds: 10, memoryBytes: 100 * 1024 * 1024 },
+        { cpuSeconds: 11.5, memoryBytes: 200 * 1024 * 1024 },
       ]);
 
       const options: ServerMetricsSamplingOptions = {
@@ -145,7 +147,7 @@ describe("serverMetrics", () => {
         now: () => nowMs,
       };
       startServerMetricsSampling(APP_ID, PID, options);
-      // Baseline reading at t=0 (no sample yet).
+      // Baseline reading at t=1000 (no sample yet).
       await jest.advanceTimersByTimeAsync(0);
       expect(getServerMetrics(APP_ID)).toEqual({
         success: true,
@@ -153,7 +155,7 @@ describe("serverMetrics", () => {
         sampleCount: 0,
       });
 
-      nowMs = 3000;
+      nowMs = 4000;
       await jest.advanceTimersByTimeAsync(3000);
 
       // 1.5 CPU-seconds over 3 wall-seconds = 50%.
@@ -314,6 +316,29 @@ describe("serverMetrics", () => {
         sampleCount: 0,
       });
     });
+
+    (process.platform === "win32" ? it.skip : it)(
+      "samples a real process with the default reader (ps)",
+      async () => {
+        // No injected reader: exercises defaultProcessUsageReader against
+        // this very test process, which always exists and has RSS > 0.
+        startServerMetricsSampling(APP_ID, process.pid, { intervalMs: 25 });
+
+        const deadline = Date.now() + 5000;
+        let metrics = getServerMetrics(APP_ID);
+        while (metrics.sampleCount === 0 && Date.now() < deadline) {
+          await new Promise((resolve) => setTimeout(resolve, 25));
+          metrics = getServerMetrics(APP_ID);
+        }
+
+        expect(metrics.running).toBe(true);
+        expect(metrics.sampleCount).toBeGreaterThan(0);
+        expect(metrics.memory?.current).toBeGreaterThan(0);
+        expect(metrics.cpu?.current).toBeGreaterThanOrEqual(0);
+
+        stopServerMetricsSampling(APP_ID);
+      }
+    );
 
     it("restarting sampling for an appId discards the previous window", async () => {
       jest.useFakeTimers();

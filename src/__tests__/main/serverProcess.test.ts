@@ -458,6 +458,30 @@ describe("serverProcess", () => {
       restorePlatform(original);
     });
 
+    it("treats taskkill not-found (status 128) for a tracked pid as success on win32", async () => {
+      const original = setPlatform("win32");
+      mockExistsSync.mockReturnValue(true);
+      mockSpawn.mockImplementationOnce(
+        () =>
+          createFakeChild(555) as unknown as ReturnType<
+            typeof childProcess.spawn
+          >
+      );
+      await startServer(2278520, "C:\\Games\\EnshroudedServer", {
+        startupVerifyDelayMs: 0,
+      });
+      // The process already exited on its own before taskkill ran.
+      mockSpawnSync.mockReturnValueOnce(spawnSyncResult(128));
+
+      const result = stopServer(2278520, "C:\\Games\\EnshroudedServer");
+
+      expect(result).toEqual({ success: true });
+      expect(getTrackedPid(2278520)).toBeUndefined();
+      expect(mockStopMetricsSampling).toHaveBeenCalledWith(2278520);
+
+      restorePlatform(original);
+    });
+
     it("treats an already-exited tracked pid as success", async () => {
       const original = setPlatform("linux");
       const esrch = new Error("kill ESRCH") as NodeJS.ErrnoException;
