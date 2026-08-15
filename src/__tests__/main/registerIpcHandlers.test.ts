@@ -64,6 +64,13 @@ jest.mock("../../main/palworldRestIpc", () => ({
   invokePalworldRest: jest.fn(),
 }));
 
+jest.mock("../../main/mods/modManagerIpc", () => ({
+  listServerMods: jest.fn(),
+  selectAndImportModZip: jest.fn(),
+  setServerModEnabled: jest.fn(),
+  removeServerMod: jest.fn(),
+}));
+
 import { registerWindowControlHandlers } from "../../main/windowControls";
 import { registerIpcHandlers } from "../../main/registerIpcHandlers";
 import { startServer, stopServer } from "../../main/serverProcess";
@@ -74,6 +81,12 @@ import {
   getPalworldRestStatus,
   invokePalworldRest,
 } from "../../main/palworldRestIpc";
+import {
+  listServerMods,
+  removeServerMod,
+  selectAndImportModZip,
+  setServerModEnabled,
+} from "../../main/mods/modManagerIpc";
 
 const mockStartServer = startServer as jest.Mock;
 const mockStopServer = stopServer as jest.Mock;
@@ -84,6 +97,10 @@ const mockCheckForAppUpdate = checkForAppUpdate as jest.Mock;
 const mockInstallAppUpdate = installAppUpdate as jest.Mock;
 const mockGetPalworldRestStatus = getPalworldRestStatus as jest.Mock;
 const mockInvokePalworldRest = invokePalworldRest as jest.Mock;
+const mockListServerMods = listServerMods as jest.Mock;
+const mockSelectAndImportModZip = selectAndImportModZip as jest.Mock;
+const mockSetServerModEnabled = setServerModEnabled as jest.Mock;
+const mockRemoveServerMod = removeServerMod as jest.Mock;
 
 function getHandler(channel: string): (...args: unknown[]) => unknown {
   const call = handleMock.mock.calls.find(
@@ -120,6 +137,10 @@ describe("registerIpcHandlers", () => {
       "app-update-install",
       "palworld-rest-status",
       "palworld-rest-request",
+      "list-server-mods",
+      "select-and-import-mod-zip",
+      "set-server-mod-enabled",
+      "remove-server-mod",
     ]) {
       expect(handleMock).toHaveBeenCalledWith(channel, expect.any(Function));
     }
@@ -220,5 +241,30 @@ describe("registerIpcHandlers", () => {
       "info",
       undefined
     );
+
+    mockListServerMods.mockReturnValue({ success: true, mods: [] });
+    expect(getHandler("list-server-mods")({}, 1623730, "/pal")).toEqual({
+      success: true,
+      mods: [],
+    });
+    expect(mockListServerMods).toHaveBeenCalledWith(1623730, "/pal");
+
+    mockSelectAndImportModZip.mockResolvedValue({ success: true });
+    await expect(
+      getHandler("select-and-import-mod-zip")({}, 1623730, "/pal")
+    ).resolves.toEqual({ success: true });
+    expect(mockSelectAndImportModZip).toHaveBeenCalled();
+
+    mockSetServerModEnabled.mockReturnValue({ success: true });
+    expect(getHandler("set-server-mod-enabled")({}, "mod-1", false)).toEqual({
+      success: true,
+    });
+    expect(mockSetServerModEnabled).toHaveBeenCalledWith("mod-1", false);
+
+    mockRemoveServerMod.mockReturnValue({ success: true });
+    expect(getHandler("remove-server-mod")({}, "mod-1")).toEqual({
+      success: true,
+    });
+    expect(mockRemoveServerMod).toHaveBeenCalledWith("mod-1");
   });
 });

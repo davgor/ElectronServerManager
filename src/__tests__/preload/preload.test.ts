@@ -66,6 +66,10 @@ describe("Preload IPC bridge", () => {
         "window-close",
         "palworld-rest-status",
         "palworld-rest-request",
+        "list-server-mods",
+        "select-and-import-mod-zip",
+        "set-server-mod-enabled",
+        "remove-server-mod",
       ];
 
       expect([...ALLOWED_CHANNELS].sort()).toEqual(
@@ -322,6 +326,32 @@ describe("Preload IPC bridge", () => {
         "announce",
         { message: "hi" }
       );
+    });
+
+    it("invokes mod manager channels", async () => {
+      await getExposedApi().listServerMods(1623730, "/pal");
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "list-server-mods",
+        1623730,
+        "/pal"
+      );
+
+      await getExposedApi().selectAndImportModZip(1623730, "/pal");
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "select-and-import-mod-zip",
+        1623730,
+        "/pal"
+      );
+
+      await getExposedApi().setServerModEnabled("mod-1", false);
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "set-server-mod-enabled",
+        "mod-1",
+        false
+      );
+
+      await getExposedApi().removeServerMod("mod-1");
+      expect(mockIpcInvoke).toHaveBeenCalledWith("remove-server-mod", "mod-1");
     });
 
     it("exposes typed window controls hitting the window-* channels", async () => {

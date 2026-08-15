@@ -44,6 +44,10 @@ export const ALLOWED_CHANNELS: readonly IpcChannel[] = [
   "window-close",
   "palworld-rest-status",
   "palworld-rest-request",
+  "list-server-mods",
+  "select-and-import-mod-zip",
+  "set-server-mod-enabled",
+  "remove-server-mod",
 ] as const;
 
 const ALLOWED_EVENTS: readonly IpcEventChannel[] = [
@@ -117,6 +121,13 @@ const electronApi: ElectronAPI = {
       endpoint,
       body
     ),
+  listServerMods: (appId: number, installPath: string) =>
+    invokeIpc("list-server-mods", appId, installPath),
+  selectAndImportModZip: (appId: number, installPath: string) =>
+    invokeIpc("select-and-import-mod-zip", appId, installPath),
+  setServerModEnabled: (modId: string, enabled: boolean) =>
+    invokeIpc("set-server-mod-enabled", modId, enabled),
+  removeServerMod: (modId: string) => invokeIpc("remove-server-mod", modId),
   onAppUpdateStatus: (callback: (status: AppUpdateStatus) => void) => {
     const channel = "app-update-status";
     if (!isAllowedEvent(channel)) {

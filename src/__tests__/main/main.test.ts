@@ -39,6 +39,7 @@ describe("Main Process Build", () => {
     expect(content).toContain("registerIpcHandlers");
     expect(content).toContain("setApplicationMenu(null)");
     expect(content).toContain("initCatalog");
+    expect(content).toContain("initModManager");
   });
 
   it("should use __dirname in appWindow for preload and renderer paths", () => {

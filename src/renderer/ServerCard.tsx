@@ -4,6 +4,7 @@ import type { SteamServer } from "../types/ipc";
 import { PALWORLD_APP_ID } from "../types/ipc";
 
 import { PalworldAdminModal } from "./PalworldAdminModal";
+import { ModManagerModal } from "./ModManagerModal";
 import { PalworldOpsPanel } from "./PalworldOpsPanel";
 import { resolvePalworldOpsIntervalSeconds } from "./palworldOpsSettings";
 
@@ -60,6 +61,7 @@ export function ServerCard({
   const [serverOutput, setServerOutput] = useState("");
   const [restEnabled, setRestEnabled] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showModManager, setShowModManager] = useState(false);
 
   useEffect(() => {
     if (!isPalworld) {
@@ -157,6 +159,15 @@ export function ServerCard({
                 Admin
               </button>
             </span>
+          )}
+          {isPalworld && (
+            <button
+              type="button"
+              className="btn btn-mod-manager-open"
+              onClick={() => setShowModManager(true)}
+            >
+              Mod Manager
+            </button>
           )}
           <button
             className="btn btn-server-output"
@@ -267,6 +278,12 @@ export function ServerCard({
         <PalworldAdminModal
           server={server}
           onClose={() => setShowAdminModal(false)}
+        />
+      )}
+      {showModManager && (
+        <ModManagerModal
+          server={server}
+          onClose={() => setShowModManager(false)}
         />
       )}
     </div>

@@ -314,6 +314,47 @@ describe("ServerCard Component", () => {
     ).not.toBeInTheDocument();
   });
 
+  it("shows Mod Manager on Palworld cards and opens the modal", async () => {
+    const user = userEvent.setup();
+    Object.defineProperty(window, "electron", {
+      configurable: true,
+      value: {
+        getPalworldRestStatus: jest.fn().mockResolvedValue({
+          success: true,
+          enabled: false,
+          isPalworld: true,
+        }),
+        listServerMods: jest.fn().mockResolvedValue({ success: true, mods: [] }),
+      },
+    });
+
+    render(
+      <ServerCard
+        {...makeProps({
+          server: {
+            name: "Palworld Dedicated Server",
+            appId: 1623730,
+            installPath: "C:\\servers\\pal",
+            isRunning: false,
+          },
+        })}
+      />
+    );
+
+    const button = await screen.findByRole("button", { name: "Mod Manager" });
+    await user.click(button);
+    expect(
+      await screen.findByRole("heading", { name: "Mod Manager" })
+    ).toBeInTheDocument();
+  });
+
+  it("does not show Mod Manager on non-Palworld cards", () => {
+    render(<ServerCard {...makeProps()} />);
+    expect(
+      screen.queryByRole("button", { name: "Mod Manager" })
+    ).not.toBeInTheDocument();
+  });
+
   it("rechecks REST status and enables Admin when configRevision increases after save", async () => {
     const getPalworldRestStatus = jest
       .fn()
