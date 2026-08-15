@@ -55,6 +55,7 @@ npm run format:check
 npm test
 npm run type-check
 npm run deadcode
+npm run fireguard        # when unit tests were added/changed — grade must not be F
 npm run electron-build   # when main/preload changed (also runs via pretest)
 npm run build            # when renderer/build output plausibly affected
 ```
@@ -75,6 +76,7 @@ Skip this step only for tickets that don't touch `main`/`preload` IPC (e.g. pure
 
 ## 5. Check off acceptance criteria and close out the ticket
 
+- Before closing out, run the [red-team-review](../red-team-review/SKILL.md) gate on the change (post the `<!-- red-team-review -->` review, fix Blocking findings). An unresolved red-team review is a failed close-out.
 - Edit the ticket file: change `- [ ]` to `- [x]` for each criterion you've actually verified (test passes, or you've manually confirmed the behavior per the criterion's wording). Don't check off something you didn't verify.
 - If every criterion is checked, `git mv` the ticket file from `/board/in-progress/` to `/board/done/`.
 - If the ticket is a sub-ticket (`NNN.M`), check whether every other `NNN.*` sub-ticket is already in `/board/done/`. If this was the last one, also move the parent epic file `NNN-*.md` to `/board/done/` (the epic file's job is just to index its sub-tickets, so it's done when they all are), then invoke the `collapse-epic` skill on that epic so its sub-ticket files get folded into the epic file instead of piling up individually.

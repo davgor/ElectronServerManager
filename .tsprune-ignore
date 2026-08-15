@@ -1,2 +1,5 @@
 # Baseline ignore for ts-prune (one pattern per line)
 # Entries flagged by ts-prune that are intentional (dynamic use, public API for tests, etc.)
+# Refresh after export moves/deletes: npm run deadcode:refresh
+# Refreshed 2026-08-15 (0 entries)
+

@@ -1,0 +1,20 @@
+{
+  "thresholds": {
+    "maxMockToAssertRatio": 1.5,
+    "maxTautologicalRatio": 0.5,
+    "minAssertionsPerFile": 1,
+    "minMutationScore": 75,
+    "flakinessRuns": 3,
+    "agenticFlakinessRuns": 10,
+    "maxFlakeRate": 0
+  },
+  "include": ["src/**/*.{test,spec}.{ts,tsx}"],
+  "exclude": [
+    "**/__mocks__/**",
+    "**/node_modules/**",
+    "fireguard/**",
+    "scripts/**"
+  ],
+  "baseRef": "main",
+  "testCommand": "npx jest --runTestsByPath"
+}

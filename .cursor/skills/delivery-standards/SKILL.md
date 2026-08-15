@@ -72,15 +72,42 @@ npm run format:check
 npm test
 npm run type-check
 npm run deadcode
+npm run test:diff-coverage   # fails if newly added/changed lines aren't covered
+npm run fireguard        # when unit tests were added/changed — grades them A–F
 npm run electron-build   # when main/preload changed
 npm run build            # when renderer/build output affected
 ```
 
 **Targeted tests during iteration** are fine (`npx jest path/to/foo.test.ts`), but **finish with full `npm test`** unless the user scoped a subset.
 
+`test:diff-coverage` runs Jest with coverage, then checks only the lines you
+added or changed (diffed against `origin/main`, or the working tree if run
+locally) via `.github/scripts/diff-coverage-gate.cjs` — currently gated at
+80%. It won't flag pre-existing untested code you didn't touch, only new
+lines this task introduced. If it fails, add a test for the flagged lines;
+don't lower the threshold or exclude the file to make it pass. The only
+exception is genuinely untestable glue (e.g. raw Electron `BrowserWindow`
+bootstrap) — if you skip coverage for that reason, say so explicitly in the
+completion report.
+
 **IPC / main-process changes** (`src/main/main.ts`, `src/preload/preload.ts`): see complete-ticket §4 — `npm test` alone is not enough; exercise the path in the real Electron app after `npm run electron-build`.
 
-## 4. Close out
+`fireguard` grades added/modified unit tests (git diff vs `main`) for mock/assert
+honesty, flake isolation, and mutation kill rate on changed modules — grade F
+fails the PR job (`.github/workflows/fireguard.yml`). Run it locally when you
+touched tests; fix the tests, don't game the grader. Config: `.fireguardrc.json`
+(see `fireguard/README.md`).
+
+## 4. Red-team review (required before done / merge-ready)
+
+Run the [red-team-review](../red-team-review/SKILL.md) gate on every
+implementation change **after** section 3 is green and **before** moving
+tickets to `done/` or calling a PR merge-ready. Post the review on the PR with
+the `<!-- red-team-review -->` marker, fix every **Blocking** finding, and
+include the verdict in your completion report. Skip only for pure docs typo
+fixes or an explicit user waiver.
+
+## 5. Close out
 
 - Check off verified acceptance criteria (`- [x]`)
 - `git mv` ticket to `/board/done/` when all criteria met
@@ -101,6 +128,9 @@ Delivery:
 - [ ] npm test — pass
 - [ ] npm run type-check — pass
 - [ ] npm run deadcode — pass
+- [ ] npm run test:diff-coverage — pass
+- [ ] npm run fireguard — not F (when tests added/changed)
 - [ ] npm run build — pass (when applicable)
+- [ ] Red-team review posted; Blocking findings fixed
 - [ ] Acceptance criteria checked off only when verified
 ```
