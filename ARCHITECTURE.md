@@ -171,7 +171,9 @@ easy to confirm.
    versions leave the running server alone).
 5. **App auto-update** — Packaged builds use `electron-updater` (`appUpdater.ts`)
    against GitHub Releases metadata: check on launch + every 4h while open,
-   background download, silent apply on the **Restart & Install** CTA; see
+   background download, silent apply on the **Restart & Install** CTA. Windows
+   Setup must be **one-click NSIS** (`electron-builder.json`) so `/S` does not
+   open the assisted installer wizard; see
    [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
 6. **Backup** — Copies configured save location into a user-chosen backup root.
 7. **Config editor** — Loads config over IPC; `ConfigEditor` edits nested

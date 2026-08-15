@@ -7,14 +7,24 @@ describe("electron-builder artifact names", () => {
   function readBuilderConfig(): {
     artifactName?: string;
     files?: string[];
-    nsis?: { artifactName?: string };
+    nsis?: {
+      artifactName?: string;
+      oneClick?: boolean;
+      allowToChangeInstallationDirectory?: boolean;
+      perMachine?: boolean;
+    };
     portable?: { artifactName?: string };
     linux?: { artifactName?: string };
   } {
     return JSON.parse(fs.readFileSync(configPath, "utf8")) as {
       artifactName?: string;
       files?: string[];
-      nsis?: { artifactName?: string };
+      nsis?: {
+        artifactName?: string;
+        oneClick?: boolean;
+        allowToChangeInstallationDirectory?: boolean;
+        perMachine?: boolean;
+      };
       portable?: { artifactName?: string };
       linux?: { artifactName?: string };
     };
@@ -50,5 +60,15 @@ describe("electron-builder artifact names", () => {
         "dist/types/**/*",
       ])
     );
+  });
+
+  it("uses one-click NSIS so quitAndInstall(true) can stay silent (no assisted wizard)", () => {
+    const config = readBuilderConfig();
+    const nsis = config.nsis;
+
+    expect(nsis).toBeDefined();
+    expect(nsis?.oneClick).toBe(true);
+    expect(nsis?.allowToChangeInstallationDirectory).toBeUndefined();
+    expect(nsis?.perMachine).not.toBe(true);
   });
 });

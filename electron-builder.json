@@ -34,8 +34,9 @@
     ]
   },
   "nsis": {
-    "oneClick": false,
-    "allowToChangeInstallationDirectory": true,
+    "oneClick": true,
+    "perMachine": false,
+    "allowElevation": true,
     "artifactName": "Game-Server-Manager-Setup-${version}.${ext}"
   },
   "portable": {

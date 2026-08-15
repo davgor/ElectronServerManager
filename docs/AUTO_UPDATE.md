@@ -26,6 +26,17 @@ version, download it in the background, and restart to apply it silently
 
 Dev runs (`npm start` / `npm run dev`) never hit the public update feed.
 
+## Windows NSIS: one-click required for silent updates
+
+In-app updates only stay silent when the shipped Setup installer is **one-click**
+(`nsis.oneClick: true` in `electron-builder.json`). Assisted installers
+(`oneClick: false` + `allowToChangeInstallationDirectory`) still surface the
+NSIS wizard on update even when electron-updater passes `/S`.
+
+Tradeoff: the first Setup install no longer offers a custom install-directory
+page (per-user default location). Portable builds remain available for a
+single-folder layout without the in-app updater.
+
 ## Artifact naming (required for GitHub)
 
 Release filenames must **not contain spaces**. GitHub Releases rewrites spaces to
@@ -44,7 +55,7 @@ newer fixed release from `main`, or re-upload hyphenated copies of the assets
 
 | Artifact | Auto-update? |
 |----------|----------------|
-| Windows NSIS installer | Yes (`latest.yml`) |
+| Windows NSIS Setup (one-click) | Yes (`latest.yml`); silent apply on Restart & Install |
 | Linux AppImage | Yes (`latest-linux.yml`) |
 | Windows portable `.exe` | Manual reinstall |
 | Linux `.deb` | Manual reinstall |
