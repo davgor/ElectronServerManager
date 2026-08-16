@@ -74,12 +74,15 @@ export function createTestCommandRunner(options: {
       options.cwd
     );
     if (result.code === 0) return { ok: true };
+    // Prefer the end of combined output — Jest prints the failing suite last,
+    // while early PASS/console noise used to truncate the real failure away.
+    const combined = [result.stdout, result.stderr]
+      .filter((part) => part.trim().length > 0)
+      .join("\n");
+    const snippet = combined.length <= 4000 ? combined : combined.slice(-4000);
     return {
       ok: false,
-      error: (result.stderr || result.stdout || `exit ${result.code}`).slice(
-        0,
-        2000
-      ),
+      error: snippet || `exit ${result.code}`,
     };
   };
 }

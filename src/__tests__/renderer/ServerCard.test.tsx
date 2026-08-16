@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from "@testing-library/react";
+import { act, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ServerCard } from "../../renderer/ServerCard";
@@ -37,7 +37,36 @@ function makeProps(overrides: Partial<ServerCardProps> = {}): ServerCardProps {
   };
 }
 
+function stubElectron(
+  overrides: Record<string, unknown> = {}
+): Record<string, unknown> {
+  const value = {
+    getServerOutput: jest.fn().mockResolvedValue(""),
+    getServerMetrics: jest.fn().mockResolvedValue({
+      success: true,
+      running: false,
+      sampleCount: 0,
+    }),
+    getPalworldRestStatus: jest.fn().mockResolvedValue({
+      success: true,
+      enabled: false,
+      isPalworld: false,
+    }),
+    listServerMods: jest.fn().mockResolvedValue({ success: true, mods: [] }),
+    ...overrides,
+  };
+  Object.defineProperty(window, "electron", {
+    value,
+    configurable: true,
+  });
+  return value;
+}
+
 describe("ServerCard Component", () => {
+  beforeEach(() => {
+    stubElectron();
+  });
+
   it("should render the server name, app id, install path and Stopped status", () => {
     render(<ServerCard {...makeProps()} />);
 
@@ -254,10 +283,8 @@ describe("ServerCard Component", () => {
 
   it("loads and shows recent server output when Show Output is clicked", async () => {
     const user = userEvent.setup();
-    const getServerOutput = jest.fn().mockResolvedValue("server booted\n");
-    Object.defineProperty(window, "electron", {
-      value: { getServerOutput },
-      configurable: true,
+    const electron = stubElectron({
+      getServerOutput: jest.fn().mockResolvedValue("server booted\n"),
     });
 
     render(<ServerCard {...makeProps()} />);
@@ -266,7 +293,7 @@ describe("ServerCard Component", () => {
 
     await user.click(screen.getByText("Show Output"));
 
-    expect(getServerOutput).toHaveBeenCalledWith(1396110);
+    expect(electron.getServerOutput).toHaveBeenCalledWith(1396110);
     expect(await screen.findByTestId("server-output")).toHaveTextContent(
       "server booted"
     );
@@ -284,10 +311,7 @@ describe("ServerCard Component", () => {
         p95: 1.5 * 1024 * 1024 * 1024,
       },
     });
-    Object.defineProperty(window, "electron", {
-      value: { getServerMetrics },
-      configurable: true,
-    });
+    stubElectron({ getServerMetrics });
 
     render(
       <ServerCard
@@ -309,10 +333,7 @@ describe("ServerCard Component", () => {
 
   it("does not show the metrics strip or poll metrics when stopped", () => {
     const getServerMetrics = jest.fn();
-    Object.defineProperty(window, "electron", {
-      value: { getServerMetrics },
-      configurable: true,
-    });
+    stubElectron({ getServerMetrics });
 
     render(<ServerCard {...makeProps()} />);
 
@@ -326,10 +347,7 @@ describe("ServerCard Component", () => {
       running: true,
       sampleCount: 0,
     });
-    Object.defineProperty(window, "electron", {
-      value: { getServerMetrics },
-      configurable: true,
-    });
+    stubElectron({ getServerMetrics });
 
     render(
       <ServerCard
@@ -352,10 +370,7 @@ describe("ServerCard Component", () => {
       cpu: { current: 10, average: 10, p95: 10 },
       memory: { current: 1024, average: 1024, p95: 1024 },
     });
-    Object.defineProperty(window, "electron", {
-      value: { getServerMetrics },
-      configurable: true,
-    });
+    stubElectron({ getServerMetrics });
 
     const props = makeProps({ server: { ...baseServer, isRunning: true } });
     render(<ServerCard {...props} />);
@@ -370,15 +385,12 @@ describe("ServerCard Component", () => {
   });
 
   it("shows a disabled Admin button with tooltip when Palworld REST is off", async () => {
-    Object.defineProperty(window, "electron", {
-      value: {
-        getPalworldRestStatus: jest.fn().mockResolvedValue({
-          success: true,
-          enabled: false,
-          isPalworld: true,
-        }),
-      },
-      configurable: true,
+    stubElectron({
+      getPalworldRestStatus: jest.fn().mockResolvedValue({
+        success: true,
+        enabled: false,
+        isPalworld: true,
+      }),
     });
 
     render(
@@ -405,7 +417,7 @@ describe("ServerCard Component", () => {
     expect(screen.getByText("Live ops panel")).toBeInTheDocument();
   });
 
-  it("does not show Admin on non-Palworld cards", () => {
+  it("does not show Admin on cards without rest_admin capability", () => {
     render(<ServerCard {...makeProps()} />);
     expect(
       screen.queryByRole("button", { name: "Admin" })
@@ -414,18 +426,13 @@ describe("ServerCard Component", () => {
 
   it("shows Mod Manager on Palworld cards and opens the modal", async () => {
     const user = userEvent.setup();
-    Object.defineProperty(window, "electron", {
-      configurable: true,
-      value: {
-        getPalworldRestStatus: jest.fn().mockResolvedValue({
-          success: true,
-          enabled: false,
-          isPalworld: true,
-        }),
-        listServerMods: jest
-          .fn()
-          .mockResolvedValue({ success: true, mods: [] }),
-      },
+    stubElectron({
+      getPalworldRestStatus: jest.fn().mockResolvedValue({
+        success: true,
+        enabled: false,
+        isPalworld: true,
+      }),
+      listServerMods: jest.fn().mockResolvedValue({ success: true, mods: [] }),
     });
 
     render(
@@ -469,10 +476,7 @@ describe("ServerCard Component", () => {
         isPalworld: true,
       });
 
-    Object.defineProperty(window, "electron", {
-      value: { getPalworldRestStatus },
-      configurable: true,
-    });
+    stubElectron({ getPalworldRestStatus });
 
     const palworldProps = makeProps({
       server: {
@@ -491,7 +495,9 @@ describe("ServerCard Component", () => {
     expect(admin).toBeDisabled();
     expect(getPalworldRestStatus).toHaveBeenCalledTimes(1);
 
-    rerender(<ServerCard {...palworldProps} configRevision={1} />);
+    act(() => {
+      rerender(<ServerCard {...palworldProps} configRevision={1} />);
+    });
 
     await waitFor(() => {
       expect(getPalworldRestStatus).toHaveBeenCalledTimes(2);
@@ -513,10 +519,7 @@ describe("ServerCard Component", () => {
         isPalworld: true,
       });
 
-    Object.defineProperty(window, "electron", {
-      value: { getPalworldRestStatus },
-      configurable: true,
-    });
+    stubElectron({ getPalworldRestStatus });
 
     const palworldProps = makeProps({
       server: {
@@ -533,7 +536,9 @@ describe("ServerCard Component", () => {
 
     expect(await screen.findByRole("button", { name: "Admin" })).toBeEnabled();
 
-    rerender(<ServerCard {...palworldProps} configRevision={1} />);
+    act(() => {
+      rerender(<ServerCard {...palworldProps} configRevision={1} />);
+    });
 
     await waitFor(() => {
       expect(getPalworldRestStatus).toHaveBeenCalledTimes(2);
