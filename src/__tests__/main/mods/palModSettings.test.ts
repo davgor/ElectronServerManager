@@ -49,6 +49,45 @@ WorkshopRootDir=C:\\mods
     expect(next).toContain("WorkshopRootDir=C:\\mods");
     expect(listActiveMods(next)).toEqual(["KeepMe", "Added"]);
     expect(readPalModSettings(next).globalEnable).toBe(true);
+    const parsed = readPalModSettings(original);
+    expect(parsed.preamble).toContain("; comment");
+    expect(parsed.preamble).toContain("[Other]");
+    expect(parsed.preamble).not.toContain("[PalModSettings]");
+    expect(parsed.activeMods).toEqual(["KeepMe"]);
+  });
+
+  it("omits preamble separator when preamble is empty or whitespace", () => {
+    const empty = writePalModSettings({
+      globalEnable: true,
+      activeMods: ["A"],
+      otherSectionLines: [],
+      preamble: "",
+    });
+    expect(empty.startsWith("[PalModSettings]")).toBe(true);
+    expect(empty).not.toMatch(/^\s+\n\[PalModSettings]/);
+
+    const whitespace = writePalModSettings({
+      globalEnable: false,
+      activeMods: [],
+      otherSectionLines: [],
+      preamble: "   \n  ",
+    });
+    expect(whitespace.startsWith("[PalModSettings]")).toBe(true);
+    expect(whitespace).toContain("bGlobalEnableMod=false");
+  });
+
+  it("keeps non-empty preamble above the PalModSettings section", () => {
+    const written = writePalModSettings({
+      globalEnable: true,
+      activeMods: ["Z"],
+      otherSectionLines: [],
+      preamble: "; header\n[Prev]\nk=v",
+    });
+    expect(written.indexOf("; header")).toBeLessThan(
+      written.indexOf("[PalModSettings]")
+    );
+    expect(written).toContain("[Prev]");
+    expect(listActiveMods(written)).toEqual(["Z"]);
   });
 
   it("round-trips via read/write helpers", () => {

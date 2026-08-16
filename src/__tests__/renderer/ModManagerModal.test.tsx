@@ -60,6 +60,41 @@ describe("ModManagerModal", () => {
         "/servers/pal"
       );
     });
+    expect(
+      await screen.findByText('Imported and enabled “Fast Work”')
+    ).toBeInTheDocument();
+    const meta = screen.getByText(/Workshop · FastWork · fast\.zip/);
+    expect(meta).toBeInTheDocument();
+  });
+
+  it("lists path_deploy mods without optional null metadata", async () => {
+    Object.defineProperty(window, "electron", {
+      configurable: true,
+      value: {
+        listServerMods: jest.fn().mockResolvedValue({
+          success: true,
+          mods: [
+            {
+              id: "mod-2",
+              displayName: "Pak Only",
+              packageName: null,
+              sourceZipName: null,
+              kind: "path_deploy",
+              enabled: false,
+              importedAt: "2026-01-01T00:00:00.000Z",
+            },
+          ],
+        }),
+        selectAndImportModZip: jest.fn(),
+        setServerModEnabled: jest.fn(),
+        removeServerMod: jest.fn(),
+      },
+    });
+    render(<ModManagerModal server={server} onClose={jest.fn()} />);
+    expect(await screen.findByText("Pak Only")).toBeInTheDocument();
+    expect(screen.getByText("Path deploy")).toBeInTheDocument();
+    expect(screen.queryByText(/Path deploy ·/)).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Enable" })).toBeInTheDocument();
   });
 
   it("disables a mod", async () => {

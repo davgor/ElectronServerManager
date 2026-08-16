@@ -312,6 +312,7 @@ ActiveModList=ExistingMod
       sourceZipName: "ow.zip",
     });
     expect(imported.success).toBe(true);
+    const modId = imported.modId as string;
     expect(fs.readFileSync(path.join(installPath, pakRel), "utf8")).toBe(
       "MODDED"
     );
@@ -320,25 +321,38 @@ ActiveModList=ExistingMod
       setModEnabled({
         repo,
         paths: { stashRoot },
-        modId: imported.modId as string,
+        modId,
         enabled: false,
       }).success
     ).toBe(true);
     expect(fs.readFileSync(path.join(installPath, pakRel), "utf8")).toBe(
       "ORIGINAL"
     );
+    const stashFile = path.join(
+      stashRoot,
+      modId,
+      "Pal",
+      "Content",
+      "Paks",
+      "shared.pak"
+    );
+    expect(fs.existsSync(stashFile)).toBe(true);
+    expect(fs.readFileSync(stashFile, "utf8")).toBe("MODDED");
 
     expect(
       setModEnabled({
         repo,
         paths: { stashRoot },
-        modId: imported.modId as string,
+        modId,
         enabled: true,
       }).success
     ).toBe(true);
     expect(fs.readFileSync(path.join(installPath, pakRel), "utf8")).toBe(
       "MODDED"
     );
+    // Overwrites are copied back (not renamed), so stash still holds modded bytes
+    expect(fs.existsSync(stashFile)).toBe(true);
+    expect(fs.readFileSync(stashFile, "utf8")).toBe("MODDED");
   });
 
   it("soft-disables path_deploy mods and re-enables from stash", () => {
@@ -350,6 +364,7 @@ ActiveModList=ExistingMod
       zipBytes: zip,
       sourceZipName: "only.zip",
     });
+    const modId = imported.modId as string;
     const pak = path.join(installPath, "Pal", "Content", "Paks", "only.pak");
     expect(fs.existsSync(pak)).toBe(true);
 
@@ -357,20 +372,293 @@ ActiveModList=ExistingMod
       setModEnabled({
         repo,
         paths: { stashRoot },
-        modId: imported.modId as string,
+        modId,
         enabled: false,
       }).success
     ).toBe(true);
     expect(fs.existsSync(pak)).toBe(false);
+    const stashFile = path.join(
+      stashRoot,
+      modId,
+      "Pal",
+      "Content",
+      "Paks",
+      "only.pak"
+    );
+    expect(fs.existsSync(stashFile)).toBe(true);
 
     expect(
       setModEnabled({
         repo,
         paths: { stashRoot },
-        modId: imported.modId as string,
+        modId,
         enabled: true,
       }).success
     ).toBe(true);
     expect(fs.readFileSync(pak, "utf8")).toBe("BYTES");
+    // Created files are renamed out of stash on enable
+    expect(fs.existsSync(stashFile)).toBe(false);
+  });
+
+  it("records settings change_type as overwritten when PalModSettings already exists", () => {
+    fs.mkdirSync(path.join(installPath, "Mods"), { recursive: true });
+    fs.writeFileSync(
+      path.join(installPath, "Mods", "PalModSettings.ini"),
+      `[PalModSettings]\nbGlobalEnableMod=false\n`
+    );
+    const imported = importModZip({
+      repo,
+      appId: PALWORLD_APP_ID,
+      installPath,
+      zipBytes: makeZip({
+        "Info.json": JSON.stringify({
+          ModName: "X",
+          PackageName: "PkgX",
+        }),
+        "Scripts/x.lua": "x",
+      }),
+      sourceZipName: "x.zip",
+    });
+    const changes = repo.listFileChanges(imported.modId as string);
+    const settingsChange = changes.find(
+      (c) => c.relativePath === "Mods/PalModSettings.ini"
+    );
+    expect(settingsChange?.changeType).toBe("overwritten");
+    expect(repo.getBackup(settingsChange!.id)?.toString("utf8")).toContain(
+      "bGlobalEnableMod=false"
+    );
+  });
+
+  it("records settings change_type as settings when PalModSettings is created", () => {
+    const imported = importModZip({
+      repo,
+      appId: PALWORLD_APP_ID,
+      installPath,
+      zipBytes: makeZip({
+        "Info.json": JSON.stringify({
+          ModName: "Y",
+          PackageName: "PkgY",
+        }),
+        "Scripts/y.lua": "y",
+      }),
+      sourceZipName: "y.zip",
+    });
+    const changes = repo.listFileChanges(imported.modId as string);
+    const settingsChange = changes.find(
+      (c) => c.relativePath === "Mods/PalModSettings.ini"
+    );
+    expect(settingsChange?.changeType).toBe("settings");
+    expect(repo.getBackup(settingsChange!.id)).toBeNull();
+  });
+
+  it("restores corrupted settings from backup on trash when it is the last tracked mod", () => {
+    fs.mkdirSync(path.join(installPath, "Mods"), { recursive: true });
+    const original = `[PalModSettings]
+bGlobalEnableMod=true
+ActiveModList=KeepAlive
+RestoreToken=ORIGINAL_BACKUP
+`;
+    fs.writeFileSync(
+      path.join(installPath, "Mods", "PalModSettings.ini"),
+      original
+    );
+    const imported = importModZip({
+      repo,
+      appId: PALWORLD_APP_ID,
+      installPath,
+      zipBytes: makeZip({
+        "Info.json": JSON.stringify({
+          ModName: "Temp",
+          PackageName: "TempPkg",
+        }),
+        "Scripts/t.lua": "t",
+      }),
+      sourceZipName: "temp.zip",
+    });
+    const modId = imported.modId as string;
+
+    expect(
+      setModEnabled({
+        repo,
+        paths: { stashRoot },
+        modId,
+        enabled: false,
+      }).success
+    ).toBe(true);
+
+    // Soft-disable already removed TempPkg; corrupt the file so only BLOB restore
+    // can bring RestoreToken back.
+    fs.writeFileSync(
+      path.join(installPath, "Mods", "PalModSettings.ini"),
+      `[PalModSettings]\nbGlobalEnableMod=true\nActiveModList=KeepAlive\n`
+    );
+
+    expect(
+      removeMod({
+        repo,
+        paths: { stashRoot },
+        modId,
+      }).success
+    ).toBe(true);
+
+    const restored = fs.readFileSync(
+      path.join(installPath, "Mods", "PalModSettings.ini"),
+      "utf8"
+    );
+    expect(restored).toContain("RestoreToken=ORIGINAL_BACKUP");
+    expect(listActiveMods(restored)).toEqual(["KeepAlive"]);
+    expect(
+      fs.existsSync(
+        path.join(
+          installPath,
+          "Mods",
+          "Workshop",
+          "TempPkg",
+          "Scripts",
+          "t.lua"
+        )
+      )
+    ).toBe(false);
+  });
+
+  it("deletes created PalModSettings.ini when trash removes the last workshop mod", () => {
+    const imported = importModZip({
+      repo,
+      appId: PALWORLD_APP_ID,
+      installPath,
+      zipBytes: makeZip({
+        "Info.json": JSON.stringify({
+          ModName: "Solo",
+          PackageName: "SoloPkg",
+        }),
+        "Scripts/s.lua": "s",
+      }),
+      sourceZipName: "solo.zip",
+    });
+    const settingsPath = path.join(installPath, "Mods", "PalModSettings.ini");
+    expect(fs.existsSync(settingsPath)).toBe(true);
+    const stagedLua = path.join(
+      installPath,
+      "Mods",
+      "Workshop",
+      "SoloPkg",
+      "Scripts",
+      "s.lua"
+    );
+    expect(fs.existsSync(stagedLua)).toBe(true);
+
+    expect(
+      removeMod({
+        repo,
+        paths: { stashRoot },
+        modId: imported.modId as string,
+      }).success
+    ).toBe(true);
+
+    expect(fs.existsSync(settingsPath)).toBe(false);
+    expect(fs.existsSync(stagedLua)).toBe(false);
+    expect(
+      fs.existsSync(path.join(installPath, "Mods", "Workshop", "SoloPkg"))
+    ).toBe(false);
+  });
+
+  it("on workshop trash, skips settings path and only unlinks created staged files", () => {
+    fs.mkdirSync(path.join(installPath, "Mods"), { recursive: true });
+    fs.writeFileSync(
+      path.join(installPath, "Mods", "PalModSettings.ini"),
+      `[PalModSettings]\nbGlobalEnableMod=true\nActiveModList=Keep\nRestoreToken=SAFE\n`
+    );
+    const imported = importModZip({
+      repo,
+      appId: PALWORLD_APP_ID,
+      installPath,
+      zipBytes: makeZip({
+        "Info.json": JSON.stringify({
+          ModName: "KeepSettings",
+          PackageName: "KeepSettingsPkg",
+        }),
+        "Scripts/k.lua": "k",
+      }),
+      sourceZipName: "keep.zip",
+    });
+    const modId = imported.modId as string;
+
+    // Extra created row on settings path: the SETTINGS_REL skip must prevent
+    // the created-file unlink pass from deleting the restored settings file.
+    repo.insertFileChange({
+      modId,
+      relativePath: "Mods/PalModSettings.ini",
+      changeType: "created",
+    });
+
+    // Overwritten file outside the workshop folder must survive the created-only unlink.
+    const sideOw = path.join(installPath, "Mods", "side-ow.txt");
+    fs.writeFileSync(sideOw, "SIDE_ORIGINAL");
+    const owId = repo.insertFileChange({
+      modId,
+      relativePath: "Mods/side-ow.txt",
+      changeType: "overwritten",
+    });
+    repo.insertBackup(owId, Buffer.from("SIDE_ORIGINAL"));
+
+    const stagedLua = path.join(
+      installPath,
+      "Mods",
+      "Workshop",
+      "KeepSettingsPkg",
+      "Scripts",
+      "k.lua"
+    );
+    // Missing created file: existsSync guard must keep remove successful.
+    fs.unlinkSync(stagedLua);
+
+    expect(
+      removeMod({
+        repo,
+        paths: { stashRoot },
+        modId,
+      }).success
+    ).toBe(true);
+
+    expect(fs.existsSync(sideOw)).toBe(true);
+    expect(fs.readFileSync(sideOw, "utf8")).toBe("SIDE_ORIGINAL");
+    const settings = fs.readFileSync(
+      path.join(installPath, "Mods", "PalModSettings.ini"),
+      "utf8"
+    );
+    expect(settings).toContain("RestoreToken=SAFE");
+    expect(listActiveMods(settings)).toEqual(["Keep"]);
+  });
+
+  it("rejects path traversal relative paths when applying lifecycle ops", () => {
+    const mod = repo.insertMod({
+      id: "evil-mod",
+      appId: PALWORLD_APP_ID,
+      installPath,
+      displayName: "Evil",
+      packageName: null,
+      sourceZipName: "evil.zip",
+      kind: "path_deploy",
+      enabled: true,
+      workshopFolder: null,
+    });
+    repo.insertFileChange({
+      modId: mod.id,
+      relativePath: "../outside-escape.txt",
+      changeType: "created",
+    });
+    const outside = path.join(installPath, "..", "outside-escape.txt");
+    fs.writeFileSync(outside, "nope");
+
+    const disabled = setModEnabled({
+      repo,
+      paths: { stashRoot },
+      modId: mod.id,
+      enabled: false,
+    });
+    expect(disabled.success).toBe(false);
+    expect(disabled.error).toMatch(/outside install path/i);
+
+    fs.rmSync(outside, { force: true });
   });
 });
