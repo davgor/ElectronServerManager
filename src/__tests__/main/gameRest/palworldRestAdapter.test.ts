@@ -1,5 +1,5 @@
-import { palworldRestAdapter } from "../../../main/gameRest/adapters/palworldRestAdapter";
 import type { ServerRestMetadata } from "../../../main/catalog/serverCapabilities";
+import { palworldRestAdapter } from "../../../main/gameRest/adapters/palworldRestAdapter";
 
 const PALWORLD_META: ServerRestMetadata = {
   adapterId: "palworld",
@@ -26,6 +26,21 @@ describe("palworldRestAdapter", () => {
       port: 8212,
       adminPassword: "pw",
     });
+  });
+
+  it("rejects extractConfig when metadata adapter_id is not palworld", () => {
+    expect(() =>
+      palworldRestAdapter.extractConfig(
+        {},
+        {
+          adapterId: "other",
+          defaultPort: 1,
+          enabledConfigKey: "a",
+          portConfigKey: "b",
+          passwordConfigKey: "c",
+        }
+      )
+    ).toThrow(/cannot handle adapter_id/i);
   });
 
   it("rejects unknown REST endpoints", async () => {

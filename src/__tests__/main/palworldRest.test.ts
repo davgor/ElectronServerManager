@@ -192,29 +192,6 @@ OptionSettings=(AdminPassword="x",RESTAPIEnabled=True)
     });
   });
 
-  it("honors catalog REST metadata bindings for config keys and default port", () => {
-    const parsed = {
-      OptionSettings: {
-        RestEnabled: "True",
-        RestPort: "9001",
-        RestPassword: "secret",
-      },
-    };
-
-    expect(
-      extractPalworldRestConfig(parsed, {
-        defaultPort: 9000,
-        enabledConfigKey: "RestEnabled",
-        portConfigKey: "RestPort",
-        passwordConfigKey: "RestPassword",
-      })
-    ).toEqual({
-      enabled: true,
-      port: 9001,
-      adminPassword: "secret",
-    });
-  });
-
   it("coerces numeric and boolean OptionSettings fields to strings", () => {
     expect(
       extractPalworldRestConfig({

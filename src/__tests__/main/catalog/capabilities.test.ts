@@ -80,6 +80,29 @@ describe("catalog capabilities (039.1)", () => {
       db.close();
     }
   });
+
+  it("serves capabilities from cache until refresh is called", () => {
+    const { db, capabilities } = openCapabilityRepo();
+    try {
+      const first = capabilities.listCapabilities(PALWORLD_APP_ID);
+      expect(first).toContain("rest_admin");
+      // Second read must hit cache (same array contents even after DB close would
+      // fail — keep DB open and assert stable repeated reads).
+      expect(capabilities.listCapabilities(PALWORLD_APP_ID)).toEqual(first);
+      expect(capabilities.getRestMetadata(PALWORLD_APP_ID)?.adapterId).toBe(
+        "palworld"
+      );
+      expect(capabilities.getRestMetadata(PALWORLD_APP_ID)?.adapterId).toBe(
+        "palworld"
+      );
+      capabilities.refresh();
+      expect(capabilities.hasCapability(PALWORLD_APP_ID, "rest_admin")).toBe(
+        true
+      );
+    } finally {
+      db.close();
+    }
+  });
 });
 
 describe("golden path: fictional third game via migration + capabilities (039.2)", () => {

@@ -3,8 +3,6 @@ import path from "path";
 import { execSync } from "child_process";
 
 import { getCatalogRepository } from "./catalog/catalogRepository";
-import { getCapabilityRepository } from "./catalog/capabilityRepository";
-import type { ServerCapabilityId } from "./catalog/serverCapabilities";
 import * as logger from "./logger";
 
 export interface SteamServer {
@@ -13,7 +11,6 @@ export interface SteamServer {
   installPath: string;
   isRunning: boolean;
   coverArt?: string;
-  capabilities?: ServerCapabilityId[];
 }
 
 export interface ServerInfo {
@@ -69,22 +66,6 @@ export function resolveServerSaveLocation(
   platform: NodeJS.Platform = process.platform
 ): string | undefined {
   return serverInfo.saveLocations?.[platform] ?? serverInfo.saveLocation;
-}
-
-function buildDetectedServer(options: {
-  name: string;
-  appId: number;
-  installPath: string;
-  isRunning: boolean;
-}): SteamServer {
-  return {
-    name: options.name,
-    appId: options.appId,
-    installPath: options.installPath,
-    isRunning: options.isRunning,
-    coverArt: steamCoverArtUrl(options.appId),
-    capabilities: getCapabilityRepository().listCapabilities(options.appId),
-  };
 }
 
 /**
@@ -376,14 +357,13 @@ export async function findInstalledServers(
         const numericAppPath = path.join(commonPath, appFolder);
         try {
           await fs.stat(numericAppPath);
-          servers.push(
-            buildDetectedServer({
-              name: serverName,
-              appId: parseInt(appId, 10),
-              installPath: numericAppPath,
-              isRunning: isProcessRunning(resolvedExecutable),
-            })
-          );
+          servers.push({
+            name: serverName,
+            appId: parseInt(appId),
+            installPath: numericAppPath,
+            isRunning: isProcessRunning(resolvedExecutable),
+            coverArt: steamCoverArtUrl(parseInt(appId, 10)),
+          });
           logger.debug(
             `✓ Found ${serverName} (numeric folder) at ${numericAppPath}`
           );
@@ -401,14 +381,13 @@ export async function findInstalledServers(
           const expectedPath = path.join(commonPath, expectedFolderName);
           try {
             await fs.stat(expectedPath);
-            servers.push(
-              buildDetectedServer({
-                name: serverName,
-                appId: parseInt(appId, 10),
-                installPath: expectedPath,
-                isRunning: isProcessRunning(resolvedExecutable),
-              })
-            );
+            servers.push({
+              name: serverName,
+              appId: parseInt(appId),
+              installPath: expectedPath,
+              isRunning: isProcessRunning(resolvedExecutable),
+              coverArt: steamCoverArtUrl(parseInt(appId, 10)),
+            });
             logger.debug(
               `✓ Found ${serverName} (expected folder) at ${expectedPath}`
             );
@@ -420,14 +399,13 @@ export async function findInstalledServers(
 
         // If manifest exists, but we couldn't find a specific folder, treat as installing
         if (manifestExists) {
-          servers.push(
-            buildDetectedServer({
-              name: serverName,
-              appId: parseInt(appId, 10),
-              installPath: commonPath,
-              isRunning: false,
-            })
-          );
+          servers.push({
+            name: serverName,
+            appId: parseInt(appId),
+            installPath: commonPath,
+            isRunning: false,
+            coverArt: steamCoverArtUrl(parseInt(appId, 10)),
+          });
           break;
         }
       } catch (err) {
@@ -436,14 +414,13 @@ export async function findInstalledServers(
         );
         // don't add server unless manifestExists
         if (manifestExists) {
-          servers.push(
-            buildDetectedServer({
-              name: serverName,
-              appId: parseInt(appId, 10),
-              installPath: commonPath,
-              isRunning: false,
-            })
-          );
+          servers.push({
+            name: serverName,
+            appId: parseInt(appId),
+            installPath: commonPath,
+            isRunning: false,
+            coverArt: steamCoverArtUrl(parseInt(appId, 10)),
+          });
           break;
         }
       }

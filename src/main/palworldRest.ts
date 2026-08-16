@@ -1,13 +1,12 @@
 /**
  * Palworld dedicated-server REST API client (localhost Basic Auth).
  * Docs: https://docs.palworldgame.com/category/rest-api/
- *
- * Enablement / default port / config keys for a given app come from the
- * SQLite catalog (`server_capabilities` + `server_rest_metadata`). This
- * module only implements the Palworld HTTP protocol.
  */
 
 import type { PalworldRestEndpoint } from "../types/ipc";
+import { PALWORLD_APP_ID } from "../types/ipc";
+
+export { PALWORLD_APP_ID };
 
 const DEFAULT_PALWORLD_REST_PORT = 8212;
 
@@ -42,21 +41,6 @@ export type PalworldRestFetch = (
   json: () => Promise<unknown>;
   text: () => Promise<string>;
 }>;
-
-/** Optional catalog REST metadata — keys/port come from SQLite when provided. */
-interface PalworldRestConfigBinding {
-  defaultPort: number;
-  enabledConfigKey: string;
-  portConfigKey: string;
-  passwordConfigKey: string;
-}
-
-const DEFAULT_CONFIG_BINDING: PalworldRestConfigBinding = {
-  defaultPort: DEFAULT_PALWORLD_REST_PORT,
-  enabledConfigKey: "RESTAPIEnabled",
-  portConfigKey: "RESTAPIPort",
-  passwordConfigKey: "AdminPassword",
-};
 
 function stripQuotes(value: string): string {
   const trimmed = value.trim();
@@ -118,37 +102,33 @@ function parseEnabled(raw: string | undefined): boolean {
   return raw.trim().toLowerCase() === "true";
 }
 
-function parsePort(raw: string | undefined, defaultPort: number): number {
+function parsePort(raw: string | undefined): number {
   if (raw === undefined || raw.trim() === "") {
-    return defaultPort;
+    return DEFAULT_PALWORLD_REST_PORT;
   }
   const port = Number(raw);
   if (!Number.isFinite(port) || port <= 0 || port > 65535) {
-    return defaultPort;
+    return DEFAULT_PALWORLD_REST_PORT;
   }
   return Math.trunc(port);
 }
 
 export function extractPalworldRestConfig(
-  content: Record<string, unknown>,
-  binding: PalworldRestConfigBinding = DEFAULT_CONFIG_BINDING
+  content: Record<string, unknown>
 ): PalworldRestConfig {
   const options = findOptionSettings(content);
   if (options === null) {
     return {
       enabled: false,
-      port: binding.defaultPort,
+      port: DEFAULT_PALWORLD_REST_PORT,
       adminPassword: "",
     };
   }
 
   return {
-    enabled: parseEnabled(readStringField(options, binding.enabledConfigKey)),
-    port: parsePort(
-      readStringField(options, binding.portConfigKey),
-      binding.defaultPort
-    ),
-    adminPassword: readStringField(options, binding.passwordConfigKey) ?? "",
+    enabled: parseEnabled(readStringField(options, "RESTAPIEnabled")),
+    port: parsePort(readStringField(options, "RESTAPIPort")),
+    adminPassword: readStringField(options, "AdminPassword") ?? "",
   };
 }
 

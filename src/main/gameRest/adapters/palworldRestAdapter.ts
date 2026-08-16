@@ -42,12 +42,12 @@ export const palworldRestAdapter: GameRestAdapter = {
     content: Record<string, unknown>,
     metadata: ServerRestMetadata
   ): GameRestConfig {
-    return extractPalworldRestConfig(content, {
-      defaultPort: metadata.defaultPort,
-      enabledConfigKey: metadata.enabledConfigKey,
-      portConfigKey: metadata.portConfigKey,
-      passwordConfigKey: metadata.passwordConfigKey,
-    });
+    if (metadata.adapterId !== "palworld") {
+      throw new Error(
+        `palworldRestAdapter cannot handle adapter_id "${metadata.adapterId}"`
+      );
+    }
+    return extractPalworldRestConfig(content);
   },
 
   call(
