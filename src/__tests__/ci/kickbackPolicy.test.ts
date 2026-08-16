@@ -44,6 +44,22 @@ describe("shouldKickback", () => {
   });
 });
 
+describe("REQUIRED_CI_CHECK_NAMES", () => {
+  it("expects the stable Unit Tests job name (no Node matrix suffix)", () => {
+    expect(REQUIRED_CI_CHECK_NAMES).toContain("Run unit tests");
+    expect(REQUIRED_CI_CHECK_NAMES).not.toContain("Run unit tests (20.x)");
+    expect(REQUIRED_CI_CHECK_NAMES).not.toContain("Run unit tests (22.x)");
+  });
+
+  it("stays in sync with .github/scripts/kickback-policy.cjs (Release/kickback runtime)", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const cjs = require("../../../.github/scripts/kickback-policy.cjs") as {
+      REQUIRED_CI_CHECK_NAMES: string[];
+    };
+    expect(cjs.REQUIRED_CI_CHECK_NAMES).toEqual([...REQUIRED_CI_CHECK_NAMES]);
+  });
+});
+
 describe("evaluateRequiredChecks", () => {
   const required = [...REQUIRED_CI_CHECK_NAMES];
 
@@ -60,7 +76,7 @@ describe("evaluateRequiredChecks", () => {
         { name: "deadcode", status: "completed", conclusion: "success" },
         { name: "type-check", status: "completed", conclusion: "success" },
         {
-          name: "Run unit tests (20.x)",
+          name: "Run unit tests",
           status: "completed",
           conclusion: "success",
         },
@@ -80,7 +96,7 @@ describe("evaluateRequiredChecks", () => {
         { name: "deadcode", status: "completed", conclusion: "success" },
         { name: "type-check", status: "completed", conclusion: "success" },
         {
-          name: "Run unit tests (20.x)",
+          name: "Run unit tests",
           status: "completed",
           conclusion: "success",
         },
@@ -100,7 +116,7 @@ describe("evaluateRequiredChecks", () => {
         { name: "deadcode", status: "completed", conclusion: "success" },
         { name: "type-check", status: "completed", conclusion: "success" },
         {
-          name: "Run unit tests (20.x)",
+          name: "Run unit tests",
           status: "completed",
           conclusion: "success",
         },
@@ -112,6 +128,26 @@ describe("evaluateRequiredChecks", () => {
         { name: "release", status: "in_progress", conclusion: null },
       ])
     ).toBe("success");
+  });
+
+  it("stays pending when only the legacy Node-matrix unit-test name is present", () => {
+    expect(
+      evaluateRequiredChecks(required, [
+        { name: "lint", status: "completed", conclusion: "success" },
+        { name: "deadcode", status: "completed", conclusion: "success" },
+        { name: "type-check", status: "completed", conclusion: "success" },
+        {
+          name: "Run unit tests (22.x)",
+          status: "completed",
+          conclusion: "success",
+        },
+        {
+          name: "npm audit (fail on any CVE)",
+          status: "completed",
+          conclusion: "success",
+        },
+      ])
+    ).toBe("pending");
   });
 });
 
