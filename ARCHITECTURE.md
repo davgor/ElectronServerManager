@@ -60,6 +60,7 @@ src/
 │   ├── windowControls.ts       # Minimize / maximize / close IPC
 │   ├── steamDetection.ts       # Detection + path resolution helpers
 │   ├── catalog/                # SQLite server catalog + migrations
+│   ├── gameRest/               # REST adapter registry (Palworld first)
 │   ├── mods/                   # Palworld mod manager (zip import, SQLite)
 │   ├── steamIpc.ts             # Diagnostics / path listing helpers
 │   ├── steamCmd.ts             # SteamCMD path + update helpers
@@ -122,14 +123,29 @@ The known dedicated-server catalog lives in SQLite (`better-sqlite3`), opened
 from `userData/server-catalog.sqlite` on app ready via `initCatalog()`. Schema
 and seed data come from versioned migrations in `src/main/catalog/migrations/`.
 `CatalogRepository` exposes `ServerInfo`-compatible records to detection,
-process control, config I/O, and backups.
+process control, config I/O, and backups, plus **capability** and **REST
+metadata** lookups for optional features.
+
+### Tables
+
+| Table | Purpose |
+|-------|---------|
+| `servers` | Core catalog row (name, folder, executable, save/config paths) |
+| `server_platform_overrides` | Per-`win32`/`linux`/`darwin` path overrides |
+| `server_capabilities` | Optional features: `rest_admin`, `live_ops`, `update_announce` |
+| `server_rest_metadata` | REST adapter id, default port, config keys for enable/port/password |
+
+Feature gating (Admin button, live ops panel, announce-before-update) reads
+capabilities from the catalog — not a hardcoded Palworld app id. REST HTTP
+shapes live in `src/main/gameRest/` adapters (Palworld is the first
+`adapter_id`); only enablement and defaults come from SQLite.
 
 Currently seeded (**2** entries):
 
-| App ID | Name |
-|--------|------|
-| `2278520` | Enshrouded Dedicated Server |
-| `1623730` | Palworld Dedicated Server |
+| App ID | Name | Capabilities |
+|--------|------|--------------|
+| `2278520` | Enshrouded Dedicated Server | (none) |
+| `1623730` | Palworld Dedicated Server | `rest_admin`, `live_ops`, `update_announce` |
 
 Add games via a new migration — see [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
 
@@ -162,6 +178,7 @@ All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
 | `select-steamcmd-path` | Native file picker for SteamCMD executable |
 | `get-server-config` | Load server config (JSON/INI) |
 | `get-server-output` | Recent capped stdout/stderr for a server |
+| `get-server-metrics` | CPU/RAM usage stats (current / average / p95) for a tracked server |
 | `save-server-config` | Persist edited config |
 | `open-file-default` | Open a path with the OS default app |
 | `get-settings` / `save-settings` | Persisted UI/server flags |
@@ -194,12 +211,14 @@ easy to confirm.
 3. **Auto-restart** — Renderer settings flag; polling in `useSteamServers`
    restarts if a watched server exits unexpectedly.
 4. **Auto-update (game files)** — SteamCMD via `autoUpdate.ts` when enabled per
-   server: compare local appmanifest buildid to remote public buildid
-   (`app_info_print`, no stop) → only if they differ, optionally announce a
-   5-minute reboot warning via Palworld REST (when `RESTAPIEnabled`) and wait →
-   stop → `+force_install_dir <installPath>` + `app_update validate` → verify
-   buildid → restart (`updated` reflects whether the build changed; matching
-   versions leave the running server alone).
+   server: read the local buildid from the manifest of the library that owns
+   `installPath` (see `buildManifestCandidatePaths`) and compare to the remote
+   public buildid (`app_info_print`, no stop) → only if they differ, optionally
+   announce a 5-minute reboot warning via Palworld REST (when `RESTAPIEnabled`)
+   and wait → stop → `+force_install_dir <installPath>` + `app_update validate`
+   → verify the post-update manifest buildid **matches remote** (partial
+   downloads fail at `verifying`) → always restart (matching versions leave
+   the running server alone). Operator notes: [docs/GAME_UPDATES.md](docs/GAME_UPDATES.md).
 5. **App auto-update** — Packaged builds use `electron-updater` (`appUpdater.ts`)
    against GitHub Releases metadata: first check ~8s after launch + every 4h
    while open (`DISABLE_AUTO_UPDATE=1` opts out), background download, silent

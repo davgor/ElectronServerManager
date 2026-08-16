@@ -31,7 +31,7 @@ describe("palworldOpsSettings", () => {
   it("only polls when all gates are open", () => {
     expect(
       shouldPollPalworldOps({
-        isPalworld: true,
+        hasLiveOps: true,
         isRunning: true,
         restEnabled: true,
         opsEnabled: true,
@@ -40,7 +40,7 @@ describe("palworldOpsSettings", () => {
 
     expect(
       shouldPollPalworldOps({
-        isPalworld: true,
+        hasLiveOps: true,
         isRunning: false,
         restEnabled: true,
         opsEnabled: true,
@@ -49,7 +49,7 @@ describe("palworldOpsSettings", () => {
 
     expect(
       shouldPollPalworldOps({
-        isPalworld: true,
+        hasLiveOps: true,
         isRunning: true,
         restEnabled: false,
         opsEnabled: true,
@@ -58,7 +58,7 @@ describe("palworldOpsSettings", () => {
 
     expect(
       shouldPollPalworldOps({
-        isPalworld: true,
+        hasLiveOps: true,
         isRunning: true,
         restEnabled: true,
         opsEnabled: false,
@@ -67,7 +67,7 @@ describe("palworldOpsSettings", () => {
 
     expect(
       shouldPollPalworldOps({
-        isPalworld: false,
+        hasLiveOps: false,
         isRunning: true,
         restEnabled: true,
         opsEnabled: true,

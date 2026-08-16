@@ -8,6 +8,7 @@ import type {
   IpcActionResult,
 } from "../types/ipc";
 
+import { getCapabilityRepository } from "./catalog/capabilityRepository";
 import { getCommonSteamPaths } from "./driveUtils";
 import * as logger from "./logger";
 import { findInstalledServers } from "./steamDetection";
@@ -50,7 +51,12 @@ export async function fetchSteamServers(
   path?: string
 ): Promise<GetSteamServersResponse> {
   try {
-    const servers = await findInstalledServers(path);
+    const detected = await findInstalledServers(path);
+    const capabilities = getCapabilityRepository();
+    const servers = detected.map((server) => ({
+      ...server,
+      capabilities: capabilities.listCapabilities(server.appId),
+    }));
     return { success: true, servers };
   } catch (error) {
     logger.error("Error finding Steam servers:", error);

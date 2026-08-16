@@ -1,5 +1,6 @@
 import type { AutoUpdateServerResponse } from "../types/ipc";
 
+import { getCapabilityRepository } from "./catalog/capabilityRepository";
 import { getServerBuildId } from "./steamDetection";
 import { getServerMapping, startServer, stopServer } from "./serverProcess";
 import {
@@ -108,7 +109,7 @@ async function runAutoUpdate(
     };
   }
 
-  const previousBuildId = await getServerBuildId(appId, steamPath);
+  const previousBuildId = await getServerBuildId(appId, steamPath, installPath);
 
   // Stage: checking — compare local vs remote without interrupting the server.
   if (previousBuildId === null) {
@@ -144,29 +145,32 @@ async function runAutoUpdate(
     };
   }
 
-  // Stage: notifying — Palworld REST announce + warn window before downtime.
-  const restStatus = await getPalworldRestStatus(appId, installPath);
-  if (restStatus.success && restStatus.isPalworld && restStatus.enabled) {
-    const announceResult = await invokePalworldRest(
-      appId,
-      installPath,
-      "POST",
-      "announce",
-      { message: UPDATE_REBOOT_WARN_MESSAGE }
-    );
-    if (!announceResult.success) {
-      return {
-        success: false,
-        stage: "notifying",
-        updated: false,
-        previousBuildId,
-        error: `Failed to announce update warning: ${announceResult.error ?? "unknown error"} Server was left running.`,
-      };
-    }
+  // Stage: notifying — REST announce + warn window when catalog says so.
+  if (getCapabilityRepository().hasCapability(appId, "update_announce")) {
+    const restStatus = await getPalworldRestStatus(appId, installPath);
+    if (restStatus.success && restStatus.isPalworld && restStatus.enabled) {
+      const announceResult = await invokePalworldRest(
+        appId,
+        installPath,
+        "POST",
+        "announce",
+        { message: UPDATE_REBOOT_WARN_MESSAGE }
+      );
+      if (!announceResult.success) {
+        return {
+          success: false,
+          stage: "notifying",
+          updated: false,
+          previousBuildId,
+          error: `Failed to announce update warning: ${announceResult.error ?? "unknown error"} Server was left running.`,
+        };
+      }
 
-    const warnMs = options?.warnBeforeUpdateMs ?? DEFAULT_WARN_BEFORE_UPDATE_MS;
-    if (warnMs > 0) {
-      await delay(warnMs);
+      const warnMs =
+        options?.warnBeforeUpdateMs ?? DEFAULT_WARN_BEFORE_UPDATE_MS;
+      if (warnMs > 0) {
+        await delay(warnMs);
+      }
     }
   }
 
@@ -212,22 +216,30 @@ async function runAutoUpdate(
     };
   }
 
-  // Stage: verifying — poll the manifest buildid with backoff.
-  let newBuildId = await getServerBuildId(appId, steamPath);
+  // Stage: verifying — poll the manifest buildid with backoff until it
+  // reaches the remote buildid. steamcmd exiting 0/7 is not proof of a
+  // complete download (anonymous logins can partially sync), so success
+  // requires the library manifest beside the install to match remote.
+  const remoteBuildId = remoteResult.buildId;
+  let newBuildId = await getServerBuildId(appId, steamPath, installPath);
   for (const pollDelayMs of pollDelaysMs) {
-    if (newBuildId !== null && newBuildId !== previousBuildId) {
+    if (newBuildId === remoteBuildId) {
       break;
     }
     await delay(pollDelayMs);
-    newBuildId = await getServerBuildId(appId, steamPath);
+    newBuildId = await getServerBuildId(appId, steamPath, installPath);
   }
 
-  const buildChanged = newBuildId !== null && newBuildId !== previousBuildId;
+  const updateComplete = newBuildId === remoteBuildId;
+  const incompleteDetail =
+    newBuildId === null
+      ? `steamcmd finished but no app manifest with a buildid was found for the install; the update did not complete.`
+      : `steamcmd finished but the manifest buildid is ${newBuildId} instead of remote ${remoteBuildId}; the update did not complete.`;
 
   // Stage: restarting — always bring the server back after a successful stop.
   const startResult = await startServer(appId, installPath);
   if (!startResult.success) {
-    if (buildChanged) {
+    if (updateComplete) {
       return {
         success: false,
         stage: "restarting",
@@ -243,17 +255,18 @@ async function runAutoUpdate(
       updated: false,
       previousBuildId,
       newBuildId,
-      error: `Update check finished but failed to restart: ${startResult.error ?? "unknown error"}`,
+      error: `${incompleteDetail} The server also failed to restart: ${startResult.error ?? "unknown error"}`,
     };
   }
 
-  if (!buildChanged) {
+  if (!updateComplete) {
     return {
-      success: true,
-      stage: "no-update",
+      success: false,
+      stage: "verifying",
       updated: false,
       previousBuildId,
       newBuildId,
+      error: `${incompleteDetail} The server was restarted on the previous build. See the app logs for steamcmd output.`,
     };
   }
 

@@ -18,9 +18,13 @@ platform-specific executables and config paths (see
 - **Multi-library Steam paths** — Prefer a Steam install when more than one exists
 - **Run / stop** — Launch or shut down the dedicated server process
 - **Server output** — View recent captured stdout/stderr for a managed server
+- **Resource metrics** — Live CPU / RAM (current, average, p95) on the card
+  while a managed server is running
 - **Auto-restart** — Optional restart if a managed server crashes
-- **Auto-update (game files)** — Optional SteamCMD update before/around runs
-  (SteamCMD path configurable in the UI)
+- **Auto-update (game files)** — Optional SteamCMD update with verified
+  completion against the remote buildid and automatic restart; see
+  [docs/GAME_UPDATES.md](docs/GAME_UPDATES.md) (SteamCMD path configurable in
+  the UI)
 - **Save backups** — Manual backup or timed intervals to a folder you choose
 - **Config editor** — View and edit JSON/INI server configs in-app, with search
   that filters the tree to matching keys
@@ -42,17 +46,25 @@ platform-specific executables and config paths (see
 
 ## Supported servers
 
-Currently shipped catalog (see `src/main/steamDetection.ts`):
+Currently shipped catalog (SQLite; see [ARCHITECTURE.md](ARCHITECTURE.md)):
 
-| App ID | Server |
-|--------|--------|
-| `2278520` | Enshrouded Dedicated Server |
-| `1623730` | Palworld Dedicated Server |
+| App ID | Server | Optional features |
+|--------|--------|-------------------|
+| `2278520` | Enshrouded Dedicated Server | — |
+| `1623730` | Palworld Dedicated Server | REST admin, live ops, update announce |
 
 Palworld includes Linux executable (`PalServer.sh`) and config-path overrides;
 Enshrouded uses the Windows `.exe` (typically Wine/Proton on Linux).
 
-To add another game, follow [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
+### Adding a new game
+
+1. Add a catalog migration (servers row + platform overrides as needed).
+2. Optionally seed `rest_admin` / `live_ops` / `update_announce` and REST
+   metadata; register a REST adapter only if the protocol is new.
+3. Add tests; smoke-test detect → run/stop → config → backup (± Admin/ops).
+
+Full runbook (schema, capability checklist, migration templates, adapter hook):
+[docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
 
 ## Requirements
 
@@ -103,8 +115,9 @@ totals + coverage on new lines) and a **Fireguard** test-quality report. See
 | Doc | Purpose |
 |-----|---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Process model, IPC map, file layout, stack versions |
-| [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md) | How to extend the server catalog |
+| [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md) | Extend the catalog + optional REST/ops/announce capabilities |
 | [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) | GitHub Releases → electron-updater runbook |
+| [docs/GAME_UPDATES.md](docs/GAME_UPDATES.md) | SteamCMD game-update flow + operator notes |
 | [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) | Index of maintained docs |
 | [docs/archive/](docs/archive/) | Historical / superseded write-ups |
 

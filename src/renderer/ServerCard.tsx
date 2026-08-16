@@ -1,12 +1,24 @@
 import { useEffect, useState } from "react";
 
-import type { SteamServer } from "../types/ipc";
+import type {
+  GetServerMetricsResponse,
+  ServerCapabilityId,
+  SteamServer,
+} from "../types/ipc";
 import { PALWORLD_APP_ID } from "../types/ipc";
 
 import { PalworldAdminModal } from "./PalworldAdminModal";
 import { ModManagerModal } from "./ModManagerModal";
 import { PalworldOpsPanel } from "./PalworldOpsPanel";
 import { resolvePalworldOpsIntervalSeconds } from "./palworldOpsSettings";
+import { formatBytes, formatPercent } from "./serverMetricsFormat";
+
+function serverHasCapability(
+  server: SteamServer,
+  capability: ServerCapabilityId
+): boolean {
+  return server.capabilities?.includes(capability) ?? false;
+}
 
 export interface ServerCardProps {
   server: SteamServer;
@@ -33,6 +45,8 @@ export interface ServerCardProps {
 const REST_DISABLED_TOOLTIP =
   "Please enable REST API from the config settings.";
 
+const METRICS_POLL_INTERVAL_MS = 3000;
+
 export function ServerCard({
   server,
   autoRestartEnabled,
@@ -56,15 +70,51 @@ export function ServerCard({
 }: ServerCardProps): JSX.Element {
   const hasBackupPath = backupPath !== undefined && backupPath !== "";
   const hasLastBackup = lastBackup !== undefined && lastBackup !== "";
+  const hasRestAdmin = serverHasCapability(server, "rest_admin");
+  const hasLiveOps = serverHasCapability(server, "live_ops");
+  // Mod manager remains Palworld-specific (matches main-process app-id gate).
   const isPalworld = server.appId === PALWORLD_APP_ID;
   const [showOutput, setShowOutput] = useState(false);
   const [serverOutput, setServerOutput] = useState("");
   const [restEnabled, setRestEnabled] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
   const [showModManager, setShowModManager] = useState(false);
+  const [metrics, setMetrics] = useState<GetServerMetricsResponse | null>(null);
 
   useEffect(() => {
-    if (!isPalworld) {
+    if (!server.isRunning) {
+      setMetrics(null);
+      return;
+    }
+
+    let cancelled = false;
+
+    async function pollMetrics(): Promise<void> {
+      try {
+        const result = await window.electron.getServerMetrics(server.appId);
+        if (!cancelled) {
+          setMetrics(result);
+        }
+      } catch {
+        if (!cancelled) {
+          setMetrics(null);
+        }
+      }
+    }
+
+    void pollMetrics();
+    const timer = window.setInterval(() => {
+      void pollMetrics();
+    }, METRICS_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      window.clearInterval(timer);
+    };
+  }, [server.isRunning, server.appId]);
+
+  useEffect(() => {
+    if (!hasRestAdmin) {
       setRestEnabled(false);
       return;
     }
@@ -86,7 +136,7 @@ export function ServerCard({
     return () => {
       cancelled = true;
     };
-  }, [isPalworld, server.appId, server.installPath, configRevision]);
+  }, [hasRestAdmin, server.appId, server.installPath, configRevision]);
 
   async function toggleServerOutput(): Promise<void> {
     if (showOutput) {
@@ -118,6 +168,36 @@ export function ServerCard({
         <p>
           <strong>Path:</strong> <code>{server.installPath}</code>
         </p>
+        {server.isRunning &&
+          metrics?.cpu !== undefined &&
+          metrics.memory !== undefined && (
+            <div className="server-metrics" data-testid="server-metrics">
+              <div className="metric-row">
+                <span className="metric-name">CPU</span>
+                <span className="metric-stat">
+                  {formatPercent(metrics.cpu.current)}
+                </span>
+                <span className="metric-stat metric-stat-dim">
+                  avg {formatPercent(metrics.cpu.average)}
+                </span>
+                <span className="metric-stat metric-stat-dim">
+                  p95 {formatPercent(metrics.cpu.p95)}
+                </span>
+              </div>
+              <div className="metric-row">
+                <span className="metric-name">RAM</span>
+                <span className="metric-stat">
+                  {formatBytes(metrics.memory.current)}
+                </span>
+                <span className="metric-stat metric-stat-dim">
+                  avg {formatBytes(metrics.memory.average)}
+                </span>
+                <span className="metric-stat metric-stat-dim">
+                  p95 {formatBytes(metrics.memory.p95)}
+                </span>
+              </div>
+            </div>
+          )}
         <div className="server-actions">
           {server.isRunning ? (
             <button
@@ -140,7 +220,7 @@ export function ServerCard({
           >
             ⚙️ Edit Config
           </button>
-          {isPalworld && (
+          {hasRestAdmin && (
             <span
               className="palworld-admin-btn-wrap"
               title={restEnabled ? undefined : REST_DISABLED_TOOLTIP}
@@ -149,11 +229,7 @@ export function ServerCard({
                 type="button"
                 className="btn btn-palworld-admin-open"
                 disabled={!restEnabled}
-                title={
-                  restEnabled
-                    ? "Open Palworld REST admin"
-                    : REST_DISABLED_TOOLTIP
-                }
+                title={restEnabled ? "Open REST admin" : REST_DISABLED_TOOLTIP}
                 onClick={() => setShowAdminModal(true)}
               >
                 Admin
@@ -185,7 +261,7 @@ export function ServerCard({
               : "(no recent output captured)"}
           </pre>
         )}
-        {isPalworld && (
+        {hasLiveOps && (
           <PalworldOpsPanel
             server={server}
             restEnabled={restEnabled}

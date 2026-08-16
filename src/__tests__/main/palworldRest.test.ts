@@ -4,7 +4,6 @@ import {
   buildPalworldRestUrl,
   callPalworldRest,
   extractPalworldRestConfig,
-  PALWORLD_APP_ID,
   type PalworldRestFetch,
 } from "../../main/palworldRest";
 
@@ -193,7 +192,19 @@ OptionSettings=(AdminPassword="x",RESTAPIEnabled=True)
     });
   });
 
-  it("exports Palworld Steam app id constant", () => {
-    expect(PALWORLD_APP_ID).toBe(1623730);
+  it("coerces numeric and boolean OptionSettings fields to strings", () => {
+    expect(
+      extractPalworldRestConfig({
+        OptionSettings: {
+          RESTAPIEnabled: true,
+          RESTAPIPort: 9001,
+          AdminPassword: 42,
+        },
+      })
+    ).toEqual({
+      enabled: true,
+      port: 9001,
+      adminPassword: "42",
+    });
   });
 });

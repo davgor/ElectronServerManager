@@ -13,11 +13,26 @@ export interface SteamServer {
   installPath: string;
   isRunning: boolean;
   coverArt?: string;
+  /**
+   * Catalog capability flags for this app (e.g. rest_admin, live_ops).
+   * Empty when the game has no optional features.
+   */
+  capabilities?: ServerCapabilityId[];
 }
+
+/**
+ * Optional per-game features owned by the SQLite catalog
+ * (`server_capabilities`). Renderer UI keys off these instead of app ids.
+ */
+export type ServerCapabilityId = "rest_admin" | "live_ops" | "update_announce";
 
 export type ConfigFormat = "json" | "ini";
 
-/** Steam app id for Palworld Dedicated Server. */
+/**
+ * Steam app id for Palworld Dedicated Server.
+ * Prefer catalog capability checks for feature gating; this constant remains
+ * for tests and seed/docs references.
+ */
 export const PALWORLD_APP_ID = 1623730;
 
 /** Base shape returned by action-style IPC handlers. */
@@ -148,6 +163,24 @@ export interface GetSettingsResponse extends IpcActionResult {
   settings: AppSettings;
 }
 
+/** Rolling-window statistics for one resource metric. */
+export interface MetricStats {
+  current: number;
+  average: number;
+  p95: number;
+}
+
+export interface GetServerMetricsResponse extends IpcActionResult {
+  /** True while the main process is actively sampling this server. */
+  running: boolean;
+  /** Number of samples currently in the rolling window. */
+  sampleCount: number;
+  /** CPU usage in percent of one core's wall time; absent until sampled. */
+  cpu?: MetricStats;
+  /** Resident memory in bytes; absent until sampled. */
+  memory?: MetricStats;
+}
+
 /** App auto-update status pushed from main → renderer (epic 012). */
 export type AppUpdateStatus =
   | { state: "idle" }
@@ -211,6 +244,10 @@ export interface IpcInvokeMap {
   "get-server-output": {
     args: [appId: number];
     result: string;
+  };
+  "get-server-metrics": {
+    args: [appId: number];
+    result: GetServerMetricsResponse;
   };
   "open-file-default": { args: [filePath: string]; result: IpcActionResult };
   "save-server-config": {
@@ -301,6 +338,7 @@ export interface ElectronAPI {
     installPath: string
   ) => Promise<GetServerConfigResponse>;
   getServerOutput: (appId: number) => Promise<string>;
+  getServerMetrics: (appId: number) => Promise<GetServerMetricsResponse>;
   openFileDefault: (filePath: string) => Promise<IpcActionResult>;
   saveServerConfig: (
     appId: number,

@@ -17,9 +17,36 @@ jest.mock("child_process", () => ({
 const mockFs = fs as jest.Mocked<typeof fs>;
 const mockExecSync = execSync as jest.MockedFunction<typeof execSync>;
 
+function setPlatform(platform: NodeJS.Platform): PropertyDescriptor | null {
+  const original = Object.getOwnPropertyDescriptor(process, "platform");
+  Object.defineProperty(process, "platform", {
+    value: platform,
+    configurable: true,
+  });
+  return original ?? null;
+}
+
+function restorePlatform(original: PropertyDescriptor | null): void {
+  if (original) {
+    Object.defineProperty(process, "platform", original);
+  }
+}
+
 describe("backupServerSave", () => {
   beforeEach(() => {
     jest.resetAllMocks();
+  });
+
+  it("returns null for an unknown catalog app id without shelling out", async (): Promise<void> => {
+    const result = await backupServerSave(
+      999999,
+      "C:\\Games\\Unknown",
+      "C:\\Backups"
+    );
+
+    expect(result).toBeNull();
+    expect(mockExecSync).not.toHaveBeenCalled();
+    expect(mockFs.stat).not.toHaveBeenCalled();
   });
 
   it("returns null when save directory is missing", async (): Promise<void> => {
@@ -36,6 +63,7 @@ describe("backupServerSave", () => {
   });
 
   it("creates backup successfully on Windows using PowerShell", async (): Promise<void> => {
+    const original = setPlatform("win32");
     // Simulate save directory exists
     mockFs.stat.mockResolvedValueOnce({} as never);
     // mkdir succeeds
@@ -51,7 +79,12 @@ describe("backupServerSave", () => {
 
     // On success we expect a non-null string path to the backup file
     expect(result).not.toBeNull();
-    expect(mockExecSync).toHaveBeenCalled();
+    expect(mockExecSync).toHaveBeenCalledWith(
+      expect.stringContaining("Compress-Archive"),
+      expect.any(Object)
+    );
+
+    restorePlatform(original);
   });
 
   it("returns null when zip command fails", async (): Promise<void> => {
@@ -72,15 +105,7 @@ describe("backupServerSave", () => {
   });
 
   it("creates backup successfully on Linux using zip command", async (): Promise<void> => {
-    // Simulate Linux platform
-    const originalPlatform = Object.getOwnPropertyDescriptor(
-      process,
-      "platform"
-    );
-    Object.defineProperty(process, "platform", {
-      value: "linux",
-      configurable: true,
-    });
+    const original = setPlatform("linux");
 
     mockFs.stat.mockResolvedValueOnce({} as never);
     mockFs.mkdir.mockResolvedValueOnce(undefined as never);
@@ -93,11 +118,28 @@ describe("backupServerSave", () => {
     );
 
     expect(result).not.toBeNull();
+    expect(mockExecSync).toHaveBeenCalledWith(
+      expect.stringContaining("zip -r")
+    );
 
-    // Restore platform
-    if (originalPlatform) {
-      Object.defineProperty(process, "platform", originalPlatform);
-    }
+    restorePlatform(original);
+  });
+
+  it("does not shell out on unsupported platforms", async (): Promise<void> => {
+    const original = setPlatform("freebsd");
+
+    mockFs.stat.mockResolvedValueOnce({} as never);
+    mockFs.mkdir.mockResolvedValueOnce(undefined as never);
+
+    await backupServerSave(
+      2278520,
+      "/opt/games/EnshroudedServer",
+      "/var/backups"
+    );
+
+    expect(mockExecSync).not.toHaveBeenCalled();
+
+    restorePlatform(original);
   });
 
   it("returns null when creating backup directory fails", async (): Promise<void> => {
