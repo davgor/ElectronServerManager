@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
 
-import type { GetServerMetricsResponse, SteamServer } from "../types/ipc";
-import { PALWORLD_APP_ID } from "../types/ipc";
+import type {
+  GetServerMetricsResponse,
+  ServerCapabilityId,
+  SteamServer,
+} from "../types/ipc";
 
 import { PalworldAdminModal } from "./PalworldAdminModal";
 import { PalworldOpsPanel } from "./PalworldOpsPanel";
 import { resolvePalworldOpsIntervalSeconds } from "./palworldOpsSettings";
 import { formatBytes, formatPercent } from "./serverMetricsFormat";
+
+function serverHasCapability(
+  server: SteamServer,
+  capability: ServerCapabilityId
+): boolean {
+  return server.capabilities?.includes(capability) ?? false;
+}
 
 export interface ServerCardProps {
   server: SteamServer;
@@ -58,7 +68,8 @@ export function ServerCard({
 }: ServerCardProps): JSX.Element {
   const hasBackupPath = backupPath !== undefined && backupPath !== "";
   const hasLastBackup = lastBackup !== undefined && lastBackup !== "";
-  const isPalworld = server.appId === PALWORLD_APP_ID;
+  const hasRestAdmin = serverHasCapability(server, "rest_admin");
+  const hasLiveOps = serverHasCapability(server, "live_ops");
   const [showOutput, setShowOutput] = useState(false);
   const [serverOutput, setServerOutput] = useState("");
   const [restEnabled, setRestEnabled] = useState(false);
@@ -98,7 +109,7 @@ export function ServerCard({
   }, [server.isRunning, server.appId]);
 
   useEffect(() => {
-    if (!isPalworld) {
+    if (!hasRestAdmin) {
       setRestEnabled(false);
       return;
     }
@@ -120,7 +131,7 @@ export function ServerCard({
     return () => {
       cancelled = true;
     };
-  }, [isPalworld, server.appId, server.installPath, configRevision]);
+  }, [hasRestAdmin, server.appId, server.installPath, configRevision]);
 
   async function toggleServerOutput(): Promise<void> {
     if (showOutput) {
@@ -204,7 +215,7 @@ export function ServerCard({
           >
             ⚙️ Edit Config
           </button>
-          {isPalworld && (
+          {hasRestAdmin && (
             <span
               className="palworld-admin-btn-wrap"
               title={restEnabled ? undefined : REST_DISABLED_TOOLTIP}
@@ -213,11 +224,7 @@ export function ServerCard({
                 type="button"
                 className="btn btn-palworld-admin-open"
                 disabled={!restEnabled}
-                title={
-                  restEnabled
-                    ? "Open Palworld REST admin"
-                    : REST_DISABLED_TOOLTIP
-                }
+                title={restEnabled ? "Open REST admin" : REST_DISABLED_TOOLTIP}
                 onClick={() => setShowAdminModal(true)}
               >
                 Admin
@@ -240,7 +247,7 @@ export function ServerCard({
               : "(no recent output captured)"}
           </pre>
         )}
-        {isPalworld && (
+        {hasLiveOps && (
           <PalworldOpsPanel
             server={server}
             restEnabled={restEnabled}

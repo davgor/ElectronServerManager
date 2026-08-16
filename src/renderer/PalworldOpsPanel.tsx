@@ -82,7 +82,7 @@ export function PalworldOpsPanel({
   });
 
   const canPoll = shouldPollPalworldOps({
-    isPalworld: true,
+    hasLiveOps: true,
     isRunning: server.isRunning,
     restEnabled,
     opsEnabled,

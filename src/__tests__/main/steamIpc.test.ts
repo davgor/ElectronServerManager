@@ -92,7 +92,7 @@ describe("steamIpc", () => {
   });
 
   describe("fetchSteamServers", () => {
-    it("returns servers when detection succeeds", async () => {
+    it("returns servers with catalog capabilities when detection succeeds", async () => {
       const servers = [
         {
           name: "Enshrouded Dedicated Server",
@@ -100,12 +100,27 @@ describe("steamIpc", () => {
           installPath: "/games/enshrouded",
           isRunning: false,
         },
+        {
+          name: "Palworld Dedicated Server",
+          appId: 1623730,
+          installPath: "/games/pal",
+          isRunning: true,
+        },
       ];
       mockFindInstalledServers.mockResolvedValue(servers);
 
       await expect(fetchSteamServers("/steam")).resolves.toEqual({
         success: true,
-        servers,
+        servers: [
+          {
+            ...servers[0],
+            capabilities: [],
+          },
+          {
+            ...servers[1],
+            capabilities: ["live_ops", "rest_admin", "update_announce"],
+          },
+        ],
       });
       expect(mockFindInstalledServers).toHaveBeenCalledWith("/steam");
     });
