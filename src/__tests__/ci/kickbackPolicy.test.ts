@@ -50,6 +50,14 @@ describe("REQUIRED_CI_CHECK_NAMES", () => {
     expect(REQUIRED_CI_CHECK_NAMES).not.toContain("Run unit tests (20.x)");
     expect(REQUIRED_CI_CHECK_NAMES).not.toContain("Run unit tests (22.x)");
   });
+
+  it("stays in sync with .github/scripts/kickback-policy.cjs (Release/kickback runtime)", () => {
+    // eslint-disable-next-line @typescript-eslint/no-require-imports, @typescript-eslint/no-var-requires
+    const cjs = require("../../../.github/scripts/kickback-policy.cjs") as {
+      REQUIRED_CI_CHECK_NAMES: string[];
+    };
+    expect(cjs.REQUIRED_CI_CHECK_NAMES).toEqual([...REQUIRED_CI_CHECK_NAMES]);
+  });
 });
 
 describe("evaluateRequiredChecks", () => {

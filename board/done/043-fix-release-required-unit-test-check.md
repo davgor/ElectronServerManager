@@ -12,7 +12,7 @@ again.
 
 ## Acceptance criteria
 
-- [ ] `unit-tests.yml` uses Node 22 without a matrix; GitHub check-run name is `Run unit tests`
-- [ ] `REQUIRED_CI_CHECK_NAMES` includes `Run unit tests` (not `20.x` / `22.x`) in both `src/ci/kickbackPolicy.ts` and `.github/scripts/kickback-policy.cjs`
-- [ ] Unit tests assert that required name and evaluate success/pending/failure against it
-- [ ] `npm test` (kickback policy suite) and remaining delivery gates pass
+- [x] `unit-tests.yml` uses Node 22 without a matrix; GitHub check-run name is `Run unit tests`
+- [x] `REQUIRED_CI_CHECK_NAMES` includes `Run unit tests` (not `20.x` / `22.x`) in both `src/ci/kickbackPolicy.ts` and `.github/scripts/kickback-policy.cjs`
+- [x] Unit tests assert that required name and evaluate success/pending/failure against it
+- [x] `npm test` (kickback policy suite) and remaining delivery gates pass
