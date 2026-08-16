@@ -1,5 +1,9 @@
 import { ensureDefaultGameRestAdapters } from "../gameRest/ensureDefaultAdapters";
 
+import {
+  CapabilityRepository,
+  setCapabilityRepository,
+} from "./capabilityRepository";
 import { CatalogRepository, setCatalogRepository } from "./catalogRepository";
 import { getDefaultCatalogDbPath } from "./openCatalogDb";
 import { openAndMigrateCatalogDb } from "./openAndMigrateCatalogDb";
@@ -14,6 +18,9 @@ export function initCatalog(userDataPath: string): CatalogRepository {
   const repository = new CatalogRepository(db);
   repository.refresh();
   setCatalogRepository(repository);
+  const capabilities = new CapabilityRepository(db);
+  capabilities.refresh();
+  setCapabilityRepository(capabilities);
   ensureDefaultGameRestAdapters();
   return repository;
 }

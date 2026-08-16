@@ -4,7 +4,7 @@ import type {
   PalworldRestStatusResponse,
 } from "../types/ipc";
 
-import { getCatalogRepository } from "./catalog/catalogRepository";
+import { getCapabilityRepository } from "./catalog/capabilityRepository";
 import { ensureDefaultGameRestAdapters } from "./gameRest/ensureDefaultAdapters";
 import { getGameRestAdapter } from "./gameRest/registry";
 import { getServerConfig } from "./serverConfig";
@@ -18,7 +18,7 @@ export async function getPalworldRestStatus(
   installPath: string
 ): Promise<PalworldRestStatusResponse> {
   ensureDefaultGameRestAdapters();
-  const catalog = getCatalogRepository();
+  const catalog = getCapabilityRepository();
 
   if (!catalog.hasCapability(appId, "rest_admin")) {
     return {
@@ -75,7 +75,7 @@ export async function invokePalworldRest(
   body?: Record<string, unknown>
 ): Promise<PalworldRestCallResult> {
   ensureDefaultGameRestAdapters();
-  const catalog = getCatalogRepository();
+  const catalog = getCapabilityRepository();
 
   if (!catalog.hasCapability(appId, "rest_admin")) {
     return {

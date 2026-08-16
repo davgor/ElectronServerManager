@@ -1,4 +1,4 @@
-import { getCatalogRepository } from "../../main/catalog/catalogRepository";
+import { getCapabilityRepository } from "../../main/catalog/capabilityRepository";
 import {
   getPalworldRestStatus,
   invokePalworldRest,
@@ -47,7 +47,7 @@ describe("palworldRestIpc capability gating", () => {
       isPalworld: true,
       port: 8212,
     });
-    expect(getCatalogRepository().hasCapability(1623730, "rest_admin")).toBe(
+    expect(getCapabilityRepository().hasCapability(1623730, "rest_admin")).toBe(
       true
     );
   });

@@ -1,4 +1,5 @@
 import { CatalogRepository } from "../../../main/catalog/catalogRepository";
+import { CapabilityRepository } from "../../../main/catalog/capabilityRepository";
 import { openAndMigrateCatalogDb } from "../../../main/catalog/openAndMigrateCatalogDb";
 import { migrateCatalogDb } from "../../../main/catalog/migrate";
 import { openCatalogDb } from "../../../main/catalog/openCatalogDb";
@@ -9,22 +10,36 @@ const ENSHROUDED_APP_ID = 2278520;
 const PALWORLD_APP_ID = 1623730;
 const FICTIONAL_APP_ID = 9000001;
 
+function openCapabilityRepo(): {
+  db: ReturnType<typeof openAndMigrateCatalogDb>;
+  capabilities: CapabilityRepository;
+} {
+  const db = openAndMigrateCatalogDb(":memory:");
+  const capabilities = new CapabilityRepository(db);
+  capabilities.refresh();
+  return { db, capabilities };
+}
+
 describe("catalog capabilities (039.1)", () => {
   it("seeds Palworld with REST/ops/announce capabilities and REST metadata", () => {
-    const db = openAndMigrateCatalogDb(":memory:");
+    const { db, capabilities } = openCapabilityRepo();
     try {
-      const repo = new CatalogRepository(db);
-
-      expect(repo.hasCapability(PALWORLD_APP_ID, "rest_admin")).toBe(true);
-      expect(repo.hasCapability(PALWORLD_APP_ID, "live_ops")).toBe(true);
-      expect(repo.hasCapability(PALWORLD_APP_ID, "update_announce")).toBe(true);
-      expect(repo.listCapabilities(PALWORLD_APP_ID)).toEqual([
+      expect(capabilities.hasCapability(PALWORLD_APP_ID, "rest_admin")).toBe(
+        true
+      );
+      expect(capabilities.hasCapability(PALWORLD_APP_ID, "live_ops")).toBe(
+        true
+      );
+      expect(
+        capabilities.hasCapability(PALWORLD_APP_ID, "update_announce")
+      ).toBe(true);
+      expect(capabilities.listCapabilities(PALWORLD_APP_ID)).toEqual([
         "live_ops",
         "rest_admin",
         "update_announce",
       ]);
 
-      expect(repo.getRestMetadata(PALWORLD_APP_ID)).toEqual({
+      expect(capabilities.getRestMetadata(PALWORLD_APP_ID)).toEqual({
         adapterId: "palworld",
         defaultPort: 8212,
         enabledConfigKey: "RESTAPIEnabled",
@@ -37,29 +52,30 @@ describe("catalog capabilities (039.1)", () => {
   });
 
   it("treats Enshrouded as capability-empty with no REST metadata", () => {
-    const db = openAndMigrateCatalogDb(":memory:");
+    const { db, capabilities } = openCapabilityRepo();
     try {
-      const repo = new CatalogRepository(db);
-
-      expect(repo.hasCapability(ENSHROUDED_APP_ID, "rest_admin")).toBe(false);
-      expect(repo.hasCapability(ENSHROUDED_APP_ID, "live_ops")).toBe(false);
-      expect(repo.hasCapability(ENSHROUDED_APP_ID, "update_announce")).toBe(
+      expect(capabilities.hasCapability(ENSHROUDED_APP_ID, "rest_admin")).toBe(
         false
       );
-      expect(repo.listCapabilities(ENSHROUDED_APP_ID)).toEqual([]);
-      expect(repo.getRestMetadata(ENSHROUDED_APP_ID)).toBeNull();
+      expect(capabilities.hasCapability(ENSHROUDED_APP_ID, "live_ops")).toBe(
+        false
+      );
+      expect(
+        capabilities.hasCapability(ENSHROUDED_APP_ID, "update_announce")
+      ).toBe(false);
+      expect(capabilities.listCapabilities(ENSHROUDED_APP_ID)).toEqual([]);
+      expect(capabilities.getRestMetadata(ENSHROUDED_APP_ID)).toBeNull();
     } finally {
       db.close();
     }
   });
 
   it("returns false/empty/null for unknown app ids", () => {
-    const db = openAndMigrateCatalogDb(":memory:");
+    const { db, capabilities } = openCapabilityRepo();
     try {
-      const repo = new CatalogRepository(db);
-      expect(repo.hasCapability(9999999, "rest_admin")).toBe(false);
-      expect(repo.listCapabilities(9999999)).toEqual([]);
-      expect(repo.getRestMetadata(9999999)).toBeNull();
+      expect(capabilities.hasCapability(9999999, "rest_admin")).toBe(false);
+      expect(capabilities.listCapabilities(9999999)).toEqual([]);
+      expect(capabilities.getRestMetadata(9999999)).toBeNull();
     } finally {
       db.close();
     }
@@ -120,17 +136,23 @@ describe("golden path: fictional third game via migration + capabilities (039.2)
     const db = openCatalogDb(":memory:");
     try {
       migrateCatalogDb(db, [...CATALOG_MIGRATIONS, seedFictionalGame]);
-      const repo = new CatalogRepository(db);
+      const servers = new CatalogRepository(db);
+      const capabilities = new CapabilityRepository(db);
+      capabilities.refresh();
 
-      expect(repo.getServer(FICTIONAL_APP_ID)?.name).toBe(
+      expect(servers.getServer(FICTIONAL_APP_ID)?.name).toBe(
         "Fictional Dedicated Server"
       );
-      expect(repo.hasCapability(FICTIONAL_APP_ID, "rest_admin")).toBe(true);
-      expect(repo.hasCapability(FICTIONAL_APP_ID, "live_ops")).toBe(true);
-      expect(repo.hasCapability(FICTIONAL_APP_ID, "update_announce")).toBe(
+      expect(capabilities.hasCapability(FICTIONAL_APP_ID, "rest_admin")).toBe(
         true
       );
-      expect(repo.getRestMetadata(FICTIONAL_APP_ID)).toEqual({
+      expect(capabilities.hasCapability(FICTIONAL_APP_ID, "live_ops")).toBe(
+        true
+      );
+      expect(
+        capabilities.hasCapability(FICTIONAL_APP_ID, "update_announce")
+      ).toBe(true);
+      expect(capabilities.getRestMetadata(FICTIONAL_APP_ID)).toEqual({
         adapterId: "palworld",
         defaultPort: 9000,
         enabledConfigKey: "RestEnabled",
@@ -138,9 +160,12 @@ describe("golden path: fictional third game via migration + capabilities (039.2)
         passwordConfigKey: "RestPassword",
       });
 
-      // Existing games unchanged
-      expect(repo.hasCapability(PALWORLD_APP_ID, "rest_admin")).toBe(true);
-      expect(repo.hasCapability(ENSHROUDED_APP_ID, "rest_admin")).toBe(false);
+      expect(capabilities.hasCapability(PALWORLD_APP_ID, "rest_admin")).toBe(
+        true
+      );
+      expect(capabilities.hasCapability(ENSHROUDED_APP_ID, "rest_admin")).toBe(
+        false
+      );
     } finally {
       db.close();
     }

@@ -214,4 +214,20 @@ OptionSettings=(AdminPassword="x",RESTAPIEnabled=True)
       adminPassword: "secret",
     });
   });
+
+  it("coerces numeric and boolean OptionSettings fields to strings", () => {
+    expect(
+      extractPalworldRestConfig({
+        OptionSettings: {
+          RESTAPIEnabled: true,
+          RESTAPIPort: 9001,
+          AdminPassword: 42,
+        },
+      })
+    ).toEqual({
+      enabled: true,
+      port: 9001,
+      adminPassword: "42",
+    });
+  });
 });

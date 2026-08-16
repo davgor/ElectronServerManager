@@ -541,6 +541,10 @@ describe("autoUpdateServer", () => {
 
   it("does not query REST status for games without update_announce capability", async () => {
     mockGetServerBuildId.mockResolvedValueOnce("100").mockResolvedValue("101");
+    mockFetchRemoteAppBuildId.mockResolvedValue({
+      success: true,
+      buildId: "101",
+    });
 
     const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
       buildIdPollDelaysMs: NO_POLL_DELAYS,

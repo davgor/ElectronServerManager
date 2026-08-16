@@ -1,6 +1,6 @@
 import type { AutoUpdateServerResponse } from "../types/ipc";
 
-import { getCatalogRepository } from "./catalog/catalogRepository";
+import { getCapabilityRepository } from "./catalog/capabilityRepository";
 import { getServerBuildId } from "./steamDetection";
 import { getServerMapping, startServer, stopServer } from "./serverProcess";
 import {
@@ -146,7 +146,7 @@ async function runAutoUpdate(
   }
 
   // Stage: notifying — REST announce + warn window when catalog says so.
-  if (getCatalogRepository().hasCapability(appId, "update_announce")) {
+  if (getCapabilityRepository().hasCapability(appId, "update_announce")) {
     const restStatus = await getPalworldRestStatus(appId, installPath);
     if (restStatus.success && restStatus.isPalworld && restStatus.enabled) {
       const announceResult = await invokePalworldRest(

@@ -3,6 +3,7 @@ import path from "path";
 import { execSync } from "child_process";
 
 import { getCatalogRepository } from "./catalog/catalogRepository";
+import { getCapabilityRepository } from "./catalog/capabilityRepository";
 import type { ServerCapabilityId } from "./catalog/serverCapabilities";
 import * as logger from "./logger";
 
@@ -82,7 +83,7 @@ function buildDetectedServer(options: {
     installPath: options.installPath,
     isRunning: options.isRunning,
     coverArt: steamCoverArtUrl(options.appId),
-    capabilities: getCatalogRepository().listCapabilities(options.appId),
+    capabilities: getCapabilityRepository().listCapabilities(options.appId),
   };
 }
 

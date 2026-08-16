@@ -1,11 +1,6 @@
 import type { ServerInfo } from "../steamDetection";
 
 import type { CatalogDb } from "./openCatalogDb";
-import {
-  isServerCapabilityId,
-  type ServerCapabilityId,
-  type ServerRestMetadata,
-} from "./serverCapabilities";
 
 type ServerRow = {
   app_id: number;
@@ -22,20 +17,6 @@ type OverrideRow = {
   executable: string | null;
   save_location: string | null;
   config_location: string | null;
-};
-
-type CapabilityRow = {
-  app_id: number;
-  capability: string;
-};
-
-type RestMetadataRow = {
-  app_id: number;
-  adapter_id: string;
-  default_port: number;
-  enabled_config_key: string;
-  port_config_key: string;
-  password_config_key: string;
 };
 
 function rowToServerInfo(row: ServerRow, overrides: OverrideRow[]): ServerInfo {
@@ -86,8 +67,6 @@ function rowToServerInfo(row: ServerRow, overrides: OverrideRow[]): ServerInfo {
  */
 export class CatalogRepository {
   private cache: Map<number, ServerInfo> | null = null;
-  private capabilitiesCache: Map<number, ServerCapabilityId[]> | null = null;
-  private restMetadataCache: Map<number, ServerRestMetadata> | null = null;
 
   public constructor(private readonly db: CatalogDb) {}
 
@@ -122,51 +101,6 @@ export class CatalogRepository {
       );
     }
     this.cache = next;
-    this.refreshCapabilities();
-    this.refreshRestMetadata();
-  }
-
-  private refreshCapabilities(): void {
-    const capabilityRows = this.db
-      .prepare(
-        `SELECT app_id, capability
-         FROM server_capabilities
-         ORDER BY app_id, capability`
-      )
-      .all() as CapabilityRow[];
-
-    const next = new Map<number, ServerCapabilityId[]>();
-    for (const row of capabilityRows) {
-      if (!isServerCapabilityId(row.capability)) {
-        continue;
-      }
-      const list = next.get(row.app_id) ?? [];
-      list.push(row.capability);
-      next.set(row.app_id, list);
-    }
-    this.capabilitiesCache = next;
-  }
-
-  private refreshRestMetadata(): void {
-    const rows = this.db
-      .prepare(
-        `SELECT app_id, adapter_id, default_port,
-                enabled_config_key, port_config_key, password_config_key
-         FROM server_rest_metadata`
-      )
-      .all() as RestMetadataRow[];
-
-    const next = new Map<number, ServerRestMetadata>();
-    for (const row of rows) {
-      next.set(row.app_id, {
-        adapterId: row.adapter_id,
-        defaultPort: row.default_port,
-        enabledConfigKey: row.enabled_config_key,
-        portConfigKey: row.port_config_key,
-        passwordConfigKey: row.password_config_key,
-      });
-    }
-    this.restMetadataCache = next;
   }
 
   private ensureCache(): Map<number, ServerInfo> {
@@ -174,20 +108,6 @@ export class CatalogRepository {
       this.refresh();
     }
     return this.cache as Map<number, ServerInfo>;
-  }
-
-  private ensureCapabilitiesCache(): Map<number, ServerCapabilityId[]> {
-    if (this.capabilitiesCache === null) {
-      this.refresh();
-    }
-    return this.capabilitiesCache as Map<number, ServerCapabilityId[]>;
-  }
-
-  private ensureRestMetadataCache(): Map<number, ServerRestMetadata> {
-    if (this.restMetadataCache === null) {
-      this.refresh();
-    }
-    return this.restMetadataCache as Map<number, ServerRestMetadata>;
   }
 
   public listServers(): Array<{ appId: number; info: ServerInfo }> {
@@ -204,18 +124,6 @@ export class CatalogRepository {
 
   public getServer(appId: number): ServerInfo | null {
     return this.ensureCache().get(appId) ?? null;
-  }
-
-  public hasCapability(appId: number, capability: ServerCapabilityId): boolean {
-    return this.listCapabilities(appId).includes(capability);
-  }
-
-  public listCapabilities(appId: number): ServerCapabilityId[] {
-    return [...(this.ensureCapabilitiesCache().get(appId) ?? [])];
-  }
-
-  public getRestMetadata(appId: number): ServerRestMetadata | null {
-    return this.ensureRestMetadataCache().get(appId) ?? null;
   }
 }
 
