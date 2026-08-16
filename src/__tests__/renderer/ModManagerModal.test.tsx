@@ -61,7 +61,7 @@ describe("ModManagerModal", () => {
       );
     });
     expect(
-      await screen.findByText('Imported and enabled “Fast Work”')
+      await screen.findByText("Imported and enabled “Fast Work”")
     ).toBeInTheDocument();
     const meta = screen.getByText(/Workshop · FastWork · fast\.zip/);
     expect(meta).toBeInTheDocument();
