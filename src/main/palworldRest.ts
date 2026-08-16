@@ -4,9 +4,6 @@
  */
 
 import type { PalworldRestEndpoint } from "../types/ipc";
-import { PALWORLD_APP_ID } from "../types/ipc";
-
-export { PALWORLD_APP_ID };
 
 const DEFAULT_PALWORLD_REST_PORT = 8212;
 
