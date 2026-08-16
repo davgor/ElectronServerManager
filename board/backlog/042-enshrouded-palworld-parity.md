@@ -39,6 +39,20 @@ What *is* available and widely used by community tools:
 | Warn / protect players before auto-update reboot | REST announce + delay | Player-aware gate: if A2S reports players online, warn/delay (or skip auto-stop) before SteamCMD — same *intent* as `update_announce`, no fake chat message |
 | Capability model | SQLite + adapter | Seed Enshrouded capabilities + `adapter_id` (e.g. `enshrouded` / `a2s`) via new migration; do **not** reintroduce `if (appId === …)` in `ServerCard` / `autoUpdate` |
 
+### Capability naming decision (required in 042.2)
+
+Today’s capability ids are REST-shaped: `rest_admin`, `live_ops`, `update_announce`. Enshrouded Admin is **not** REST, and the pre-update gate **cannot** announce.
+
+**Default plan (pick one in 042.2 and stick to it):**
+
+1. **Preferred:** broaden semantics in docs + code comments so:
+   - `rest_admin` means “show Admin surface” (protocol comes from `adapter_id`, which may be A2S/query)
+   - `live_ops` means “show live ops poller” (same)
+   - `update_announce` means “run pre-update player protection” (announce when the adapter supports it; otherwise delay/defer only)
+2. **Alternative:** add new capability ids (e.g. `query_admin`, `update_player_gate`) via migration `CHECK` expansion — only if reusing the three ids above would force fake REST metadata or misleading UI copy.
+
+Do **not** seed Enshrouded with `rest_admin` while leaving the Admin modal hard-wired to Palworld HTTP endpoints.
+
 ### Architecture implications
 
 - Today `GameRestAdapter` + IPC channels are still named around Palworld REST. Prefer **generalizing** the ops protocol seam (shared status/call IPC or a sibling query adapter registry) so Enshrouded plugs in cleanly; keep Palworld’s HTTP module as the first adapter.
@@ -78,10 +92,11 @@ Implement a main-process query client for Enshrouded’s `queryPort` (default 15
 
 ### 042.2 — Catalog capabilities + adapter registration
 
-Add a versioned catalog migration that seeds Enshrouded with the capabilities this epic will honor (at least `live_ops`; Admin and update-gate capabilities as designed in 042.4 / 042.5). Register an Enshrouded adapter in `gameRest` (or a generalized ops registry if 042.1 proves REST naming is wrong). Wire status/invoke through typed IPC without requiring the Palworld HTTP client.
+Add a versioned catalog migration that seeds Enshrouded with the capabilities this epic will honor (`live_ops` plus Admin + pre-update protection per the **Capability naming decision** above). Register an Enshrouded adapter in `gameRest` (or a generalized ops registry if 042.1 proves REST naming is wrong). Wire status/invoke through typed IPC without requiring the Palworld HTTP client. Record the chosen id scheme in the migration comment and `ADDING_SERVERS.md`.
 
 #### Acceptance criteria
 
+- [ ] Capability id scheme chosen (reuse vs new ids) and documented; Enshrouded seeds match that scheme
 - [ ] Fresh DB after migrations: Enshrouded has the intended capability rows + adapter metadata; Palworld rows unchanged
 - [ ] Adapter resolves by `adapter_id` from catalog; Enshrouded invoke never calls `palworldRestAdapter`
 - [ ] Capability / IPC gating tests cover Enshrouded-positive and still treat unknown apps as empty
