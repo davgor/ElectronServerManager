@@ -35,10 +35,10 @@ Gaps to close:
 
 ## Acceptance criteria (epic)
 
-- [ ] Game capability / REST static defaults live in SQLite migrations; production UI/main does not special-case Palworld solely via a hardcoded app id constant
-- [ ] README + `docs/ADDING_SERVERS.md` describe an end-to-end add-game path including optional Palworld-parity capabilities
-- [ ] Refactors make wiring a new game’s detect/run/config/backup (and optional REST/ops) a migration + thin adapter + tests, not scattered `if (appId === …)` edits
-- [ ] Existing Palworld + Enshrouded behavior unchanged; verification gate passes
+- [x] Game capability / REST static defaults live in SQLite migrations; production UI/main does not special-case Palworld solely via a hardcoded app id constant
+- [x] README + `docs/ADDING_SERVERS.md` describe an end-to-end add-game path including optional Palworld-parity capabilities
+- [x] Refactors make wiring a new game’s detect/run/config/backup (and optional REST/ops) a migration + thin adapter + tests, not scattered `if (appId === …)` edits
+- [x] Existing Palworld + Enshrouded behavior unchanged; verification gate passes
 
 ## Sub-tickets
 
@@ -55,11 +55,11 @@ Keep protocol implementation modules (HTTP shapes for Palworld REST) in code; on
 
 #### Acceptance criteria
 
-- [ ] New migration(s) add capability (and needed REST metadata) storage; Palworld seeded with current behavior flags/defaults
-- [ ] `PALWORLD_APP_ID` is no longer the production gate for Admin / live ops / update announce (constant may remain only in tests or as seed data)
-- [ ] Unit tests cover capability reads and Enshrouded-negative / Palworld-positive cases
-- [ ] `ARCHITECTURE.md` catalog section documents the new tables
-- [ ] Verification gate passes
+- [x] New migration(s) add capability (and needed REST metadata) storage; Palworld seeded with current behavior flags/defaults
+- [x] `PALWORLD_APP_ID` is no longer the production gate for Admin / live ops / update announce (constant may remain only in tests or as seed data)
+- [x] Unit tests cover capability reads and Enshrouded-negative / Palworld-positive cases
+- [x] `ARCHITECTURE.md` catalog section documents the new tables
+- [x] Verification gate passes
 
 ### 039.2 — README add-game runbook + portability refactors
 
@@ -79,8 +79,8 @@ Rewrite the operator/dev docs so adding a game is obvious from the README, and r
 
 #### Acceptance criteria
 
-- [ ] README links and summarizes add-game steps; full detail in `docs/ADDING_SERVERS.md`
-- [ ] A contributor can follow the doc to add catalog + capability rows without editing Palworld-named conditionals in `ServerCard` / `autoUpdate`
-- [ ] Palworld Admin + live ops + announce still work; Enshrouded unchanged
-- [ ] Tests demonstrate capability-driven enablement (fixture game or mocked capability)
-- [ ] Verification gate passes; DOCUMENTATION_INDEX updated if needed
+- [x] README links and summarizes add-game steps; full detail in `docs/ADDING_SERVERS.md`
+- [x] A contributor can follow the doc to add catalog + capability rows without editing Palworld-named conditionals in `ServerCard` / `autoUpdate`
+- [x] Palworld Admin + live ops + announce still work; Enshrouded unchanged
+- [x] Tests demonstrate capability-driven enablement (fixture game or mocked capability)
+- [x] Verification gate passes; DOCUMENTATION_INDEX updated if needed
