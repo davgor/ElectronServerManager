@@ -33,6 +33,12 @@ platform-specific executables and config paths (see
   in config
 - **Palworld live ops** — Optional on-card polling of info/players/metrics while
   the server is running and REST is enabled (interval persisted per server)
+- **Palworld Mod Manager** — Import a downloaded mod `.zip`, auto-enable it,
+  soft-disable, or permanently remove with restore of overwritten files (BLOB
+  backups in SQLite). Official `Info.json` packages stage under
+  `Mods/Workshop`; path-rooted zips deploy under `Pal/` or `Mods/`. Official
+  loader support is Windows dedicated server only — restart after import to
+  apply Workshop deployment.
 - **Custom title bar** — Frameless window with minimize / maximize / close
 - **App auto-update** — Packaged builds check GitHub Releases (NSIS / AppImage),
   with a manual **Check for updates** button and `DISABLE_AUTO_UPDATE=1` opt-out;

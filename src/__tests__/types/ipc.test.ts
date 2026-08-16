@@ -49,6 +49,10 @@ const EXPECTED_CHANNELS = [
   "window-close",
   "palworld-rest-status",
   "palworld-rest-request",
+  "list-server-mods",
+  "select-and-import-mod-zip",
+  "set-server-mod-enabled",
+  "remove-server-mod",
 ] as const;
 
 type ExpectedChannel = (typeof EXPECTED_CHANNELS)[number];
@@ -60,7 +64,7 @@ const channelsAreExpected: readonly ExpectedChannel[] = [] as IpcChannel[];
 
 describe("IPC types", () => {
   it("covers every registered IPC channel", () => {
-    expect(expectedAreChannels).toHaveLength(24);
+    expect(expectedAreChannels).toHaveLength(28);
     expect(channelsAreExpected).toHaveLength(0);
   });
 

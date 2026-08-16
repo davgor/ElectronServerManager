@@ -36,6 +36,10 @@ jobs:
       - name: Rebuild native modules for Node
         run: npm run rebuild:native:node
 
+      # main.test.ts asserts against dist/main compiled output (same as unit-tests.yml).
+      - name: Compile main/preload for build artifact tests
+        run: npm run electron-build
+
       - name: Grade new unit tests (fireguard)
         # Fork PRs get a read-only GITHUB_TOKEN, so posting the sticky comment
         # would fail the job; skip --comment-pr there (report still uploads).

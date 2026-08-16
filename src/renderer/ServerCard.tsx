@@ -5,8 +5,10 @@ import type {
   ServerCapabilityId,
   SteamServer,
 } from "../types/ipc";
+import { PALWORLD_APP_ID } from "../types/ipc";
 
 import { PalworldAdminModal } from "./PalworldAdminModal";
+import { ModManagerModal } from "./ModManagerModal";
 import { PalworldOpsPanel } from "./PalworldOpsPanel";
 import { resolvePalworldOpsIntervalSeconds } from "./palworldOpsSettings";
 import { formatBytes, formatPercent } from "./serverMetricsFormat";
@@ -70,10 +72,13 @@ export function ServerCard({
   const hasLastBackup = lastBackup !== undefined && lastBackup !== "";
   const hasRestAdmin = serverHasCapability(server, "rest_admin");
   const hasLiveOps = serverHasCapability(server, "live_ops");
+  // Mod manager remains Palworld-specific (matches main-process app-id gate).
+  const isPalworld = server.appId === PALWORLD_APP_ID;
   const [showOutput, setShowOutput] = useState(false);
   const [serverOutput, setServerOutput] = useState("");
   const [restEnabled, setRestEnabled] = useState(false);
   const [showAdminModal, setShowAdminModal] = useState(false);
+  const [showModManager, setShowModManager] = useState(false);
   const [metrics, setMetrics] = useState<GetServerMetricsResponse | null>(null);
 
   useEffect(() => {
@@ -231,6 +236,15 @@ export function ServerCard({
               </button>
             </span>
           )}
+          {isPalworld && (
+            <button
+              type="button"
+              className="btn btn-mod-manager-open"
+              onClick={() => setShowModManager(true)}
+            >
+              Mod Manager
+            </button>
+          )}
           <button
             className="btn btn-server-output"
             onClick={() => {
@@ -340,6 +354,12 @@ export function ServerCard({
         <PalworldAdminModal
           server={server}
           onClose={() => setShowAdminModal(false)}
+        />
+      )}
+      {showModManager && (
+        <ModManagerModal
+          server={server}
+          onClose={() => setShowModManager(false)}
         />
       )}
     </div>

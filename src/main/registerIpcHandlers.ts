@@ -1,3 +1,5 @@
+import fs from "fs/promises";
+
 import { app, ipcMain, dialog, BrowserWindow } from "electron";
 
 import type { AppSettings, PalworldRestEndpoint } from "../types/ipc";
@@ -19,6 +21,12 @@ import { getServerOutput } from "./serverOutputBuffer";
 import { getServerMetrics } from "./serverMetrics";
 import { checkForAppUpdate, installAppUpdate } from "./appUpdater";
 import { getPalworldRestStatus, invokePalworldRest } from "./palworldRestIpc";
+import {
+  listServerMods,
+  removeServerMod,
+  selectAndImportModZip,
+  setServerModEnabled,
+} from "./mods/modManagerIpc";
 
 interface IpcRegistrationDeps {
   getMainWindow: () => BrowserWindow | null;
@@ -136,4 +144,35 @@ export function registerIpcHandlers(deps: IpcRegistrationDeps): void {
       return invokePalworldRest(appId, installPath, method, endpoint, body);
     }
   );
+
+  ipcMain.handle(
+    "list-server-mods",
+    (_event, appId: number, installPath: string) => {
+      return listServerMods(appId, installPath);
+    }
+  );
+
+  ipcMain.handle(
+    "select-and-import-mod-zip",
+    async (_event, appId: number, installPath: string) => {
+      return selectAndImportModZip(
+        appId,
+        installPath,
+        getMainWindow,
+        dialogApi,
+        (filePath) => fs.readFile(filePath)
+      );
+    }
+  );
+
+  ipcMain.handle(
+    "set-server-mod-enabled",
+    (_event, modId: string, enabled: boolean) => {
+      return setServerModEnabled(modId, enabled);
+    }
+  );
+
+  ipcMain.handle("remove-server-mod", (_event, modId: string) => {
+    return removeServerMod(modId);
+  });
 }

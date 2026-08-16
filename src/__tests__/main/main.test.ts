@@ -29,7 +29,8 @@ describe("Main Process Build", () => {
 
   it("should use process.env for development detection in bootstrap", () => {
     const content = readCompiled("main.js");
-    expect(content).toContain("process.env.NODE_ENV");
+    expect(content).toContain("process.env");
+    expect(content).toContain("resolveIsDev");
   });
 
   it("should bootstrap app lifecycle and IPC registration only", () => {
@@ -39,6 +40,7 @@ describe("Main Process Build", () => {
     expect(content).toContain("registerIpcHandlers");
     expect(content).toContain("setApplicationMenu(null)");
     expect(content).toContain("initCatalog");
+    expect(content).toContain("initModManager");
   });
 
   it("should use __dirname in appWindow for preload and renderer paths", () => {

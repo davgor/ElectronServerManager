@@ -130,6 +130,27 @@ export interface PalworldRestCallResult extends IpcActionResult {
   data?: unknown;
 }
 
+/** Summary of a mod tracked by the Palworld mod manager (epic 040). */
+export interface ServerModSummary {
+  id: string;
+  displayName: string;
+  packageName: string | null;
+  sourceZipName: string | null;
+  kind: "workshop" | "path_deploy";
+  enabled: boolean;
+  importedAt: string;
+}
+
+export interface ListServerModsResponse extends IpcActionResult {
+  mods: ServerModSummary[];
+}
+
+export interface SelectAndImportModZipResponse extends IpcActionResult {
+  mod?: ServerModSummary;
+  /** True when the user canceled the file picker. */
+  canceled?: boolean;
+}
+
 export interface AppSettings {
   selectedSteamPath?: string;
   /** Path to the steamcmd executable used for forced server updates. */
@@ -262,6 +283,22 @@ export interface IpcInvokeMap {
     ];
     result: PalworldRestCallResult;
   };
+  "list-server-mods": {
+    args: [appId: number, installPath: string];
+    result: ListServerModsResponse;
+  };
+  "select-and-import-mod-zip": {
+    args: [appId: number, installPath: string];
+    result: SelectAndImportModZipResponse;
+  };
+  "set-server-mod-enabled": {
+    args: [modId: string, enabled: boolean];
+    result: IpcActionResult;
+  };
+  "remove-server-mod": {
+    args: [modId: string];
+    result: IpcActionResult;
+  };
 }
 
 export type IpcChannel = keyof IpcInvokeMap;
@@ -327,5 +364,18 @@ export interface ElectronAPI {
     endpoint: PalworldRestEndpoint,
     body?: Record<string, unknown>
   ) => Promise<PalworldRestCallResult>;
+  listServerMods: (
+    appId: number,
+    installPath: string
+  ) => Promise<ListServerModsResponse>;
+  selectAndImportModZip: (
+    appId: number,
+    installPath: string
+  ) => Promise<SelectAndImportModZipResponse>;
+  setServerModEnabled: (
+    modId: string,
+    enabled: boolean
+  ) => Promise<IpcActionResult>;
+  removeServerMod: (modId: string) => Promise<IpcActionResult>;
   windowControls: ElectronWindowControls;
 }

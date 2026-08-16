@@ -61,6 +61,7 @@ src/
 │   ├── steamDetection.ts       # Detection + path resolution helpers
 │   ├── catalog/                # SQLite server catalog + migrations
 │   ├── gameRest/               # REST adapter registry (Palworld first)
+│   ├── mods/                   # Palworld mod manager (zip import, SQLite)
 │   ├── steamIpc.ts             # Diagnostics / path listing helpers
 │   ├── steamCmd.ts             # SteamCMD path + update helpers
 │   ├── serverProcess.ts        # Run / stop server processes
@@ -83,6 +84,8 @@ src/
 │   ├── manualCheckMessage.ts   # Manual-check result → UI copy/tone
 │   ├── ServerCard.tsx          # Per-server actions
 │   ├── ConfigEditor.tsx        # Nested JSON/INI editor
+│   ├── PalworldAdminModal.tsx  # Palworld REST admin UI
+│   ├── ModManagerModal.tsx     # Palworld mod zip import / enable / remove
 │   ├── SteamPathSelector.tsx / SteamCmdPathInput.tsx
 │   └── hooks/                  # useSteamServers, settings, backups
 ├── ci/                         # Pure CI helpers (kickback, coverage comments)
@@ -146,6 +149,15 @@ Currently seeded (**2** entries):
 
 Add games via a new migration — see [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
 
+## Mod manager persistence
+
+Palworld mod import state lives in a separate SQLite DB
+(`userData/mod-manager.sqlite`), not the static catalog. Tables track each
+imported mod, every file change (`created` / `overwritten` / `settings`), and
+BLOB backups of overwritten originals. Soft-disabled path-deploy file contents
+are stashed under `userData/mod-stash/<modId>/`. Soft-disable for official
+Workshop packages only edits `Mods/PalModSettings.ini` (`ActiveModList`).
+
 ## IPC channels
 
 All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
@@ -172,6 +184,12 @@ All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
 | `get-settings` / `save-settings` | Persisted UI/server flags |
 | `app-update-check` | Manual app update check (structured `ManualUpdateCheckResult`) |
 | `app-update-install` | Quit and install a downloaded app update |
+| `palworld-rest-status` | Whether Palworld REST API is enabled in config |
+| `palworld-rest-request` | Invoke a Palworld REST admin endpoint |
+| `list-server-mods` | List imported mods for a Palworld install |
+| `select-and-import-mod-zip` | Native zip picker + import/enable |
+| `set-server-mod-enabled` | Soft enable/disable an imported mod |
+| `remove-server-mod` | Permanently remove mod and restore backups |
 | `window-minimize` | Frameless window minimize |
 | `window-maximize-toggle` | Maximize / restore |
 | `window-close` | Close window |
@@ -210,6 +228,9 @@ easy to confirm.
 6. **Backup** — Copies configured save location into a user-chosen backup root.
 7. **Config editor** — Loads config over IPC; `ConfigEditor` edits nested
    values with type preservation; saves back through main.
+8. **Palworld Mod Manager** — Zip import resolves Workshop `Info.json` or
+   `Pal/`/`Mods/` paths, records changes + overwrite BLOBs, auto-enables;
+   disable soft-removes; trash reverts.
 
 ## Design notes
 
