@@ -11,7 +11,7 @@ export const REQUIRED_CI_CHECK_NAMES = [
   "lint",
   "deadcode",
   "type-check",
-  "Run unit tests (20.x)",
+  "Run unit tests",
   "npm audit (fail on any CVE)",
 ] as const;
 
