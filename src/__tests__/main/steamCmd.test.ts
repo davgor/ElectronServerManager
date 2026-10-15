@@ -82,7 +82,7 @@ describe("steamCmd", () => {
     it("finds steamcmd on PATH when no path is configured", () => {
       const original = setPlatform("linux");
       mockExistsSync.mockReturnValue(false);
-      mockExecSync.mockReturnValue("/usr/bin/steamcmd\n" as never);
+      mockExecSync.mockReturnValue("/usr/bin/steamcmd\n");
 
       expect(resolveSteamCmdPath()).toBe("/usr/bin/steamcmd");
       expect(mockExecSync).toHaveBeenCalledWith("which steamcmd", {
@@ -95,7 +95,7 @@ describe("steamCmd", () => {
     it("uses 'where' for the PATH lookup on win32", () => {
       const original = setPlatform("win32");
       mockExistsSync.mockReturnValue(false);
-      mockExecSync.mockReturnValue("C:\\steamcmd\\steamcmd.exe\r\n" as never);
+      mockExecSync.mockReturnValue("C:\\steamcmd\\steamcmd.exe\r\n");
 
       expect(resolveSteamCmdPath()).toBe("C:\\steamcmd\\steamcmd.exe");
       expect(mockExecSync).toHaveBeenCalledWith("where steamcmd", {
@@ -480,7 +480,7 @@ AppID : 2278520
         filePaths: ["C:\\steamcmd\\steamcmd.exe"],
       });
 
-      const result = await selectSteamCmdPath(() => ({}) as never, {
+      const result = await selectSteamCmdPath(() => ({}), {
         showOpenDialog,
       });
 
@@ -503,7 +503,7 @@ AppID : 2278520
         filePaths: [],
       });
 
-      const result = await selectSteamCmdPath(() => ({}) as never, {
+      const result = await selectSteamCmdPath(() => ({}), {
         showOpenDialog,
       });
 

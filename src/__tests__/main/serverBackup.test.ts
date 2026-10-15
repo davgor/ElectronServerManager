@@ -77,7 +77,7 @@ describe("serverBackup", () => {
         filePaths: ["C:\\Backups"],
       });
 
-      const result = await selectBackupFolder(() => ({}) as never, {
+      const result = await selectBackupFolder(() => ({}), {
         showOpenDialog,
       });
 
@@ -100,7 +100,7 @@ describe("serverBackup", () => {
         filePaths: [],
       });
 
-      const result = await selectBackupFolder(() => ({}) as never, {
+      const result = await selectBackupFolder(() => ({}), {
         showOpenDialog,
       });
 

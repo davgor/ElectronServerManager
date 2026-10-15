@@ -91,13 +91,14 @@ function wireAutoUpdaterEvents(deps: AppUpdaterDeps): void {
   autoUpdater.autoDownload = true;
   autoUpdater.autoInstallOnAppQuit = true;
   // electron-updater accepts electron-log-compatible loggers; our structured
-  // logger is enough for console/file visibility in packaged builds.
+  // logger is enough for console/file visibility in packaged builds. Its
+  // formatter already handles non-string args (Error stack, JSON objects).
   autoUpdater.logger = {
-    info: (...args: unknown[]) => logger.info(String(args[0] ?? "")),
-    warn: (...args: unknown[]) => logger.warn(String(args[0] ?? "")),
-    error: (...args: unknown[]) => logger.error(String(args[0] ?? "")),
-    debug: (...args: unknown[]) => logger.debug(String(args[0] ?? "")),
-  } as AppUpdater["logger"];
+    info: (...args: unknown[]) => logger.info(args[0] ?? ""),
+    warn: (...args: unknown[]) => logger.warn(args[0] ?? ""),
+    error: (...args: unknown[]) => logger.error(args[0] ?? ""),
+    debug: (...args: unknown[]) => logger.debug(args[0] ?? ""),
+  };
 
   autoUpdater.on("checking-for-update", () => {
     broadcast({ state: "checking" });
