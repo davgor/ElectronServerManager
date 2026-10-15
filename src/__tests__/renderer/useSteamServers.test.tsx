@@ -329,6 +329,62 @@ describe("useSteamServers", () => {
     expect(result.current.error).toContain(runningServer.name);
   });
 
+  it("keeps a per-server notice for a deferred update and clears it on success", async () => {
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: [runningServer],
+    });
+    mockAutoUpdateServer
+      .mockResolvedValueOnce({
+        success: true,
+        stage: "deferred",
+        updated: false,
+        playersOnline: 3,
+      })
+      .mockResolvedValueOnce({
+        success: true,
+        stage: "complete",
+        updated: true,
+      });
+
+    const { result } = renderHook(() =>
+      useSteamServers({ autoUpdateAppIds: new Set([runningServer.appId]) })
+    );
+    await flushPromises();
+
+    expect(result.current.error).toBeNull();
+    expect(result.current.autoUpdateNotices[runningServer.appId]).toBe(
+      "Update available — waiting for 3 players to leave. Rechecking every 5 minutes."
+    );
+
+    // Still visible on later polls inside the cooldown (unlike the banner).
+    await advanceTime(10000);
+    expect(result.current.autoUpdateNotices[runningServer.appId]).toContain(
+      "waiting for 3 players"
+    );
+
+    await advanceTime(5 * 60 * 1000);
+    expect(mockAutoUpdateServer).toHaveBeenCalledTimes(2);
+    expect(result.current.autoUpdateNotices).toEqual({});
+  });
+
+  it("keeps a per-server notice when the auto-update call throws", async () => {
+    mockGetSteamServers.mockResolvedValue({
+      success: true,
+      servers: [runningServer],
+    });
+    mockAutoUpdateServer.mockRejectedValue(new Error("IPC channel closed"));
+
+    const { result } = renderHook(() =>
+      useSteamServers({ autoUpdateAppIds: new Set([runningServer.appId]) })
+    );
+    await flushPromises();
+
+    expect(result.current.autoUpdateNotices[runningServer.appId]).toBe(
+      "Last auto-update check failed: IPC channel closed"
+    );
+  });
+
   it("does not auto-update servers that are not running", async () => {
     mockGetSteamServers.mockResolvedValue({
       success: true,

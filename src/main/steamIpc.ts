@@ -6,6 +6,7 @@ import type {
   CheckDiagnosticsResponse,
   GetSteamServersResponse,
   IpcActionResult,
+  SteamServer,
 } from "../types/ipc";
 
 import { getCapabilityRepository } from "./catalog/capabilityRepository";
@@ -53,10 +54,22 @@ export async function fetchSteamServers(
   try {
     const detected = await findInstalledServers(path);
     const capabilities = getCapabilityRepository();
-    const servers = detected.map((server) => ({
-      ...server,
-      capabilities: capabilities.listCapabilities(server.appId),
-    }));
+    const servers = detected.map((server): SteamServer => {
+      const enriched: SteamServer = {
+        ...server,
+        capabilities: capabilities.listCapabilities(server.appId),
+      };
+      const opsProtocol = capabilities.getOpsProtocol(server.appId);
+      if (opsProtocol !== null) {
+        enriched.opsProtocol = opsProtocol;
+      }
+      const adminConfigKey =
+        capabilities.getQueryMetadata(server.appId)?.adminConfigKey ?? null;
+      if (adminConfigKey !== null) {
+        enriched.adminConfigKey = adminConfigKey;
+      }
+      return enriched;
+    });
     return { success: true, servers };
   } catch (error) {
     logger.error("Error finding Steam servers:", error);

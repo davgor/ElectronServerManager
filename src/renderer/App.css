@@ -524,6 +524,12 @@ p {
   cursor: not-allowed;
 }
 
+.auto-update-notice {
+  margin: 4px 0 0 26px;
+  font-size: 0.85em;
+  color: #a0aab8;
+}
+
 .last-backup {
   color: #a0aab8;
   font-size: 0.8em;

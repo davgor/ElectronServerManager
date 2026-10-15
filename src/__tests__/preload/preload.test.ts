@@ -67,6 +67,7 @@ describe("Preload IPC bridge", () => {
         "window-close",
         "palworld-rest-status",
         "palworld-rest-request",
+        "game-query-snapshot",
         "list-server-mods",
         "select-and-import-mod-zip",
         "set-server-mod-enabled",
@@ -344,6 +345,15 @@ describe("Preload IPC bridge", () => {
         "POST",
         "announce",
         { message: "hi" }
+      );
+    });
+
+    it("invokes game-query-snapshot with app id and install path", async () => {
+      await getExposedApi().getGameQuerySnapshot(2278520, "/enshrouded");
+      expect(mockIpcInvoke).toHaveBeenCalledWith(
+        "game-query-snapshot",
+        2278520,
+        "/enshrouded"
       );
     });
 

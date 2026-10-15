@@ -9,7 +9,10 @@ import {
   getPalworldRestStatus,
   invokePalworldRest,
 } from "../../main/palworldRestIpc";
+import { getGameQuerySnapshot } from "../../main/gameQueryIpc";
+import { getCapabilityRepository } from "../../main/catalog/capabilityRepository";
 import { PALWORLD_APP_ID } from "../../types/ipc";
+import type { GameQuerySnapshotResponse } from "../../types/ipc";
 import {
   autoUpdateServer,
   resetAutoUpdateForTests,
@@ -42,6 +45,10 @@ jest.mock("../../main/palworldRestIpc", () => ({
   invokePalworldRest: jest.fn(),
 }));
 
+jest.mock("../../main/gameQueryIpc", () => ({
+  getGameQuerySnapshot: jest.fn(),
+}));
+
 const mockGetServerBuildId = jest.mocked(getServerBuildId);
 const mockStartServer = jest.mocked(startServer);
 const mockStopServer = jest.mocked(stopServer);
@@ -50,6 +57,26 @@ const mockFetchRemoteAppBuildId = jest.mocked(fetchRemoteAppBuildId);
 const mockRunSteamCmdUpdate = jest.mocked(runSteamCmdUpdate);
 const mockGetPalworldRestStatus = jest.mocked(getPalworldRestStatus);
 const mockInvokePalworldRest = jest.mocked(invokePalworldRest);
+const mockGetGameQuerySnapshot = jest.mocked(getGameQuerySnapshot);
+
+function querySnapshot(players: number, bots = 0): GameQuerySnapshotResponse {
+  return {
+    success: true,
+    host: "127.0.0.1",
+    port: 15637,
+    info: {
+      serverName: "Shroud Squad",
+      map: "Embervale",
+      game: "Enshrouded",
+      version: "1.0.0.0",
+      players,
+      maxPlayers: 16,
+      bots,
+      passwordProtected: false,
+    },
+    players: [],
+  };
+}
 
 const APP_ID = 2278520;
 const INSTALL_PATH = "/steam/common/EnshroudedServer";
@@ -76,6 +103,8 @@ describe("autoUpdateServer", () => {
       enabled: false,
       isPalworld: false,
     });
+    // Default: the Enshrouded (APP_ID) query reports an empty server.
+    mockGetGameQuerySnapshot.mockResolvedValue(querySnapshot(0));
   });
 
   it("fails at validation for an unknown app id", async () => {
@@ -539,22 +568,207 @@ describe("autoUpdateServer", () => {
     expect(mockStopServer).toHaveBeenCalledTimes(1);
   });
 
-  it("does not query REST status for games without update_announce capability", async () => {
-    mockGetServerBuildId.mockResolvedValueOnce("100").mockResolvedValue("101");
-    mockFetchRemoteAppBuildId.mockResolvedValue({
-      success: true,
-      buildId: "101",
+  it("does not consult REST or the server query for games without update_announce", async () => {
+    const hasCapability = jest
+      .spyOn(getCapabilityRepository(), "hasCapability")
+      .mockReturnValue(false);
+    try {
+      mockGetServerBuildId
+        .mockResolvedValueOnce("100")
+        .mockResolvedValue("101");
+
+      const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+        buildIdPollDelaysMs: NO_POLL_DELAYS,
+        warnBeforeUpdateMs: 0,
+      });
+
+      expect(hasCapability).toHaveBeenCalledWith(APP_ID, "update_announce");
+      expect(mockGetPalworldRestStatus).not.toHaveBeenCalled();
+      expect(mockInvokePalworldRest).not.toHaveBeenCalled();
+      expect(mockGetGameQuerySnapshot).not.toHaveBeenCalled();
+      expect(result.success).toBe(true);
+      expect(result.stage).toBe("complete");
+      expect(result.updated).toBe(true);
+    } finally {
+      hasCapability.mockRestore();
+    }
+  });
+
+  describe("player-aware gate for query-protocol games (042.5)", () => {
+    it("defers without stopping while players are online", async () => {
+      mockGetServerBuildId.mockResolvedValue("100");
+      mockGetGameQuerySnapshot.mockResolvedValue(querySnapshot(2));
+
+      const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+        buildIdPollDelaysMs: NO_POLL_DELAYS,
+      });
+
+      expect(result).toEqual({
+        success: true,
+        stage: "deferred",
+        updated: false,
+        previousBuildId: "100",
+        playersOnline: 2,
+      });
+      expect(mockGetGameQuerySnapshot).toHaveBeenCalledWith(
+        APP_ID,
+        INSTALL_PATH
+      );
+      expect(mockStopServer).not.toHaveBeenCalled();
+      expect(mockRunSteamCmdUpdate).not.toHaveBeenCalled();
+      expect(mockStartServer).not.toHaveBeenCalled();
     });
 
-    const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
-      buildIdPollDelaysMs: NO_POLL_DELAYS,
-      warnBeforeUpdateMs: 0,
+    it("never announces over REST for a query-protocol game", async () => {
+      mockGetServerBuildId.mockResolvedValue("100");
+      mockGetGameQuerySnapshot.mockResolvedValue(querySnapshot(1));
+
+      const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+        buildIdPollDelaysMs: NO_POLL_DELAYS,
+      });
+
+      expect(result.stage).toBe("deferred");
+      expect(mockGetPalworldRestStatus).not.toHaveBeenCalled();
+      expect(mockInvokePalworldRest).not.toHaveBeenCalled();
     });
 
-    expect(mockGetPalworldRestStatus).not.toHaveBeenCalled();
-    expect(mockInvokePalworldRest).not.toHaveBeenCalled();
-    expect(result.success).toBe(true);
-    expect(result.stage).toBe("complete");
-    expect(result.updated).toBe(true);
+    it("updates without a warn window when the server is empty", async () => {
+      jest.useFakeTimers();
+      try {
+        mockGetServerBuildId
+          .mockResolvedValueOnce("100")
+          .mockResolvedValue("101");
+        mockGetGameQuerySnapshot.mockResolvedValue(querySnapshot(0));
+
+        // No warnBeforeUpdateMs override and no timer advance: a 5-minute
+        // wait here would hang this await under fake timers.
+        const result = await autoUpdateServer(
+          APP_ID,
+          INSTALL_PATH,
+          STEAM_PATH,
+          { buildIdPollDelaysMs: NO_POLL_DELAYS }
+        );
+
+        expect(mockStopServer).toHaveBeenCalledWith(APP_ID, INSTALL_PATH);
+        expect(mockRunSteamCmdUpdate).toHaveBeenCalled();
+        expect(result.success).toBe(true);
+        expect(result.stage).toBe("complete");
+        expect(result.updated).toBe(true);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
+    it("does not count bots as players online", async () => {
+      mockGetServerBuildId
+        .mockResolvedValueOnce("100")
+        .mockResolvedValue("101");
+      mockGetGameQuerySnapshot.mockResolvedValue(querySnapshot(2, 2));
+
+      const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+        buildIdPollDelaysMs: NO_POLL_DELAYS,
+      });
+
+      expect(result.stage).toBe("complete");
+      expect(mockStopServer).toHaveBeenCalled();
+    });
+
+    it("defers when the player list shows someone the info count missed", async () => {
+      mockGetServerBuildId.mockResolvedValue("100");
+      mockGetGameQuerySnapshot.mockResolvedValue({
+        ...querySnapshot(0),
+        players: [{ name: "", score: 0, durationSeconds: 3 }],
+      });
+
+      const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+        buildIdPollDelaysMs: NO_POLL_DELAYS,
+      });
+
+      expect(result.stage).toBe("deferred");
+      expect(result.playersOnline).toBe(1);
+      expect(mockStopServer).not.toHaveBeenCalled();
+    });
+
+    it("fails closed at notifying when the player check fails, without claiming an announce", async () => {
+      mockGetServerBuildId.mockResolvedValue("100");
+      mockGetGameQuerySnapshot.mockResolvedValue({
+        success: false,
+        errorKind: "timeout",
+        error: "No response from 127.0.0.1:15637 within 2000 ms",
+        host: "127.0.0.1",
+        port: 15637,
+      });
+
+      const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+        buildIdPollDelaysMs: NO_POLL_DELAYS,
+      });
+
+      expect(result).toEqual({
+        success: false,
+        stage: "notifying",
+        updated: false,
+        previousBuildId: "100",
+        error:
+          "Could not check for online players before updating (timeout: No response from 127.0.0.1:15637 within 2000 ms). Update deferred; server was left running.",
+      });
+      expect(result.error).not.toMatch(/announc/i);
+      expect(mockStopServer).not.toHaveBeenCalled();
+      expect(mockRunSteamCmdUpdate).not.toHaveBeenCalled();
+    });
+
+    it("fails closed when a successful query carries no server info", async () => {
+      mockGetServerBuildId.mockResolvedValue("100");
+      mockGetGameQuerySnapshot.mockResolvedValue({ success: true });
+
+      const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+        buildIdPollDelaysMs: NO_POLL_DELAYS,
+      });
+
+      expect(result.success).toBe(false);
+      expect(result.stage).toBe("notifying");
+      expect(result.error).toContain("unknown query error");
+      expect(mockStopServer).not.toHaveBeenCalled();
+    });
+
+    it("only checks players once an update is actually available", async () => {
+      mockGetServerBuildId.mockResolvedValue("101");
+
+      const result = await autoUpdateServer(APP_ID, INSTALL_PATH, STEAM_PATH, {
+        buildIdPollDelaysMs: NO_POLL_DELAYS,
+      });
+
+      expect(result.stage).toBe("no-update");
+      expect(mockGetGameQuerySnapshot).not.toHaveBeenCalled();
+    });
+
+    it("keeps Palworld on the REST announce path without querying", async () => {
+      mockGetServerBuildId
+        .mockResolvedValueOnce("100")
+        .mockResolvedValue("101");
+      mockGetPalworldRestStatus.mockResolvedValue({
+        success: true,
+        enabled: true,
+        isPalworld: true,
+        port: 8212,
+      });
+      mockInvokePalworldRest.mockResolvedValue({ success: true, data: {} });
+
+      const result = await autoUpdateServer(
+        PALWORLD_APP_ID,
+        PALWORLD_INSTALL,
+        STEAM_PATH,
+        { buildIdPollDelaysMs: NO_POLL_DELAYS, warnBeforeUpdateMs: 0 }
+      );
+
+      expect(mockInvokePalworldRest).toHaveBeenCalledWith(
+        PALWORLD_APP_ID,
+        PALWORLD_INSTALL,
+        "POST",
+        "announce",
+        { message: UPDATE_REBOOT_WARN_MESSAGE }
+      );
+      expect(mockGetGameQuerySnapshot).not.toHaveBeenCalled();
+      expect(result.stage).toBe("complete");
+    });
   });
 });

@@ -1,14 +1,17 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useId, useMemo } from "react";
 import "./ConfigEditor.css";
 
 import type { ConfigFormat } from "../types/ipc";
 
 import { filterConfigTree, normalizeQuery } from "./configSearch";
+import { findSettingDoc } from "./settingDocs";
 
 interface ConfigEditorProps {
   appId: number;
   serverName: string;
   installPath: string;
+  /** Pre-fills the settings search (e.g. to deep-link admin roles). */
+  initialSearchQuery: string | undefined;
   onClose: () => void;
   onSave: () => void;
 }
@@ -35,17 +38,22 @@ export function ConfigEditor({
   appId,
   serverName,
   installPath,
+  initialSearchQuery,
   onClose,
   onSave,
 }: ConfigEditorProps): JSX.Element {
   const [config, setConfig] = useState<Record<string, unknown> | null>(null);
   const [format, setFormat] = useState<ConfigFormat | null>(null);
   const [filePath, setFilePath] = useState<string | null>(null);
+  const docIdPrefix = useId();
+  const [settingDocs, setSettingDocs] = useState<
+    Record<string, string> | undefined
+  >(undefined);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [expandedPaths, setExpandedPaths] = useState<Set<string>>(new Set());
-  const [searchQuery, setSearchQuery] = useState("");
+  const [searchQuery, setSearchQuery] = useState(initialSearchQuery ?? "");
   const [addFields, setAddFields] = useState<
     Record<string, { key: string; value: string } | undefined>
   >({});
@@ -90,6 +98,7 @@ export function ConfigEditor({
 
         setConfig(result.content ?? {});
         setFormat(result.format ?? "json");
+        setSettingDocs(result.settingDocs);
         if (typeof result.filePath === "string") {
           setFilePath(result.filePath);
         } else {
@@ -327,7 +336,8 @@ export function ConfigEditor({
   const renderLeafControl = (
     label: string,
     value: unknown,
-    onChange: (next: unknown) => void
+    onChange: (next: unknown) => void,
+    describedBy?: string
   ): JSX.Element => {
     if (typeof value === "boolean") {
       return (
@@ -338,6 +348,7 @@ export function ConfigEditor({
             onChange(coerceEditedValue(value, "", e.target.checked))
           }
           aria-label={label}
+          aria-describedby={describedBy}
           className="property-value-input property-value-checkbox"
         />
       );
@@ -350,6 +361,7 @@ export function ConfigEditor({
           value={Number.isFinite(value) ? value : ""}
           onChange={(e) => onChange(coerceEditedValue(value, e.target.value))}
           aria-label={label}
+          aria-describedby={describedBy}
           className="property-value-input"
           style={{ maxWidth: 420 }}
         />
@@ -362,6 +374,7 @@ export function ConfigEditor({
         value={value === undefined || value === null ? "" : String(value)}
         onChange={(e) => onChange(coerceEditedValue(value, e.target.value))}
         aria-label={label}
+        aria-describedby={describedBy}
         className="property-value-input"
         style={{ maxWidth: 420 }}
       />
@@ -387,6 +400,45 @@ export function ConfigEditor({
     </button>
   );
 
+  /**
+   * Catalog doc for a setting: `id` for aria-describedby on its control, and
+   * the text element (shown while the setting has keyboard focus).
+   */
+  const settingDocFor = (
+    path: string[]
+  ): { id: string; text: JSX.Element } | undefined => {
+    const doc = findSettingDoc(settingDocs, path);
+    if (doc === undefined) {
+      return undefined;
+    }
+    const id = `${docIdPrefix}doc-${path.join(".")}`;
+    return {
+      id,
+      text: (
+        <p id={id} className="setting-doc-text">
+          {doc}
+        </p>
+      ),
+    };
+  };
+
+  /** Setting name with the doc as a hover tooltip (icon is decorative). */
+  const renderName = (label: string, path: string[]): JSX.Element => {
+    const doc = findSettingDoc(settingDocs, path);
+    return (
+      <div className="property-label">
+        <div className="property-name" title={doc}>
+          {label}
+        </div>
+        {doc !== undefined && (
+          <span className="setting-doc-icon" aria-hidden="true" title={doc}>
+            ⓘ
+          </span>
+        )}
+      </div>
+    );
+  };
+
   const renderProperty = (
     key: string,
     value: unknown,
@@ -401,6 +453,7 @@ export function ConfigEditor({
       if (Array.isArray(value)) {
         const arr = value as unknown[];
         const isExpanded = visibleExpandedPaths.has(pathStr);
+        const groupDoc = settingDocFor(fullPath);
 
         return (
           <div
@@ -413,6 +466,7 @@ export function ConfigEditor({
               onClick={() => toggleExpanded(pathStr)}
               role="button"
               tabIndex={0}
+              aria-describedby={groupDoc?.id}
               onKeyDown={(e) => {
                 if (e.key === "Enter" || e.key === " ") {
                   toggleExpanded(pathStr);
@@ -420,9 +474,7 @@ export function ConfigEditor({
               }}
             >
               <span className={`caret ${isExpanded ? "rotated" : ""}`} />
-              <div className="property-name">
-                {key} [Array({arr.length})]
-              </div>
+              {renderName(`${key} [Array(${arr.length})]`, fullPath)}
               <button
                 type="button"
                 className="btn btn-plus"
@@ -445,6 +497,7 @@ export function ConfigEditor({
               </button>
               {renderDeleteButton(fullPath, key, isTopLevel)}
             </div>
+            {groupDoc?.text}
 
             <div
               className={`properties-list nested ${isExpanded ? "open" : "closed"}`}
@@ -459,6 +512,7 @@ export function ConfigEditor({
                   const itemPath = [...fullPath, itemKey];
                   const itemPathStr = itemPath.join(".");
                   const itemExpanded = visibleExpandedPaths.has(itemPathStr);
+                  const itemDoc = settingDocFor(itemPath);
 
                   return (
                     <div
@@ -471,6 +525,7 @@ export function ConfigEditor({
                         onClick={() => toggleExpanded(itemPathStr)}
                         role="button"
                         tabIndex={0}
+                        aria-describedby={itemDoc?.id}
                         onKeyDown={(e) => {
                           if (e.key === "Enter" || e.key === " ") {
                             toggleExpanded(itemPathStr);
@@ -480,7 +535,7 @@ export function ConfigEditor({
                         <span
                           className={`caret ${itemExpanded ? "rotated" : ""}`}
                         />
-                        <div className="property-name">[{idx}]</div>
+                        {renderName(`[${idx}]`, itemPath)}
                         <button
                           type="button"
                           className="btn btn-plus"
@@ -493,6 +548,7 @@ export function ConfigEditor({
                           +
                         </button>
                       </div>
+                      {itemDoc?.text}
 
                       <div
                         className={`properties-list nested ${itemExpanded ? "open" : "closed"}`}
@@ -507,6 +563,8 @@ export function ConfigEditor({
                   );
                 }
 
+                const entryPath = [...fullPath, itemKey];
+                const entryDoc = settingDocFor(entryPath);
                 // Index keys are intentional (007.1): primitives lack stable ids;
                 // pathStr + idx avoids remount flicker from Date.now()/Math.random().
                 return (
@@ -516,7 +574,7 @@ export function ConfigEditor({
                     className="property-item two-column"
                     style={{ paddingLeft: (depth + 1) * 18 }}
                   >
-                    <div className="property-name">[{idx}]</div>
+                    {renderName(`[${idx}]`, entryPath)}
                     <div
                       style={{
                         display: "flex",
@@ -524,10 +582,14 @@ export function ConfigEditor({
                         gap: 8,
                       }}
                     >
-                      {renderLeafControl(String(item), item, (next) =>
-                        updateArrayAtPath(fullPath, idx, next)
+                      {renderLeafControl(
+                        String(item),
+                        item,
+                        (next) => updateArrayAtPath(fullPath, idx, next),
+                        entryDoc?.id
                       )}
                     </div>
+                    {entryDoc?.text}
                   </div>
                 );
               })}
@@ -540,6 +602,7 @@ export function ConfigEditor({
 
       const obj = value as Record<string, unknown>;
       const isExpanded = visibleExpandedPaths.has(pathStr);
+      const groupDoc = settingDocFor(fullPath);
 
       return (
         <div
@@ -552,6 +615,7 @@ export function ConfigEditor({
             onClick={() => toggleExpanded(pathStr)}
             role="button"
             tabIndex={0}
+            aria-describedby={groupDoc?.id}
             onKeyDown={(e) => {
               if (e.key === "Enter" || e.key === " ") {
                 toggleExpanded(pathStr);
@@ -559,7 +623,7 @@ export function ConfigEditor({
             }}
           >
             <span className={`caret ${isExpanded ? "rotated" : ""}`} />
-            <div className="property-name">{key}</div>
+            {renderName(key, fullPath)}
             <button
               type="button"
               className="btn btn-plus"
@@ -573,6 +637,7 @@ export function ConfigEditor({
             </button>
             {renderDeleteButton(fullPath, key, isTopLevel)}
           </div>
+          {groupDoc?.text}
 
           <div
             className={`properties-list nested ${isExpanded ? "open" : "closed"}`}
@@ -629,19 +694,24 @@ export function ConfigEditor({
       );
     }
 
+    const leafDoc = settingDocFor(fullPath);
     return (
       <div
         key={pathStr}
         className="property-item two-column"
         style={{ paddingLeft: depth * 14 }}
       >
-        <div className="property-name">{key}</div>
+        {renderName(key, fullPath)}
         <div style={{ display: "flex", justifyContent: "flex-end", gap: 8 }}>
-          {renderLeafControl(key, value, (next) =>
-            updateConfigAtPath(fullPath, next)
+          {renderLeafControl(
+            key,
+            value,
+            (next) => updateConfigAtPath(fullPath, next),
+            leafDoc?.id
           )}
           {renderDeleteButton(fullPath, key, isTopLevel)}
         </div>
+        {leafDoc?.text}
       </div>
     );
   };

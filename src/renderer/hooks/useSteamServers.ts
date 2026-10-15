@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { SteamServer } from "../../types/ipc";
+import { describeAutoUpdateNotice } from "../autoUpdateNotice";
 
 interface UseSteamServersOptions {
   /** appIds with auto-restart enabled. Read via ref; changing it must not restart polling. */
@@ -21,6 +22,8 @@ interface UseSteamServersResult {
   availablePaths: string[];
   selectedPath: string;
   setSelectedPath: (path: string) => void;
+  /** Last deferred/failed auto-update check per appId (cleared on success). */
+  autoUpdateNotices: Record<number, string>;
 }
 
 const DEFAULT_SERVER_POLL_INTERVAL_MS = 10000;
@@ -64,6 +67,9 @@ export function useSteamServers(
   const [error, setError] = useState<string | null>(null);
   const [availablePaths, setAvailablePaths] = useState<string[]>([]);
   const [selectedPath, setSelectedPathState] = useState("");
+  const [autoUpdateNotices, setAutoUpdateNotices] = useState<
+    Record<number, string>
+  >({});
 
   const mountedRef = useRef(true);
   // Previous fetch snapshot for crash detection; updated synchronously per
@@ -90,6 +96,25 @@ export function useSteamServers(
       mountedRef.current = false;
     };
   }, []);
+
+  const setAutoUpdateNotice = useCallback(
+    (appId: number, notice: string | null): void => {
+      setAutoUpdateNotices((previous) => {
+        if (notice === null) {
+          if (!(appId in previous)) {
+            return previous;
+          }
+          const next = { ...previous };
+          delete next[appId];
+          return next;
+        }
+        return previous[appId] === notice
+          ? previous
+          : { ...previous, [appId]: notice };
+      });
+    },
+    []
+  );
 
   const fetchServersForPath = useCallback(
     async (path: string, showLoading: boolean): Promise<void> => {
@@ -163,15 +188,28 @@ export function useSteamServers(
                       newServer.installPath,
                       path
                     );
-                    if (!updateResult.success && mountedRef.current) {
+                    if (!mountedRef.current) {
+                      return;
+                    }
+                    setAutoUpdateNotice(
+                      newServer.appId,
+                      describeAutoUpdateNotice(updateResult)
+                    );
+                    if (!updateResult.success) {
                       setError(
                         `Failed to auto-update ${newServer.name}: ${updateResult.error ?? "Unknown error"}`
                       );
                     }
                   } catch (err) {
                     if (mountedRef.current) {
+                      const message =
+                        err instanceof Error ? err.message : "Unknown error";
+                      setAutoUpdateNotice(
+                        newServer.appId,
+                        `Last auto-update check failed: ${message}`
+                      );
                       setError(
-                        `Failed to auto-update ${newServer.name}: ${err instanceof Error ? err.message : "Unknown error"}`
+                        `Failed to auto-update ${newServer.name}: ${message}`
                       );
                     }
                   }
@@ -203,7 +241,7 @@ export function useSteamServers(
         }
       }
     },
-    []
+    [setAutoUpdateNotice]
   );
 
   const fetchAvailablePaths = useCallback(async (): Promise<void> => {
@@ -299,5 +337,6 @@ export function useSteamServers(
     availablePaths,
     selectedPath,
     setSelectedPath,
+    autoUpdateNotices,
   };
 }

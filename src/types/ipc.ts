@@ -18,13 +18,32 @@ export interface SteamServer {
    * Empty when the game has no optional features.
    */
   capabilities?: ServerCapabilityId[];
+  /**
+   * Which ops protocol backs the capabilities above: catalog REST metadata
+   * (`rest`, e.g. Palworld) or catalog query metadata (`query`, e.g.
+   * Enshrouded via Steam A2S). Absent when the game has neither.
+   */
+  opsProtocol?: ServerOpsProtocol;
+  /**
+   * Top-level config key holding in-game admin roles/passwords (e.g.
+   * Enshrouded `userGroups`), used to deep-link the config editor from Admin.
+   */
+  adminConfigKey?: string;
 }
 
 /**
  * Optional per-game features owned by the SQLite catalog
  * (`server_capabilities`). Renderer UI keys off these instead of app ids.
+ *
+ * Ids are historical and protocol-neutral in meaning (epic 042):
+ * - `rest_admin` — show the Admin surface (protocol from `opsProtocol`)
+ * - `live_ops` — show the live ops poller
+ * - `update_announce` — protect players before an auto-update reboot
+ *   (announce + warn window over REST; player-count deferral over query)
  */
 export type ServerCapabilityId = "rest_admin" | "live_ops" | "update_announce";
+
+export type ServerOpsProtocol = "rest" | "query";
 
 export type ConfigFormat = "json" | "ini";
 
@@ -66,6 +85,12 @@ export interface GetServerConfigResponse extends IpcActionResult {
   content?: Record<string, unknown>;
   format?: ConfigFormat;
   filePath?: string;
+  /**
+   * Tooltip text per setting path from the catalog, with array indexes
+   * written as `*` (e.g. `userGroups.*.canKickBan`). Absent when the game
+   * has no documented settings.
+   */
+  settingDocs?: Record<string, string>;
 }
 
 export interface WindowMaximizeToggleResponse extends IpcActionResult {
@@ -83,6 +108,7 @@ export type AutoUpdateStage =
   | "verifying"
   | "restarting"
   | "no-update"
+  | "deferred"
   | "complete";
 
 export interface AutoUpdateServerResponse extends IpcActionResult {
@@ -92,6 +118,11 @@ export interface AutoUpdateServerResponse extends IpcActionResult {
   updated: boolean;
   previousBuildId?: string | null;
   newBuildId?: string | null;
+  /**
+   * Players the server query reported online when an update was deferred
+   * (`stage: "deferred"`); the server keeps running and a later check retries.
+   */
+  playersOnline?: number;
 }
 
 export interface ServerPersistedSettings {
@@ -99,9 +130,12 @@ export interface ServerPersistedSettings {
   autoUpdate: boolean;
   backupPath?: string;
   backupIntervalSeconds?: number;
-  /** Epic 020: live Palworld ops panel toggle. */
+  /**
+   * Live ops panel toggle for any `live_ops` game (epic 020; reused for
+   * query-protocol games in epic 042 — the key name is historical).
+   */
   palworldOpsEnabled?: boolean;
-  /** Epic 020: poll interval in seconds for live ops. */
+  /** Live ops poll interval in seconds (same historical naming as above). */
   palworldOpsIntervalSeconds?: number;
 }
 
@@ -128,6 +162,50 @@ export interface PalworldRestStatusResponse extends IpcActionResult {
 
 export interface PalworldRestCallResult extends IpcActionResult {
   data?: unknown;
+}
+
+/**
+ * Why a game server query failed (epic 042). `unavailable` = no query
+ * metadata/adapter for this app; `config` = server config unreadable;
+ * the rest come from the UDP exchange or response parsing.
+ */
+export type GameQueryErrorKind =
+  | "unavailable"
+  | "config"
+  | "timeout"
+  | "network"
+  | "empty"
+  | "parse";
+
+/** Normalized server info from a game query (Steam A2S_INFO for Enshrouded). */
+export interface GameQueryInfo {
+  serverName: string;
+  map: string;
+  game: string;
+  version: string;
+  players: number;
+  maxPlayers: number;
+  bots: number;
+  passwordProtected: boolean;
+}
+
+/** One row from a game query player list (Steam A2S_PLAYER). */
+export interface GameQueryPlayer {
+  /** May be empty — some servers do not publish player names over A2S. */
+  name: string;
+  score: number;
+  durationSeconds: number;
+}
+
+export interface GameQuerySnapshotResponse extends IpcActionResult {
+  errorKind?: GameQueryErrorKind;
+  /** Query target resolved from the server config (when it could be read). */
+  host?: string;
+  port?: number;
+  info?: GameQueryInfo;
+  /** Null when the info query succeeded but the player list query failed. */
+  players?: GameQueryPlayer[] | null;
+  playersError?: string;
 }
 
 /** Summary of a mod tracked by the Palworld mod manager (epic 040). */
@@ -283,6 +361,10 @@ export interface IpcInvokeMap {
     ];
     result: PalworldRestCallResult;
   };
+  "game-query-snapshot": {
+    args: [appId: number, installPath: string];
+    result: GameQuerySnapshotResponse;
+  };
   "list-server-mods": {
     args: [appId: number, installPath: string];
     result: ListServerModsResponse;
@@ -364,6 +446,10 @@ export interface ElectronAPI {
     endpoint: PalworldRestEndpoint,
     body?: Record<string, unknown>
   ) => Promise<PalworldRestCallResult>;
+  getGameQuerySnapshot: (
+    appId: number,
+    installPath: string
+  ) => Promise<GameQuerySnapshotResponse>;
   listServerMods: (
     appId: number,
     installPath: string

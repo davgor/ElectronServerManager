@@ -4,7 +4,9 @@ Desktop app for detecting and managing Steam dedicated servers. It finds
 installed catalog servers, then lets you start/stop them, auto-restart on
 crash, update game files via SteamCMD, schedule or run save backups, and edit
 server config — all from a frameless Electron UI. Palworld servers also get a
-REST admin panel and a live ops view when the in-game REST API is enabled.
+REST admin panel and a live ops view when the in-game REST API is enabled;
+Enshrouded servers get the same Admin / live ops / update-protection surfaces
+over the Steam server query.
 
 Built for personal server ops; kept intentionally small and explicit about what
 it supports. Windows, Linux, and macOS are supported where the catalog defines
@@ -27,12 +29,27 @@ platform-specific executables and config paths (see
   the UI)
 - **Save backups** — Manual backup or timed intervals to a folder you choose
 - **Config editor** — View and edit JSON/INI server configs in-app, with search
-  that filters the tree to matching keys
+  that filters the tree to matching keys; Enshrouded settings show an ⓘ
+  tooltip with what each one does, plus its default and range where Keen
+  documents them (from Keen's 1.0 server docs); the text is also each
+  control's accessible description and shows inline on keyboard focus
 - **Palworld Admin** — Modal for the documented Palworld REST API (info, players,
   metrics, kick/ban, announce, save, shutdown, etc.); requires `RESTAPIEnabled`
   in config
 - **Palworld live ops** — Optional on-card polling of info/players/metrics while
   the server is running and REST is enabled (interval persisted per server)
+- **Enshrouded Admin** — Modal with live status and the player list over the
+  Steam server query (`queryPort`), a shortcut into the `userGroups` roles in
+  config, and a confirmed Stop. Enshrouded's dedicated server has **no** remote
+  admin API, so kick/ban/unban, announce and save are shown as unsupported
+  (kick/ban in-game with an admin role password)
+- **Enshrouded live ops** — Optional on-card polling of server name, the
+  server-reported version string and players over the server query while the
+  server is running (interval persisted per server)
+- **Player-aware auto-update** — Palworld announces a reboot over REST and waits
+  5 minutes; Enshrouded (no announce) defers the update while players are
+  online and retries on the next check, leaving the server running if the
+  player check fails
 - **Palworld Mod Manager** — Import a downloaded mod `.zip`, auto-enable it,
   soft-disable, or permanently remove with restore of overwritten files (BLOB
   backups in SQLite). Official `Info.json` packages stage under
@@ -50,7 +67,7 @@ Currently shipped catalog (SQLite; see [ARCHITECTURE.md](ARCHITECTURE.md)):
 
 | App ID | Server | Optional features |
 |--------|--------|-------------------|
-| `2278520` | Enshrouded Dedicated Server | — |
+| `2278520` | Enshrouded Dedicated Server | Query admin, live ops, defer update while players are online (Steam A2S; no remote kick/ban/announce/save) |
 | `1623730` | Palworld Dedicated Server | REST admin, live ops, update announce |
 
 Palworld includes Linux executable (`PalServer.sh`) and config-path overrides;
@@ -59,8 +76,9 @@ Enshrouded uses the Windows `.exe` (typically Wine/Proton on Linux).
 ### Adding a new game
 
 1. Add a catalog migration (servers row + platform overrides as needed).
-2. Optionally seed `rest_admin` / `live_ops` / `update_announce` and REST
-   metadata; register a REST adapter only if the protocol is new.
+2. Optionally seed `rest_admin` / `live_ops` / `update_announce` plus REST
+   **or** query metadata; register an adapter only if the protocol is new
+   (single-packet Steam A2S games can reuse `a2s`).
 3. Add tests; smoke-test detect → run/stop → config → backup (± Admin/ops).
 
 Full runbook (schema, capability checklist, migration templates, adapter hook):
@@ -73,6 +91,8 @@ Full runbook (schema, capability checklist, migration templates, adapter hook):
 - SteamCMD available for game auto-update flows (path configurable in the UI)
 - For Palworld Admin / live ops: server config with `RESTAPIEnabled` (and related
   REST settings) — enable via **Edit Config** if the Admin button is disabled
+- For Enshrouded Admin / live ops: nothing to enable — the server answers the
+  Steam query on `queryPort` (default `15637`) whenever it is running
 
 ## Quick start
 
@@ -115,7 +135,7 @@ totals + coverage on new lines) and a **Fireguard** test-quality report. See
 | Doc | Purpose |
 |-----|---------|
 | [ARCHITECTURE.md](ARCHITECTURE.md) | Process model, IPC map, file layout, stack versions |
-| [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md) | Extend the catalog + optional REST/ops/announce capabilities |
+| [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md) | Extend the catalog + optional Admin/ops/update-protection capabilities (REST or query pattern) |
 | [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md) | GitHub Releases → electron-updater runbook |
 | [docs/GAME_UPDATES.md](docs/GAME_UPDATES.md) | SteamCMD game-update flow + operator notes |
 | [DOCUMENTATION_INDEX.md](DOCUMENTATION_INDEX.md) | Index of maintained docs |

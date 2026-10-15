@@ -25,3 +25,19 @@ export interface ServerRestMetadata {
   portConfigKey: string;
   passwordConfigKey: string;
 }
+
+/**
+ * Static query binding metadata for a game whose ops surface is a UDP server
+ * query (Steam A2S) instead of HTTP (epic 042). There is no enable flag or
+ * password: the query listens whenever the server process does.
+ */
+export interface ServerQueryMetadata {
+  adapterId: string;
+  defaultPort: number;
+  /** Top-level config key holding the query port (e.g. `queryPort`). */
+  portConfigKey: string;
+  /** Top-level config key holding the bind address, or null when none. */
+  hostConfigKey: string | null;
+  /** Top-level config key holding in-game admin roles, or null when none. */
+  adminConfigKey: string | null;
+}

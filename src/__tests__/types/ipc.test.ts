@@ -49,6 +49,7 @@ const EXPECTED_CHANNELS = [
   "window-close",
   "palworld-rest-status",
   "palworld-rest-request",
+  "game-query-snapshot",
   "list-server-mods",
   "select-and-import-mod-zip",
   "set-server-mod-enabled",
@@ -64,7 +65,7 @@ const channelsAreExpected: readonly ExpectedChannel[] = [] as IpcChannel[];
 
 describe("IPC types", () => {
   it("covers every registered IPC channel", () => {
-    expect(expectedAreChannels).toHaveLength(28);
+    expect(expectedAreChannels).toHaveLength(29);
     expect(channelsAreExpected).toHaveLength(0);
   });
 

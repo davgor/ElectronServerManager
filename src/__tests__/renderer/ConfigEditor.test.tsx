@@ -39,6 +39,7 @@ const mockElectronApi: ElectronAPI = {
     .fn()
     .mockResolvedValue({ success: true, enabled: false, isPalworld: false }),
   palworldRestRequest: jest.fn().mockResolvedValue({ success: true, data: {} }),
+  getGameQuerySnapshot: jest.fn().mockResolvedValue({ success: true }),
   listServerMods: jest.fn().mockResolvedValue({ success: true, mods: [] }),
   selectAndImportModZip: jest.fn().mockResolvedValue({ success: true }),
   setServerModEnabled: jest.fn().mockResolvedValue({ success: true }),
@@ -61,6 +62,7 @@ const defaultProps = {
   appId: 2278520,
   serverName: "Enshrouded Server",
   installPath: "C:\\Games\\EnshroudedServer",
+  initialSearchQuery: undefined,
   onClose: jest.fn(),
   onSave: jest.fn(),
 };
@@ -294,6 +296,88 @@ describe("ConfigEditor", () => {
     confirmSpy.mockRestore();
   });
 
+  it("shows setting doc tooltips on top-level, nested and array-entry keys", async () => {
+    mockGetServerConfig.mockResolvedValue({
+      success: true,
+      content: {
+        name: "My Dedicated Server",
+        gameSettings: { flameLevelFogRemoval: 11 },
+        userGroups: [{ name: "Admin", canKickBan: true }],
+        tags: ["English"],
+      },
+      format: "json",
+      filePath: "C:\\Games\\EnshroudedServer\\enshrouded_server.json",
+      settingDocs: {
+        name: "Server name doc",
+        gameSettings: "Gameplay values doc",
+        "gameSettings.flameLevelFogRemoval": "Flame level doc",
+        "userGroups.*": "Role doc",
+        "userGroups.*.canKickBan": "Kick and ban doc",
+        "tags.*": "Tag doc",
+      },
+    });
+    render(<ConfigEditor {...defaultProps} />);
+
+    // Leaf: hover tooltip on the name, doc as the control's description.
+    // Top-level "name" is documented; userGroups[0].name is not.
+    const [nameInput, roleNameInput] = await screen.findAllByRole("textbox", {
+      name: "name",
+    });
+    expect(nameInput).toHaveAccessibleDescription("Server name doc");
+    expect(roleNameInput).not.toHaveAccessibleDescription();
+    const [topLevelName, roleName] = screen.getAllByText("name");
+    expect(topLevelName).toHaveAttribute("title", "Server name doc");
+    expect(roleName).not.toHaveAttribute("title");
+
+    // Nested leaf and array-entry leaves (rendered while collapsed).
+    expect(
+      screen.getByRole("spinbutton", { name: "flameLevelFogRemoval" })
+    ).toHaveAccessibleDescription("Flame level doc");
+    expect(
+      screen.getByRole("checkbox", { name: "canKickBan" })
+    ).toHaveAccessibleDescription("Kick and ban doc");
+    expect(
+      screen.getByRole("textbox", { name: "English" })
+    ).toHaveAccessibleDescription("Tag doc");
+
+    // Group toggles: described by the doc, but the doc is not in their name.
+    const toggleFor = (text: string): HTMLElement =>
+      screen
+        .getAllByText(text)
+        .map((node) => node.closest<HTMLElement>('[role="button"]'))
+        .find((node): node is HTMLElement => node !== null) as HTMLElement;
+    const settingsToggle = toggleFor("gameSettings");
+    expect(settingsToggle).toHaveAccessibleDescription("Gameplay values doc");
+    expect(settingsToggle).not.toHaveAccessibleName(/Gameplay values doc/);
+    const roleToggle = toggleFor("[0]");
+    expect(roleToggle).toHaveAccessibleDescription("Role doc");
+    expect(roleToggle).not.toHaveAccessibleName(/Role doc/);
+    expect(
+      toggleFor("userGroups [Array(1)]")
+    ).not.toHaveAccessibleDescription();
+
+    // The hover icon is decorative for assistive tech; one per documented key.
+    const icons = screen.getAllByText("ⓘ");
+    expect(icons).toHaveLength(6);
+    for (const icon of icons) {
+      expect(icon).toHaveAttribute("aria-hidden", "true");
+    }
+  });
+
+  it("shows no setting doc icons when the game has no docs", async () => {
+    mockLoadedConfig();
+    render(<ConfigEditor {...defaultProps} />);
+
+    await waitFor(() => {
+      expect(screen.getByText("name")).toBeInTheDocument();
+    });
+    expect(screen.queryAllByText("ⓘ")).toHaveLength(0);
+    expect(screen.getByText("name")).not.toHaveAttribute("title");
+    expect(
+      screen.getByRole("textbox", { name: "name" })
+    ).not.toHaveAccessibleDescription();
+  });
+
   it("filters the property tree by key and auto-expands nested matches", async () => {
     const user = userEvent.setup();
     mockLoadedConfig({
@@ -315,6 +399,28 @@ describe("ConfigEditor", () => {
     expect(screen.getByText("userGroups")).toBeInTheDocument();
     expect(screen.getAllByText("canKickBan").length).toBeGreaterThanOrEqual(1);
     expect(screen.queryByText("password")).not.toBeInTheDocument();
+  });
+
+  it("opens pre-filtered to the initial search query", async () => {
+    mockLoadedConfig({
+      name: "My Dedicated Server",
+      saveInterval: 300,
+      userGroups: {
+        admin: { password: "secret", canKickBan: true },
+      },
+    });
+    render(<ConfigEditor {...defaultProps} initialSearchQuery="userGroups" />);
+
+    await waitFor(() => {
+      expect(screen.getByText("userGroups")).toBeInTheDocument();
+    });
+
+    expect(screen.getByLabelText("Search settings")).toHaveValue("userGroups");
+    expect(screen.queryByText("name")).not.toBeInTheDocument();
+    expect(screen.queryByText("saveInterval")).not.toBeInTheDocument();
+    expect(
+      screen.getByRole("button", { name: "Clear search" })
+    ).toBeInTheDocument();
   });
 
   it("hides non-matching sibling properties under a nested section", async () => {

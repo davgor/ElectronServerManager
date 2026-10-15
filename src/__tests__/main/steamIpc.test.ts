@@ -114,15 +114,35 @@ describe("steamIpc", () => {
         servers: [
           {
             ...servers[0],
-            capabilities: [],
+            capabilities: ["live_ops", "rest_admin", "update_announce"],
+            opsProtocol: "query",
+            adminConfigKey: "userGroups",
           },
           {
             ...servers[1],
             capabilities: ["live_ops", "rest_admin", "update_announce"],
+            opsProtocol: "rest",
           },
         ],
       });
       expect(mockFindInstalledServers).toHaveBeenCalledWith("/steam");
+    });
+
+    it("omits ops fields for detected apps the catalog has no ops metadata for", async () => {
+      const servers = [
+        {
+          name: "Valheim Server",
+          appId: 896660,
+          installPath: "/games/valheim",
+          isRunning: false,
+        },
+      ];
+      mockFindInstalledServers.mockResolvedValue(servers);
+
+      const result = await fetchSteamServers("/steam");
+      expect(result.servers).toEqual([{ ...servers[0], capabilities: [] }]);
+      expect(result.servers[0]).not.toHaveProperty("opsProtocol");
+      expect(result.servers[0]).not.toHaveProperty("adminConfigKey");
     });
 
     it("returns a failure payload when detection throws", async () => {

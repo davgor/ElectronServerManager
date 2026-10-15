@@ -10,6 +10,8 @@ import { PALWORLD_APP_ID } from "../types/ipc";
 import { PalworldAdminModal } from "./PalworldAdminModal";
 import { ModManagerModal } from "./ModManagerModal";
 import { PalworldOpsPanel } from "./PalworldOpsPanel";
+import { QueryAdminModal } from "./QueryAdminModal";
+import { QueryOpsPanel } from "./QueryOpsPanel";
 import { resolvePalworldOpsIntervalSeconds } from "./palworldOpsSettings";
 import { formatBytes, formatPercent } from "./serverMetricsFormat";
 
@@ -29,6 +31,8 @@ export interface ServerCardProps {
   lastBackup: string | undefined;
   palworldOpsEnabled: boolean;
   palworldOpsIntervalSeconds: number | undefined;
+  /** Last deferred/failed auto-update check, shown under the toggle. */
+  autoUpdateNotice: string | undefined;
   configRevision: number;
   onRunServer: (appId: number, installPath: string) => void;
   onStopServer: (appId: number, installPath: string) => void;
@@ -37,7 +41,7 @@ export interface ServerCardProps {
   onSelectBackupFolder: (appId: number) => void;
   onChangeBackupInterval: (appId: number, seconds: number) => void;
   onBackupNow: (appId: number, installPath: string) => void;
-  onEditConfig: (server: SteamServer) => void;
+  onEditConfig: (server: SteamServer, initialSearch?: string) => void;
   onTogglePalworldOps: (appId: number, enabled: boolean) => void;
   onChangePalworldOpsInterval: (appId: number, seconds: number) => void;
 }
@@ -56,6 +60,7 @@ export function ServerCard({
   lastBackup,
   palworldOpsEnabled,
   palworldOpsIntervalSeconds,
+  autoUpdateNotice,
   configRevision,
   onRunServer,
   onStopServer,
@@ -72,6 +77,10 @@ export function ServerCard({
   const hasLastBackup = lastBackup !== undefined && lastBackup !== "";
   const hasRestAdmin = serverHasCapability(server, "rest_admin");
   const hasLiveOps = serverHasCapability(server, "live_ops");
+  // Query-protocol games (e.g. Steam A2S) have no REST enable flag to check.
+  const isQueryOps = server.opsProtocol === "query";
+  const checksRestStatus = hasRestAdmin && !isQueryOps;
+  const adminConfigKey = server.adminConfigKey;
   // Mod manager remains Palworld-specific (matches main-process app-id gate).
   const isPalworld = server.appId === PALWORLD_APP_ID;
   const [showOutput, setShowOutput] = useState(false);
@@ -114,7 +123,7 @@ export function ServerCard({
   }, [server.isRunning, server.appId]);
 
   useEffect(() => {
-    if (!hasRestAdmin) {
+    if (!checksRestStatus) {
       setRestEnabled(false);
       return;
     }
@@ -136,7 +145,7 @@ export function ServerCard({
     return () => {
       cancelled = true;
     };
-  }, [hasRestAdmin, server.appId, server.installPath, configRevision]);
+  }, [checksRestStatus, server.appId, server.installPath, configRevision]);
 
   async function toggleServerOutput(): Promise<void> {
     if (showOutput) {
@@ -220,7 +229,17 @@ export function ServerCard({
           >
             ⚙️ Edit Config
           </button>
-          {hasRestAdmin && (
+          {hasRestAdmin && isQueryOps && (
+            <button
+              type="button"
+              className="btn btn-palworld-admin-open"
+              title="Open server admin"
+              onClick={() => setShowAdminModal(true)}
+            >
+              Admin
+            </button>
+          )}
+          {hasRestAdmin && !isQueryOps && (
             <span
               className="palworld-admin-btn-wrap"
               title={restEnabled ? undefined : REST_DISABLED_TOOLTIP}
@@ -261,7 +280,22 @@ export function ServerCard({
               : "(no recent output captured)"}
           </pre>
         )}
-        {hasLiveOps && (
+        {hasLiveOps && isQueryOps && (
+          <QueryOpsPanel
+            server={server}
+            opsEnabled={palworldOpsEnabled}
+            opsIntervalSeconds={resolvePalworldOpsIntervalSeconds(
+              palworldOpsIntervalSeconds
+            )}
+            onToggleOps={(enabled) =>
+              onTogglePalworldOps(server.appId, enabled)
+            }
+            onChangeInterval={(seconds) =>
+              onChangePalworldOpsInterval(server.appId, seconds)
+            }
+          />
+        )}
+        {hasLiveOps && !isQueryOps && (
           <PalworldOpsPanel
             server={server}
             restEnabled={restEnabled}
@@ -298,6 +332,11 @@ export function ServerCard({
             />
             Auto-update & restart when available
           </label>
+          {autoUpdateEnabled && autoUpdateNotice !== undefined && (
+            <p className="auto-update-notice" role="status">
+              {autoUpdateNotice}
+            </p>
+          )}
           <div className="backup-section">
             <div className="backup-header">
               <button
@@ -350,7 +389,22 @@ export function ServerCard({
           </div>
         </div>
       </div>
-      {showAdminModal && (
+      {showAdminModal && isQueryOps && (
+        <QueryAdminModal
+          server={server}
+          onClose={() => setShowAdminModal(false)}
+          onStopServer={() => onStopServer(server.appId, server.installPath)}
+          onEditRoles={
+            adminConfigKey !== undefined
+              ? (): void => {
+                  setShowAdminModal(false);
+                  onEditConfig(server, adminConfigKey);
+                }
+              : undefined
+          }
+        />
+      )}
+      {showAdminModal && !isQueryOps && (
         <PalworldAdminModal
           server={server}
           onClose={() => setShowAdminModal(false)}

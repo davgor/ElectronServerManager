@@ -68,6 +68,10 @@ jest.mock("../../main/palworldRestIpc", () => ({
   invokePalworldRest: jest.fn(),
 }));
 
+jest.mock("../../main/gameQueryIpc", () => ({
+  getGameQuerySnapshot: jest.fn(),
+}));
+
 jest.mock("../../main/mods/modManagerIpc", () => ({
   listServerMods: jest.fn(),
   selectAndImportModZip: jest.fn(),
@@ -86,6 +90,7 @@ import {
   getPalworldRestStatus,
   invokePalworldRest,
 } from "../../main/palworldRestIpc";
+import { getGameQuerySnapshot } from "../../main/gameQueryIpc";
 import {
   listServerMods,
   removeServerMod,
@@ -103,6 +108,7 @@ const mockInstallAppUpdate = installAppUpdate as jest.Mock;
 const mockGetPalworldRestStatus = getPalworldRestStatus as jest.Mock;
 const mockGetServerMetrics = getServerMetrics as jest.Mock;
 const mockInvokePalworldRest = invokePalworldRest as jest.Mock;
+const mockGetGameQuerySnapshot = getGameQuerySnapshot as jest.Mock;
 const mockListServerMods = listServerMods as jest.Mock;
 const mockSelectAndImportModZip = selectAndImportModZip as jest.Mock;
 const mockSetServerModEnabled = setServerModEnabled as jest.Mock;
@@ -144,6 +150,7 @@ describe("registerIpcHandlers", () => {
       "app-update-install",
       "palworld-rest-status",
       "palworld-rest-request",
+      "game-query-snapshot",
       "list-server-mods",
       "select-and-import-mod-zip",
       "set-server-mod-enabled",
@@ -263,6 +270,26 @@ describe("registerIpcHandlers", () => {
       "GET",
       "info",
       undefined
+    );
+
+    mockGetGameQuerySnapshot.mockResolvedValue({
+      success: true,
+      host: "127.0.0.1",
+      port: 15637,
+      players: [],
+    });
+    await expect(
+      getHandler("game-query-snapshot")({}, 2278520, "/enshrouded")
+    ).resolves.toEqual({
+      success: true,
+      host: "127.0.0.1",
+      port: 15637,
+      players: [],
+    });
+    // The renderer can never inject a UDP transport through IPC.
+    expect(mockGetGameQuerySnapshot).toHaveBeenCalledWith(
+      2278520,
+      "/enshrouded"
     );
 
     mockListServerMods.mockReturnValue({ success: true, mods: [] });

@@ -4,13 +4,27 @@ import type {
   PalworldRestStatusResponse,
 } from "../types/ipc";
 
-import { getCapabilityRepository } from "./catalog/capabilityRepository";
+import {
+  getCapabilityRepository,
+  type CapabilityRepository,
+} from "./catalog/capabilityRepository";
 import { ensureDefaultGameRestAdapters } from "./gameRest/ensureDefaultAdapters";
 import { getGameRestAdapter } from "./gameRest/registry";
 import { getServerConfig } from "./serverConfig";
 
 /**
- * REST status for games with the `rest_admin` catalog capability.
+ * `rest_admin` means "show the Admin surface" (epic 042); only apps whose
+ * Admin is backed by REST (not a UDP server query) take the HTTP path.
+ */
+function isRestAdminApp(catalog: CapabilityRepository, appId: number): boolean {
+  return (
+    catalog.hasCapability(appId, "rest_admin") &&
+    catalog.getOpsProtocol(appId) !== "query"
+  );
+}
+
+/**
+ * REST status for games with REST-backed `rest_admin`.
  * `isPalworld` remains for IPC compatibility and means "REST admin capable".
  */
 export async function getPalworldRestStatus(
@@ -20,7 +34,7 @@ export async function getPalworldRestStatus(
   ensureDefaultGameRestAdapters();
   const catalog = getCapabilityRepository();
 
-  if (!catalog.hasCapability(appId, "rest_admin")) {
+  if (!isRestAdminApp(catalog, appId)) {
     return {
       success: true,
       enabled: false,
@@ -77,7 +91,7 @@ export async function invokePalworldRest(
   ensureDefaultGameRestAdapters();
   const catalog = getCapabilityRepository();
 
-  if (!catalog.hasCapability(appId, "rest_admin")) {
+  if (!isRestAdminApp(catalog, appId)) {
     return {
       success: false,
       error: "REST admin is not available for this server",
