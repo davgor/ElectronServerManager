@@ -4,7 +4,12 @@ import path from "path";
 
 import { zipSync } from "fflate";
 
-import { initModManager } from "../../../main/mods/initModManager";
+import {
+  closeModManager,
+  getModManagerPaths,
+  getModRepository,
+  initModManager,
+} from "../../../main/mods/initModManager";
 import {
   listServerMods,
   removeServerMod,
@@ -32,6 +37,8 @@ describe("initModManager + modManagerIpc", () => {
   });
 
   afterEach(() => {
+    // Windows cannot delete userData while mod-manager.sqlite is still open.
+    closeModManager();
     fs.rmSync(userData, { recursive: true, force: true });
     fs.rmSync(installPath, { recursive: true, force: true });
   });
@@ -142,5 +149,55 @@ describe("initModManager + modManagerIpc", () => {
     );
     expect(result.success).toBe(false);
     expect(result.error).toMatch(/window/i);
+  });
+});
+
+describe("closeModManager", () => {
+  let userData: string;
+
+  beforeEach(() => {
+    userData = fs.mkdtempSync(path.join(os.tmpdir(), "mod-userdata-"));
+  });
+
+  afterEach(() => {
+    closeModManager();
+    fs.rmSync(userData, { recursive: true, force: true });
+  });
+
+  it("closes the SQLite handle opened by initModManager", () => {
+    const repo = initModManager(userData);
+    expect(repo.listMods(PALWORLD_APP_ID, userData)).toEqual([]);
+
+    closeModManager();
+
+    expect(() => repo.listMods(PALWORLD_APP_ID, userData)).toThrow(
+      /database connection is not open/
+    );
+  });
+
+  it("clears the registered repository and paths", () => {
+    initModManager(userData);
+
+    closeModManager();
+
+    expect(() => getModRepository()).toThrow(
+      "Mod manager has not been initialized"
+    );
+    expect(() => getModManagerPaths()).toThrow(
+      "Mod manager has not been initialized"
+    );
+  });
+
+  it("is a no-op when not initialized and allows re-initialization", () => {
+    closeModManager();
+    expect(() => closeModManager()).not.toThrow();
+
+    const repo = initModManager(userData);
+
+    expect(getModRepository()).toBe(repo);
+    expect(getModManagerPaths()).toEqual({
+      stashRoot: path.join(userData, "mod-stash"),
+    });
+    expect(repo.listMods(PALWORLD_APP_ID, userData)).toEqual([]);
   });
 });
