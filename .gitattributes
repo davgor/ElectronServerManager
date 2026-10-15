@@ -1,2 +1,4 @@
-# Auto detect text files and perform LF normalization
-* text=auto
+# Auto detect text files and perform LF normalization. Check them out with LF
+# on every OS too, so Prettier's endOfLine "lf" matches the working tree even
+# when core.autocrlf=true (Windows default).
+* text=auto eol=lf
