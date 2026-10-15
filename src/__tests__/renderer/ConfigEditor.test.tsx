@@ -1,4 +1,10 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ConfigEditor } from "../../renderer/ConfigEditor";
@@ -499,5 +505,184 @@ describe("ConfigEditor", () => {
     expect(
       screen.getByText('No settings match "zzzz-no-match"')
     ).toBeInTheDocument();
+  });
+});
+
+describe("ConfigEditor nested editing", () => {
+  const nestedConfig = (): Record<string, unknown> => ({
+    outer: {
+      level: "deep",
+      tags: ["alpha"],
+      users: [{ name: "admin", role: "owner" }],
+      child: { leaf: "kept" },
+    },
+  });
+
+  function headerFor(label: string): HTMLElement {
+    return screen.getByText(label).closest('[role="button"]') as HTMLElement;
+  }
+
+  function firstUserHeader(): HTMLElement {
+    const usersGroup = headerFor("users [Array(1)]").closest(
+      ".property-group"
+    ) as HTMLElement;
+    return within(usersGroup)
+      .getByText("[0]")
+      .closest('[role="button"]') as HTMLElement;
+  }
+
+  async function renderNested(): Promise<void> {
+    mockLoadedConfig(nestedConfig());
+    render(<ConfigEditor {...defaultProps} />);
+    await waitFor(() => {
+      expect(screen.getByText("outer")).toBeInTheDocument();
+    });
+  }
+
+  async function saveAndReadOuter(
+    user: ReturnType<typeof userEvent.setup>
+  ): Promise<Record<string, unknown>> {
+    await user.click(screen.getByRole("button", { name: "Save Changes" }));
+    await waitFor(() => {
+      expect(mockSaveServerConfig).toHaveBeenCalled();
+    });
+    const [, , content] = mockSaveServerConfig.mock.calls[0] as [
+      number,
+      string,
+      { outer: Record<string, unknown> },
+      string,
+    ];
+    return content.outer;
+  }
+
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockSaveServerConfig.mockResolvedValue({ success: true });
+  });
+
+  it("edits nested leaves and array items without clobbering siblings", async () => {
+    const user = userEvent.setup();
+    await renderNested();
+    await user.click(screen.getByText("outer"));
+    await user.click(screen.getByText("tags [Array(1)]"));
+
+    await user.clear(screen.getByLabelText("level"));
+    await user.type(screen.getByLabelText("level"), "shallow");
+    const tagInput = screen.getByDisplayValue("alpha");
+    await user.clear(tagInput);
+    await user.type(tagInput, "beta");
+
+    expect(await saveAndReadOuter(user)).toEqual({
+      level: "shallow",
+      tags: ["beta"],
+      users: [{ name: "admin", role: "owner" }],
+      child: { leaf: "kept" },
+    });
+  });
+
+  it("appends a blank string to primitive arrays and a copy of the last object to object arrays", async () => {
+    const user = userEvent.setup();
+    await renderNested();
+    await user.click(screen.getByText("outer"));
+
+    await user.click(
+      within(headerFor("tags [Array(1)]")).getByTitle("Add item to array")
+    );
+    await user.click(
+      within(headerFor("users [Array(1)]")).getByTitle("Add item to array")
+    );
+
+    expect(screen.getByText("tags [Array(2)]")).toBeInTheDocument();
+    expect(screen.getByText("users [Array(2)]")).toBeInTheDocument();
+    const outer = await saveAndReadOuter(user);
+    expect(outer.tags).toEqual(["alpha", ""]);
+    expect(outer.users).toEqual([
+      { name: "admin", role: "owner" },
+      { name: "admin", role: "owner" },
+    ]);
+  });
+
+  it("toggles array, array-item and object sections with Enter and Space only", async () => {
+    const user = userEvent.setup();
+    await renderNested();
+    await user.click(screen.getByText("outer"));
+    await user.click(screen.getByText("users [Array(1)]"));
+
+    const headers = [
+      headerFor("tags [Array(1)]"),
+      firstUserHeader(),
+      headerFor("child"),
+    ];
+    for (const header of headers) {
+      expect(header).toHaveClass("collapsed");
+      fireEvent.keyDown(header, { key: "Escape" });
+      expect(header).toHaveClass("collapsed");
+      fireEvent.keyDown(header, { key: "Enter" });
+      expect(header).toHaveClass("expanded");
+      fireEvent.keyDown(header, { key: " " });
+      expect(header).toHaveClass("collapsed");
+    }
+  });
+
+  it("requires a name before adding a nested property, then saves it under that object", async () => {
+    const user = userEvent.setup();
+    await renderNested();
+    await user.click(screen.getByText("outer"));
+    await user.click(within(headerFor("child")).getByTitle("Add property"));
+
+    await user.click(screen.getByTitle("Save"));
+    expect(screen.getByText(/Property name is required/)).toBeInTheDocument();
+    expect(screen.getByPlaceholderText("Property name")).toBeInTheDocument();
+
+    await user.type(screen.getByPlaceholderText("Property name"), "  motd ");
+    await user.type(screen.getByPlaceholderText("Property value"), "hello");
+    await user.click(screen.getByTitle("Save"));
+    expect(
+      screen.queryByPlaceholderText("Property name")
+    ).not.toBeInTheDocument();
+
+    const outer = await saveAndReadOuter(user);
+    expect(outer.child).toEqual({ leaf: "kept", motd: "hello" });
+    expect(outer.level).toBe("deep");
+  });
+
+  it("indents nested rows by their depth in the tree", async () => {
+    const user = userEvent.setup();
+    await renderNested();
+    await user.click(screen.getByText("outer"));
+    await user.click(screen.getByText("tags [Array(1)]"));
+    await user.click(screen.getByText("users [Array(1)]"));
+    await user.click(firstUserHeader());
+    await user.click(screen.getByText("child"));
+    await user.click(within(headerFor("child")).getByTitle("Add property"));
+
+    const paddingOf = (el: Element | null): string =>
+      (el as HTMLElement).style.paddingLeft;
+    expect(paddingOf(screen.getByText("level").closest(".property-item"))).toBe(
+      "14px"
+    );
+    expect(
+      paddingOf(headerFor("tags [Array(1)]").closest(".property-group"))
+    ).toBe("18px");
+    expect(
+      paddingOf(screen.getByDisplayValue("alpha").closest(".property-item"))
+    ).toBe("36px");
+    expect(paddingOf(firstUserHeader().closest(".property-group"))).toBe(
+      "36px"
+    );
+    expect(paddingOf(screen.getByText("name").closest(".property-item"))).toBe(
+      "42px"
+    );
+    expect(paddingOf(headerFor("child").closest(".property-group"))).toBe(
+      "18px"
+    );
+    expect(paddingOf(screen.getByText("leaf").closest(".property-item"))).toBe(
+      "28px"
+    );
+    expect(
+      paddingOf(
+        screen.getByPlaceholderText("Property name").closest(".add-inline-form")
+      )
+    ).toBe("36px");
   });
 });

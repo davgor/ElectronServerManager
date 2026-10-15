@@ -92,6 +92,39 @@ OptionSettings=(AdminPassword="x",RESTAPIEnabled=True)
   });
 
   describe("callPalworldRest", () => {
+    it("defaults to the global fetch when no fetch implementation is passed", async () => {
+      const fetchMock = jest.fn().mockImplementation(() =>
+        mockFetchResponse({
+          ok: true,
+          status: 200,
+          jsonValue: { players: [] },
+        })
+      );
+      const original = Object.getOwnPropertyDescriptor(globalThis, "fetch");
+      Object.defineProperty(globalThis, "fetch", {
+        value: fetchMock,
+        configurable: true,
+        writable: true,
+      });
+      try {
+        const result = await callPalworldRest(
+          { enabled: true, port: 8212, adminPassword: "secret" },
+          { method: "GET", endpoint: "players" }
+        );
+        expect(result).toEqual({ success: true, data: { players: [] } });
+        expect(fetchMock).toHaveBeenCalledWith(
+          "http://127.0.0.1:8212/v1/api/players",
+          expect.objectContaining({ method: "GET" }) as Record<string, unknown>
+        );
+      } finally {
+        if (original) {
+          Object.defineProperty(globalThis, "fetch", original);
+        } else {
+          Reflect.deleteProperty(globalThis, "fetch");
+        }
+      }
+    });
+
     it("GETs with Basic Auth and returns JSON", async () => {
       const fetchImpl: PalworldRestFetch = jest.fn().mockImplementation(() =>
         mockFetchResponse({

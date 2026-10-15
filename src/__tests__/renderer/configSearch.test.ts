@@ -15,6 +15,14 @@ describe("normalizeQuery", () => {
 });
 
 describe("valueMatches", () => {
+  it("treats an empty query as a match and never matches null, undefined or non-JSON values", () => {
+    expect(valueMatches(null, "")).toBe(true);
+    expect(valueMatches(null, "null")).toBe(false);
+    expect(valueMatches(undefined, "undefined")).toBe(false);
+    expect(valueMatches(Symbol("max"), "max")).toBe(false);
+    expect(valueMatches(() => "max", "max")).toBe(false);
+  });
+
   it("matches stringified primitives case-insensitively", () => {
     expect(valueMatches("Hello World", "hello")).toBe(true);
     expect(valueMatches(42, "42")).toBe(true);
@@ -37,6 +45,46 @@ describe("valueMatches", () => {
 });
 
 describe("filterConfigTree", () => {
+  it("expands only the array items that contain a match", () => {
+    const result = filterConfigTree(
+      { groups: [{ name: "Admin" }, { name: "Guest" }], other: 1 },
+      "admin"
+    );
+    expect(result.filtered).toEqual({
+      groups: [{ name: "Admin" }, { name: "Guest" }],
+    });
+    expect(result.expandPaths).toEqual(["groups", "groups.0"]);
+  });
+
+  it("expands every ancestor of a deeply nested match, outermost first", () => {
+    const result = filterConfigTree(
+      { server: { network: { motd: "needle here" }, port: 1 } },
+      "needle"
+    );
+    expect(result.filtered).toEqual({
+      server: { network: { motd: "needle here" } },
+    });
+    expect(result.expandPaths).toEqual(["server", "server.network"]);
+  });
+
+  it("expands matching arrays and objects inside a matched container", () => {
+    const result = filterConfigTree(
+      {
+        server: {
+          rules: { list: [{ name: "pvp" }], extra: { pvpMode: true } },
+        },
+      },
+      "pvp"
+    );
+    expect(result.expandPaths).toEqual([
+      "server",
+      "server.rules",
+      "server.rules.list",
+      "server.rules.list.0",
+      "server.rules.extra",
+    ]);
+  });
+
   const sample: Record<string, unknown> = {
     name: "My Dedicated Server",
     saveInterval: 300,
