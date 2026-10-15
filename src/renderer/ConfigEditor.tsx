@@ -371,7 +371,7 @@ export function ConfigEditor({
     return (
       <input
         type="text"
-        value={value === undefined || value === null ? "" : String(value)}
+        value={typeof value === "string" ? value : ""}
         onChange={(e) => onChange(coerceEditedValue(value, e.target.value))}
         aria-label={label}
         aria-describedby={describedBy}

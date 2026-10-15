@@ -127,7 +127,7 @@ export class CatalogRepository {
 
   /** Catalog as Record keyed by app ID (drop-in for STEAM_DEDICATED_SERVERS). */
   public getServersRecord(): Record<number, ServerInfo> {
-    return Object.fromEntries(this.ensureCache()) as Record<number, ServerInfo>;
+    return Object.fromEntries(this.ensureCache());
   }
 
   public getServer(appId: number): ServerInfo | null {

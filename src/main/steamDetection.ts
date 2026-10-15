@@ -110,7 +110,7 @@ async function findSteamPath(): Promise<string | null> {
       if (match) {
         return match[1].trim();
       }
-    } catch (e) {
+    } catch {
       // Fallback to common paths
       const commonPaths = [
         "C:\\Program Files (x86)\\Steam",
@@ -174,7 +174,7 @@ export async function parseLibraryFolders(
         }
       }
     }
-  } catch (e) {
+  } catch {
     // libraryfolders.vdf might not exist, continue with default path
   }
 

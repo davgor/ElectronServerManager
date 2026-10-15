@@ -61,7 +61,7 @@ describe("serverConfig", () => {
     it("reads Enshrouded JSON config", async () => {
       mockFs.stat.mockResolvedValueOnce({} as never);
       mockFs.readFile.mockResolvedValueOnce(
-        JSON.stringify({ name: "My Server", password: "secret" }) as never
+        JSON.stringify({ name: "My Server", password: "secret" })
       );
 
       const result = await getServerConfig(
@@ -134,7 +134,7 @@ ServerName="Test World"
 TickRate=30`;
 
       mockFs.stat.mockResolvedValueOnce({} as never);
-      mockFs.readFile.mockResolvedValueOnce(iniContent as never);
+      mockFs.readFile.mockResolvedValueOnce(iniContent);
 
       const result = await getServerConfig(1623730, "C:\\Games\\PalServer");
 
@@ -152,7 +152,7 @@ TickRate=30`;
     it("resolves Palworld config under WindowsServer on win32", async () => {
       await withPlatform("win32", async () => {
         mockFs.stat.mockResolvedValueOnce({} as never);
-        mockFs.readFile.mockResolvedValueOnce("" as never);
+        mockFs.readFile.mockResolvedValueOnce("");
 
         const result = await getServerConfig(1623730, "C:\\Games\\PalServer");
 
@@ -164,7 +164,7 @@ TickRate=30`;
     it("resolves Palworld config under LinuxServer on linux", async () => {
       await withPlatform("linux", async () => {
         mockFs.stat.mockResolvedValueOnce({} as never);
-        mockFs.readFile.mockResolvedValueOnce("" as never);
+        mockFs.readFile.mockResolvedValueOnce("");
 
         const result = await getServerConfig(1623730, "/opt/steam/PalServer");
 
@@ -224,11 +224,12 @@ TickRate=30`;
       );
 
       expect(result).toEqual({ success: true });
-      const writeCall = mockFs.writeFile.mock.calls[0];
-      expect(writeCall[0]).toContain("PalWorldSettings.ini");
-      expect(String(writeCall[1])).toContain("[ServerSettings]");
-      expect(String(writeCall[1])).toContain("ServerName=Saved World");
-      expect(String(writeCall[1])).toContain("TickRate=60");
+      const [writtenPath, writtenContent] = mockFs.writeFile.mock.calls[0];
+      expect(writtenPath).toContain("PalWorldSettings.ini");
+      expect(typeof writtenContent).toBe("string");
+      expect(writtenContent).toContain("[ServerSettings]");
+      expect(writtenContent).toContain("ServerName=Saved World");
+      expect(writtenContent).toContain("TickRate=60");
     });
 
     it("writes Palworld config under LinuxServer on linux", async () => {

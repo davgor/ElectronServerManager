@@ -10,10 +10,10 @@ Versions match `package.json` (pin/range as declared there):
 
 | Layer | Tech |
 |-------|------|
-| Desktop shell | Electron **41.10.5** |
+| Desktop shell | Electron **41.10.7** |
 | UI | React **^18.2**, TypeScript **^5.3** |
 | Renderer bundler | Vite **7.3.0** |
-| Packaging | electron-builder **^24.6** |
+| Packaging | electron-builder **^26.17** |
 | App updates | electron-updater **^6.8** |
 | Settings persistence | electron-store **^8.1** |
 | Server catalog | better-sqlite3 (main process) |
