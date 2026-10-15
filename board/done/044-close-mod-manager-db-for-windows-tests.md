@@ -14,9 +14,9 @@ swallow the `rmSync` error in the test.
 
 ## Acceptance criteria
 
-- [ ] `closeModManager()` closes the SQLite handle opened by `initModManager` (a repository obtained before closing throws on use afterwards) — unit-tested
-- [ ] After `closeModManager()`, `getModRepository()` and `getModManagerPaths()` throw "not been initialized" — unit-tested
-- [ ] `closeModManager()` is a no-op when the mod manager is not initialized, and `initModManager` works again after it — unit-tested
-- [ ] `modManagerIpc.test.ts` calls `closeModManager()` before removing the temp folder; `npx jest src/__tests__/main/mods/modManagerIpc.test.ts` passes on Windows
-- [ ] `.eslintrc.json` sets `"root": true` so a worktree nested under `.claude/worktrees/` with its own `node_modules` does not also load the parent checkout's config (ESLint "couldn't determine the plugin \"react\" uniquely", which blocked `npm run lint` and the pre-commit hook); no rule changed
-- [ ] Full `npm test` has no new failures; lint, format, type-check, deadcode, diff-coverage and fireguard gates pass with no lint rule relaxed
+- [x] `closeModManager()` closes the SQLite handle opened by `initModManager` (a repository obtained before closing throws on use afterwards) — unit-tested
+- [x] After `closeModManager()`, `getModRepository()` and `getModManagerPaths()` throw "not been initialized" — unit-tested
+- [x] `closeModManager()` is a no-op when the mod manager is not initialized, and `initModManager` works again after it — unit-tested
+- [x] `modManagerIpc.test.ts` calls `closeModManager()` before removing the temp folder; `npx jest src/__tests__/main/mods/modManagerIpc.test.ts` passes on Windows
+- [x] `.eslintrc.json` sets `"root": true` so a worktree nested under `.claude/worktrees/` with its own `node_modules` does not also load the parent checkout's config (ESLint "couldn't determine the plugin \"react\" uniquely", which blocked `npm run lint` and the pre-commit hook); no rule changed
+- [x] Full `npm test` has no new failures; lint, format, type-check, deadcode, diff-coverage and fireguard gates pass with no lint rule relaxed (Windows: 77/77 suites; `format:check` passes for changed files — untouched files only differ by CRLF on an autocrlf checkout; fireguard grade A)
