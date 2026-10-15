@@ -1,5 +1,5 @@
 import { spawn } from "node:child_process";
-import { writeFileSync } from "node:fs";
+import { readFileSync, writeFileSync } from "node:fs";
 import { readFile, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
@@ -25,10 +25,66 @@ function runCommand(
     child.stderr.on("data", (chunk: Buffer) => {
       stderr += chunk.toString();
     });
+    child.on("error", (error) => {
+      resolvePromise({ code: 1, stdout, stderr: stderr + error.message });
+    });
     child.on("close", (code) => {
       resolvePromise({ code: code ?? 1, stdout, stderr });
     });
   });
+}
+
+function readOptionalFile(path: string): string | undefined {
+  try {
+    return readFileSync(path, "utf8");
+  } catch {
+    return undefined;
+  }
+}
+
+/**
+ * Windows cannot spawn `npx` (`npx.cmd`) without a shell, and a shell would
+ * re-parse test paths that come from `git diff`. When `npx <bin>` names a
+ * package installed under `cwd`, run its bin script with Node instead.
+ */
+export function resolveSpawnTarget(
+  command: string,
+  args: string[],
+  options: {
+    cwd: string;
+    platform?: NodeJS.Platform;
+    nodePath?: string;
+    readPackageJson?: (path: string) => string | undefined;
+  }
+): { command: string; args: string[] } {
+  const unchanged = { command, args };
+  const [bin, ...rest] = args;
+  if (
+    (options.platform ?? process.platform) !== "win32" ||
+    command !== "npx" ||
+    bin === undefined ||
+    bin.startsWith("-")
+  ) {
+    return unchanged;
+  }
+  const pkgDir = join(options.cwd, "node_modules", bin);
+  const raw = (options.readPackageJson ?? readOptionalFile)(
+    join(pkgDir, "package.json")
+  );
+  if (raw === undefined) return unchanged;
+  let manifest: { bin?: string | Record<string, string> };
+  try {
+    manifest = JSON.parse(raw) as typeof manifest;
+  } catch {
+    return unchanged;
+  }
+  const script =
+    typeof manifest.bin === "string" ? manifest.bin : manifest.bin?.[bin];
+  if (script === undefined) return unchanged;
+  return {
+    command: options.nodePath ?? process.execPath,
+    args: [join(pkgDir, script), ...rest],
+  };
 }
 
 export async function getGitDiffEntries(options: {
@@ -62,17 +118,17 @@ export async function getGitDiffEntries(options: {
 export function createTestCommandRunner(options: {
   cwd: string;
   config: FireguardConfig;
+  platform?: NodeJS.Platform;
 }): (files: string[]) => Promise<RunOnceResult> {
   return async (files: string[]) => {
     if (files.length === 0) return { ok: true };
     const parts = options.config.testCommand.split(/\s+/).filter(Boolean);
-    const command = parts[0] ?? "npx";
-    const baseArgs = parts.slice(1);
-    const result = await runCommand(
-      command,
-      [...baseArgs, ...files],
-      options.cwd
+    const target = resolveSpawnTarget(
+      parts[0] ?? "npx",
+      [...parts.slice(1), ...files],
+      { cwd: options.cwd, platform: options.platform }
     );
+    const result = await runCommand(target.command, target.args, options.cwd);
     if (result.code === 0) return { ok: true };
     // Prefer the end of combined output — Jest prints the failing suite last,
     // while early PASS/console noise used to truncate the real failure away.
