@@ -81,7 +81,7 @@ describe("serverConfig", () => {
     it("attaches catalog setting docs for Enshrouded (config editor tooltips)", async () => {
       mockFs.stat.mockResolvedValueOnce({} as never);
       mockFs.readFile.mockResolvedValueOnce(
-        JSON.stringify({ queryPort: 15637 }) as never
+        JSON.stringify({ queryPort: 15637 })
       );
 
       const result = await getServerConfig(
@@ -102,7 +102,7 @@ describe("serverConfig", () => {
       try {
         mockFs.stat.mockResolvedValueOnce({} as never);
         mockFs.readFile.mockResolvedValueOnce(
-          JSON.stringify({ queryPort: 15637 }) as never
+          JSON.stringify({ queryPort: 15637 })
         );
 
         const result = await getServerConfig(
@@ -120,7 +120,7 @@ describe("serverConfig", () => {
 
     it("omits setting docs for games without any (Palworld)", async () => {
       mockFs.stat.mockResolvedValueOnce({} as never);
-      mockFs.readFile.mockResolvedValueOnce("[ServerSettings]\nA=1" as never);
+      mockFs.readFile.mockResolvedValueOnce("[ServerSettings]\nA=1");
 
       const result = await getServerConfig(1623730, "C:\\Games\\PalServer");
 

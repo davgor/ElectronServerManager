@@ -55,7 +55,7 @@ type CreateSocketSpy = jest.SpiedFunction<typeof dgram.createSocket>;
 function lastCreatedSocket(spy: CreateSocketSpy): Socket {
   const { results } = spy.mock;
   const last = results.length > 0 ? results[results.length - 1] : undefined;
-  if (last === undefined || last.type !== "return") {
+  if (last?.type !== "return") {
     throw new Error("expected defaultUdpExchange to create a socket");
   }
   return last.value;

@@ -135,10 +135,9 @@ interface ScriptedExchange {
 
 /**
  * Fake transport: answers each request with the next scripted datagram, or
- * rejects with the scripted value when it is not a Buffer, and records every
- * request it was sent.
+ * rejects with the scripted error, and records every request it was sent.
  */
-function scriptedExchange(...script: unknown[]): ScriptedExchange {
+function scriptedExchange(...script: Array<Buffer | Error>): ScriptedExchange {
   const queue = [...script];
   const calls: ExchangeCall[] = [];
   const exchange: UdpExchange = (payload, target, timeoutMs) => {
@@ -146,7 +145,7 @@ function scriptedExchange(...script: unknown[]): ScriptedExchange {
     if (queue.length === 0) {
       return Promise.reject(new Error("fake exchange: script exhausted"));
     }
-    const next = queue.shift();
+    const next = queue.shift() as Buffer | Error;
     if (Buffer.isBuffer(next)) {
       return Promise.resolve(next);
     }
@@ -690,9 +689,12 @@ describe("a2sClient", () => {
     });
 
     it("maps a non-Error rejection to a network result", async () => {
-      const fake = scriptedExchange("weird failure");
+      // A misbehaving transport that rejects with a bare string.
+      const exchange = jest
+        .fn<ReturnType<UdpExchange>, Parameters<UdpExchange>>()
+        .mockRejectedValue("weird failure");
 
-      const result = await queryA2sInfo(TARGET, { exchange: fake.exchange });
+      const result = await queryA2sInfo(TARGET, { exchange });
 
       expect(result).toMatchObject({ ok: false, kind: "network" });
       expect(errorText(result)).toContain("weird failure");
