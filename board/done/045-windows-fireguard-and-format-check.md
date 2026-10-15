@@ -19,8 +19,8 @@ relaxing any gate.
 
 ## Acceptance criteria
 
-- [ ] On win32, fireguard runs `npx <bin> …` as `node <package bin script> …` with `shell: false` when `<bin>` is installed in the workspace's `node_modules`; other platforms and other commands are unchanged — unit-tested with an injected platform
-- [ ] A test command that cannot be spawned produces a failed `RunOnceResult` with the spawn error, not an unhandled `error` event — unit-tested
-- [ ] `.gitattributes` checks text files out with LF (`eol=lf`); the index needs no renormalization
-- [ ] In a fresh Windows worktree with no source changes, `npm run format:check` passes and `npm run fireguard` runs to a grade without crashing
-- [ ] Full `npm test` passes; lint, type-check, deadcode and diff-coverage pass with no rule or threshold relaxed
+- [x] On win32, fireguard runs `npx <bin> …` as `node <package bin script> …` with `shell: false` when `<bin>` is installed in the workspace's `node_modules`; other platforms and other commands are unchanged — unit-tested with an injected platform
+- [x] A test command that cannot be spawned produces a failed `RunOnceResult` with the spawn error, not an unhandled `error` event — unit-tested
+- [x] `.gitattributes` checks text files out with LF (`eol=lf`); the index needs no renormalization
+- [x] In a fresh Windows worktree with no source changes, `npm run format:check` passes and `npm run fireguard` runs to a grade without crashing
+- [x] Full `npm test` passes; lint, type-check, deadcode and diff-coverage pass with no rule or threshold relaxed (Windows: 77/77 with #43 applied; this branch alone only has the 6 known modManagerIpc EPERM failures that #43 fixes; fireguard files measured separately — all added lines covered)
