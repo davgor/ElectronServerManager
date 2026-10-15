@@ -39,7 +39,7 @@ export function collectVulnerabilityFindings(
       continue;
     }
     const entry = raw as Record<string, unknown>;
-    const severity = String(entry.severity ?? "");
+    const severity = typeof entry.severity === "string" ? entry.severity : "";
     if (!FAIL_SEVERITIES.has(severity)) {
       continue;
     }

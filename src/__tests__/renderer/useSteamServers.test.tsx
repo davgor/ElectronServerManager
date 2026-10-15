@@ -108,15 +108,14 @@ describe("useSteamServers", () => {
 
   it("adopts a preferredPath that arrives later when the user has not chosen a path", async () => {
     mockGetSteamPaths.mockResolvedValue(["/steam", "/library"]);
+    const initialProps: { preferredPath?: string } = {
+      preferredPath: undefined,
+    };
 
     const { result, rerender } = renderHook(
       ({ preferredPath }: { preferredPath?: string }) =>
         useSteamServers({ preferredPath }),
-      {
-        initialProps: { preferredPath: undefined } as {
-          preferredPath?: string;
-        },
-      }
+      { initialProps }
     );
 
     await flushPromises();
@@ -252,7 +251,7 @@ describe("useSteamServers", () => {
         useSteamServers({ autoRestartAppIds: ids }),
       {
         initialProps: {
-          ids: new Set([runningServer.appId]) as ReadonlySet<number>,
+          ids: new Set([runningServer.appId]),
         },
       }
     );

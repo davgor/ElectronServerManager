@@ -64,9 +64,7 @@ describe("steamDetection", () => {
       );
 
       // Mock libraryfolders.vdf read
-      mockFs.readFile.mockResolvedValueOnce(
-        '"path"    "D:\\Games\\Steam"' as never
-      );
+      mockFs.readFile.mockResolvedValueOnce('"path"    "D:\\Games\\Steam"');
 
       // Mock libraryfolders.vdf existence
       mockFs.stat.mockResolvedValueOnce({} as never);
@@ -91,9 +89,9 @@ describe("steamDetection", () => {
       "path"    "D:\\Games\\Steam"
       "path"    "E:\\SteamLibrary"`;
 
-      mockFs.readFile.mockResolvedValueOnce(vdfContent as never);
+      mockFs.readFile.mockResolvedValueOnce(vdfContent);
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -104,7 +102,7 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
 
       // First stat is for libraryfolders.vdf - succeeds
       // Second stat is for appmanifest file - succeeds
@@ -113,7 +111,7 @@ describe("steamDetection", () => {
       mockFs.stat.mockResolvedValueOnce({} as never);
       mockFs.stat.mockRejectedValueOnce(new Error("ENOENT"));
 
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -151,9 +149,9 @@ describe("steamDetection", () => {
         "label"    "Games"
       }`;
 
-      mockFs.readFile.mockResolvedValueOnce(vdfContent as never);
+      mockFs.readFile.mockResolvedValueOnce(vdfContent);
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -164,11 +162,11 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
 
       // Process is running
-      mockExecSync.mockReturnValueOnce("process found" as never);
+      mockExecSync.mockReturnValueOnce("process found");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -179,7 +177,7 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
 
       // Process check fails
@@ -196,9 +194,9 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -220,7 +218,7 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
 
       // Return success for some manifests, fail for others
       let statCallCount = 0;
@@ -237,7 +235,7 @@ describe("steamDetection", () => {
         return Promise.reject(new Error("ENOENT"));
       });
 
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -248,9 +246,9 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -266,9 +264,9 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -283,9 +281,9 @@ describe("steamDetection", () => {
       "path"    "D:\\Games"
       "path"    ""`;
 
-      mockFs.readFile.mockResolvedValueOnce(malformedVdf as never);
+      mockFs.readFile.mockResolvedValueOnce(malformedVdf);
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -296,9 +294,9 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
 
@@ -352,9 +350,9 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       await findInstalledServers();
 
@@ -389,8 +387,8 @@ describe("steamDetection", () => {
       });
 
       mockFs.stat.mockResolvedValueOnce({} as never);
-      mockFs.readFile.mockResolvedValueOnce("" as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
 
@@ -404,8 +402,8 @@ describe("steamDetection", () => {
       });
 
       mockFs.stat.mockResolvedValueOnce({} as never);
-      mockFs.readFile.mockResolvedValueOnce("" as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
 
@@ -422,7 +420,7 @@ describe("steamDetection", () => {
       const vdfContent = `"path"    "C:\\Program Files (x86)\\Steam"
       "path"    "D:\\Games"`;
 
-      mockFs.readFile.mockResolvedValueOnce(vdfContent as never);
+      mockFs.readFile.mockResolvedValueOnce(vdfContent);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       mockFs.stat.mockImplementation((): Promise<any> => {
@@ -431,7 +429,7 @@ describe("steamDetection", () => {
         return Promise.resolve({});
       });
 
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
 
@@ -448,9 +446,9 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
 
@@ -465,7 +463,7 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
 
       mockFs.stat.mockImplementation((): Promise<never> => {
         // Fail all fs.stat calls to simulate no servers found
@@ -482,11 +480,11 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
 
       // Return success (process is running)
-      mockExecSync.mockReturnValueOnce("process found" as never);
+      mockExecSync.mockReturnValueOnce("process found");
       // Return failure (process not running)
       mockExecSync.mockImplementationOnce(() => {
         throw new Error("Process not found");
@@ -504,9 +502,9 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
 
@@ -523,8 +521,8 @@ describe("steamDetection", () => {
       });
 
       mockFs.stat.mockResolvedValueOnce({} as never);
-      mockFs.readFile.mockResolvedValueOnce("" as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -553,9 +551,9 @@ describe("steamDetection", () => {
         }
       }`;
 
-      mockFs.readFile.mockResolvedValueOnce(complexVdf as never);
+      mockFs.readFile.mockResolvedValueOnce(complexVdf);
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);
@@ -566,9 +564,9 @@ describe("steamDetection", () => {
         "SteamPath    REG_SZ    C:\\Program Files (x86)\\Steam"
       );
 
-      mockFs.readFile.mockResolvedValueOnce("" as never);
+      mockFs.readFile.mockResolvedValueOnce("");
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
 
@@ -590,9 +588,9 @@ describe("steamDetection", () => {
       "path"    "E:\\Games2"
       "path"    "F:\\Games3"`;
 
-      mockFs.readFile.mockResolvedValueOnce(vdfWithMultipleLibraries as never);
+      mockFs.readFile.mockResolvedValueOnce(vdfWithMultipleLibraries);
       mockFs.stat.mockResolvedValue({} as never);
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       const servers = await findInstalledServers();
       expect(Array.isArray(servers)).toBe(true);

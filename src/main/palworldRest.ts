@@ -146,7 +146,7 @@ export function buildPalworldRestAuthHeader(adminPassword: string): string {
 export async function callPalworldRest(
   config: PalworldRestConfig,
   request: PalworldRestRequest,
-  fetchImpl: PalworldRestFetch = globalThis.fetch as PalworldRestFetch
+  fetchImpl: PalworldRestFetch = globalThis.fetch
 ): Promise<PalworldRestCallResult> {
   if (!config.enabled) {
     return {

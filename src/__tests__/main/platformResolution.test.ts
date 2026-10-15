@@ -141,7 +141,7 @@ describe("platform-aware resolution", () => {
       // manifests and app folders exist
       mockFs.stat.mockResolvedValue({} as never);
       // pgrep succeeds -> process running
-      mockExecSync.mockReturnValue("" as never);
+      mockExecSync.mockReturnValue("");
 
       await findInstalledServers("/home/user/.steam/steam");
 

@@ -21,7 +21,8 @@ const MANIFEST = `appmanifest_${APP_ID}.acf`;
 /** Resolve readFile per-path so candidate ordering is explicit in each test. */
 function mockManifestFiles(files: Record<string, string | undefined>): void {
   mockFs.readFile.mockImplementation((requestedPath) => {
-    const content = files[String(requestedPath)];
+    const content =
+      typeof requestedPath === "string" ? files[requestedPath] : undefined;
     if (content === undefined) {
       return Promise.reject(new Error("ENOENT"));
     }

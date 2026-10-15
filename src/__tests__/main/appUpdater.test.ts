@@ -11,6 +11,12 @@ import {
   registerAppUpdater,
   resetAppUpdaterForTests,
 } from "../../main/appUpdater";
+import {
+  resetLoggerForTests,
+  setLogLevel,
+  setLoggerTransportsForTests,
+  type LogLevel,
+} from "../../main/logger";
 
 type ListenerMap = Map<string, Array<(...args: unknown[]) => void>>;
 
@@ -95,6 +101,43 @@ describe("appUpdater", () => {
 
   it("exposes an 8s default initial check delay", () => {
     expect(DEFAULT_INITIAL_CHECK_DELAY_MS).toBe(8_000);
+  });
+
+  it("routes electron-updater log calls through the app logger formatter", () => {
+    const lines: Array<{ level: LogLevel; message: string }> = [];
+    resetLoggerForTests();
+    setLogLevel("debug");
+    setLoggerTransportsForTests([
+      (level, message) => {
+        lines.push({ level, message });
+      },
+    ]);
+    try {
+      registerAppUpdater({
+        autoUpdater: mock.autoUpdater,
+        getMainWindow,
+        isPackaged: true,
+        currentVersion: "1.0.0",
+      });
+
+      const updaterLogger = mock.autoUpdater.logger;
+      updaterLogger?.info("Checking for update");
+      updaterLogger?.warn({ code: "ERR_UPDATER_LATEST_VERSION_NOT_FOUND" });
+      updaterLogger?.error(undefined);
+      updaterLogger?.debug?.("first only");
+    } finally {
+      resetLoggerForTests();
+    }
+
+    expect(lines).toEqual([
+      { level: "info", message: "Checking for update" },
+      {
+        level: "warn",
+        message: '{"code":"ERR_UPDATER_LATEST_VERSION_NOT_FOUND"}',
+      },
+      { level: "error", message: "" },
+      { level: "debug", message: "first only" },
+    ]);
   });
 
   it("skips update checks when unpackaged and reports disabled", async () => {
