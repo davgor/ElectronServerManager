@@ -47,6 +47,37 @@ describe("collectVulnerabilityFindings", () => {
     expect(findings[1].viaTitles).toEqual(["Vite path traversal"]);
   });
 
+  it("falls back to the advisory url when an advisory has no title", () => {
+    const findings = collectVulnerabilityFindings({
+      vulnerabilities: {
+        undici: {
+          severity: "high",
+          via: [{ url: "https://github.com/advisories/GHSA-test" }, {}],
+        },
+      },
+    });
+    expect(findings).toEqual([
+      {
+        name: "undici",
+        severity: "high",
+        viaTitles: ["https://github.com/advisories/GHSA-test"],
+      },
+    ]);
+  });
+
+  it("skips entries whose severity is missing, unknown or not a string", () => {
+    expect(
+      collectVulnerabilityFindings({
+        vulnerabilities: {
+          missing: { via: [] },
+          unknown: { severity: "none", via: [] },
+          numeric: { severity: 3, via: [] },
+          empty: null,
+        },
+      })
+    ).toEqual([]);
+  });
+
   it("formats a failing report", () => {
     const report = formatFindingsReport([
       {
@@ -57,6 +88,19 @@ describe("collectVulnerabilityFindings", () => {
     ]);
     expect(report).toContain("Found vulnerabilities (zero-CVE policy)");
     expect(report).toContain("leftpad | severity=low");
+  });
+
+  it("reports the first advisory title, or points at npm audit when there is none", () => {
+    const report = formatFindingsReport([
+      {
+        name: "braces",
+        severity: "high",
+        viaTitles: ["Stack exhaustion", "x"],
+      },
+      { name: "micromatch", severity: "high", viaTitles: [] },
+    ]);
+    expect(report).toContain("- braces | severity=high | Stack exhaustion");
+    expect(report).toContain("- micromatch | severity=high | see npm audit");
   });
 
   it("formats a passing report", () => {

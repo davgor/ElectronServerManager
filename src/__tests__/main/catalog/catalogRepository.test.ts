@@ -10,6 +10,23 @@ const ENSHROUDED_APP_ID = 2278520;
 const PALWORLD_APP_ID = 1623730;
 
 describe("CatalogRepository", () => {
+  it("exposes the catalog as a record keyed by app ID", () => {
+    const db = openAndMigrateCatalogDb(":memory:");
+    try {
+      const repo = new CatalogRepository(db);
+      const record = repo.getServersRecord();
+      expect(Object.keys(record).sort()).toEqual(
+        [String(PALWORLD_APP_ID), String(ENSHROUDED_APP_ID)].sort()
+      );
+      expect(record[PALWORLD_APP_ID]).toEqual(repo.getServer(PALWORLD_APP_ID));
+      expect(record[ENSHROUDED_APP_ID].name).toBe(
+        "Enshrouded Dedicated Server"
+      );
+    } finally {
+      db.close();
+    }
+  });
+
   it("returns ServerInfo-compatible data for both seeded games", () => {
     const db = openAndMigrateCatalogDb(":memory:");
     try {
