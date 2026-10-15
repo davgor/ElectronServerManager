@@ -51,20 +51,91 @@ describe("catalog capabilities (039.1)", () => {
     }
   });
 
-  it("treats Enshrouded as capability-empty with no REST metadata", () => {
+  it("seeds Enshrouded with admin/ops/update capabilities over A2S query metadata (042.2)", () => {
     const { db, capabilities } = openCapabilityRepo();
     try {
-      expect(capabilities.hasCapability(ENSHROUDED_APP_ID, "rest_admin")).toBe(
-        false
-      );
-      expect(capabilities.hasCapability(ENSHROUDED_APP_ID, "live_ops")).toBe(
-        false
-      );
-      expect(
-        capabilities.hasCapability(ENSHROUDED_APP_ID, "update_announce")
-      ).toBe(false);
-      expect(capabilities.listCapabilities(ENSHROUDED_APP_ID)).toEqual([]);
+      expect(capabilities.listCapabilities(ENSHROUDED_APP_ID)).toEqual([
+        "live_ops",
+        "rest_admin",
+        "update_announce",
+      ]);
+      expect(capabilities.getQueryMetadata(ENSHROUDED_APP_ID)).toEqual({
+        adapterId: "a2s",
+        defaultPort: 15637,
+        portConfigKey: "queryPort",
+        hostConfigKey: "ip",
+        adminConfigKey: "userGroups",
+      });
+      // No fake REST binding: Enshrouded has no HTTP admin API.
       expect(capabilities.getRestMetadata(ENSHROUDED_APP_ID)).toBeNull();
+      expect(capabilities.getOpsProtocol(ENSHROUDED_APP_ID)).toBe("query");
+    } finally {
+      db.close();
+    }
+  });
+
+  it("upgrades an existing v3 catalog so Enshrouded gains query capabilities", () => {
+    const db = openCatalogDb(":memory:");
+    try {
+      migrateCatalogDb(
+        db,
+        CATALOG_MIGRATIONS.filter((migration) => migration.version <= 3)
+      );
+      // The repository needs every migrated table, so read v3 state directly.
+      const enshroudedRowsBefore = db
+        .prepare("SELECT capability FROM server_capabilities WHERE app_id = ?")
+        .all(ENSHROUDED_APP_ID);
+      expect(enshroudedRowsBefore).toEqual([]);
+
+      migrateCatalogDb(db, CATALOG_MIGRATIONS);
+      const after = new CapabilityRepository(db);
+      after.refresh();
+      expect(after.getOpsProtocol(ENSHROUDED_APP_ID)).toBe("query");
+      expect(after.hasCapability(ENSHROUDED_APP_ID, "live_ops")).toBe(true);
+      expect(after.listCapabilities(PALWORLD_APP_ID)).toEqual([
+        "live_ops",
+        "rest_admin",
+        "update_announce",
+      ]);
+    } finally {
+      db.close();
+    }
+  });
+
+  it("loads query metadata lazily when read before any refresh", () => {
+    const db = openAndMigrateCatalogDb(":memory:");
+    try {
+      const capabilities = new CapabilityRepository(db);
+      expect(
+        capabilities.getQueryMetadata(ENSHROUDED_APP_ID)?.portConfigKey
+      ).toBe("queryPort");
+    } finally {
+      db.close();
+    }
+  });
+
+  it("keeps Palworld on REST with no query metadata", () => {
+    const { db, capabilities } = openCapabilityRepo();
+    try {
+      expect(capabilities.getQueryMetadata(PALWORLD_APP_ID)).toBeNull();
+      expect(capabilities.getOpsProtocol(PALWORLD_APP_ID)).toBe("rest");
+    } finally {
+      db.close();
+    }
+  });
+
+  it("rejects query metadata rows for apps missing from the catalog", () => {
+    const { db } = openCapabilityRepo();
+    try {
+      expect(() =>
+        db
+          .prepare(
+            `INSERT INTO server_query_metadata (
+               app_id, adapter_id, default_port, port_config_key
+             ) VALUES (9999998, 'a2s', 27015, 'queryPort')`
+          )
+          .run()
+      ).toThrow(/FOREIGN KEY/);
     } finally {
       db.close();
     }
@@ -76,6 +147,8 @@ describe("catalog capabilities (039.1)", () => {
       expect(capabilities.hasCapability(9999999, "rest_admin")).toBe(false);
       expect(capabilities.listCapabilities(9999999)).toEqual([]);
       expect(capabilities.getRestMetadata(9999999)).toBeNull();
+      expect(capabilities.getQueryMetadata(9999999)).toBeNull();
+      expect(capabilities.getOpsProtocol(9999999)).toBeNull();
     } finally {
       db.close();
     }
@@ -107,7 +180,7 @@ describe("catalog capabilities (039.1)", () => {
 
 describe("golden path: fictional third game via migration + capabilities (039.2)", () => {
   const seedFictionalGame: CatalogMigration = {
-    version: 4,
+    version: CATALOG_MIGRATIONS.length + 1,
     name: "seed_fictional_rest_game",
     up(db) {
       db.prepare(
@@ -183,12 +256,12 @@ describe("golden path: fictional third game via migration + capabilities (039.2)
         passwordConfigKey: "RestPassword",
       });
 
+      expect(capabilities.getOpsProtocol(FICTIONAL_APP_ID)).toBe("rest");
+
       expect(capabilities.hasCapability(PALWORLD_APP_ID, "rest_admin")).toBe(
         true
       );
-      expect(capabilities.hasCapability(ENSHROUDED_APP_ID, "rest_admin")).toBe(
-        false
-      );
+      expect(capabilities.getOpsProtocol(ENSHROUDED_APP_ID)).toBe("query");
     } finally {
       db.close();
     }

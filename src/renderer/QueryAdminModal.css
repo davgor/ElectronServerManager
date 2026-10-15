@@ -1,0 +1,61 @@
+.query-admin-note {
+  margin: 0 0 10px 0;
+  color: #a0aab8;
+  font-size: 0.9em;
+  line-height: 1.45;
+}
+
+.query-admin-facts {
+  display: grid;
+  grid-template-columns: max-content 1fr;
+  gap: 4px 16px;
+  margin: 12px 0 0 0;
+}
+
+.query-admin-fact {
+  display: contents;
+}
+
+.query-admin-facts dt {
+  color: #a0aab8;
+  font-size: 0.85em;
+}
+
+.query-admin-facts dd {
+  margin: 0;
+  color: #c7d5e0;
+  word-break: break-word;
+}
+
+.query-admin-players-title {
+  margin: 14px 0 6px 0;
+  color: #c7d5e0;
+  font-size: 13px;
+}
+
+.query-admin-players {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  border: 1px solid #3d495c;
+  border-radius: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.query-admin-players li {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  padding: 6px 10px;
+  color: #c7d5e0;
+}
+
+.query-admin-players li + li {
+  border-top: 1px solid #3d495c;
+}
+
+.query-admin-player-time {
+  color: #a0aab8;
+  font-variant-numeric: tabular-nums;
+}

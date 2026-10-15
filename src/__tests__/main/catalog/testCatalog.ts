@@ -14,6 +14,9 @@ import {
   resetDefaultGameRestAdaptersForTests,
 } from "../../../main/gameRest/ensureDefaultAdapters";
 import { resetGameRestAdaptersForTests } from "../../../main/gameRest/registry";
+// Query adapters register lazily (ensureDefaultGameQueryAdapters) so suites
+// can jest.mock the A2S client; only clear the registry here.
+import { resetGameQueryAdaptersForTests } from "../../../main/gameQuery/registry";
 
 /** Install a process-wide in-memory catalog for unit tests. */
 export function installTestCatalog(): void {
@@ -21,6 +24,7 @@ export function installTestCatalog(): void {
   resetCapabilityRepositoryForTests();
   resetGameRestAdaptersForTests();
   resetDefaultGameRestAdaptersForTests();
+  resetGameQueryAdaptersForTests();
   const db = openAndMigrateCatalogDb(":memory:");
   const repository = new CatalogRepository(db);
   repository.refresh();

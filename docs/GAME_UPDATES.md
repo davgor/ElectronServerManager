@@ -11,8 +11,16 @@ and runs this state machine (`src/main/autoUpdate.ts`):
 1. **checking** — read the local buildid from the app manifest and compare it
    to the remote public-branch buildid (`steamcmd +app_info_print`, no
    download). Matching buildids leave the server running (`no-update`).
-2. **notifying** — Palworld with `RESTAPIEnabled`: announce a 5-minute reboot
-   warning and wait before any downtime.
+2. **notifying** — protect players before any downtime (catalog
+   `update_announce`):
+   - **REST games (Palworld)** with `RESTAPIEnabled`: announce a 5-minute
+     reboot warning and wait.
+   - **Query games (Enshrouded)** have no way to announce, so the app asks the
+     server (Steam A2S on `queryPort`) who is online. Anyone online (bots
+     excluded; a non-empty player list counts even if the count says 0) →
+     **deferred**: nothing is stopped and the next check (5-minute cooldown)
+     asks again. Nobody online → continue immediately. The card shows
+     "Update available — waiting for N players to leave" while deferred.
 3. **stopping → updating** — stop the managed process, then run
    `steamcmd +force_install_dir <installPath> +login anonymous
    +app_update <appId> validate +quit`.
@@ -38,6 +46,17 @@ The buildid is resolved from the first of these that exists
 3. `<steamRoot>/steamapps/appmanifest_<appId>.acf` — the selected Steam root.
 
 ## Cases that still need the operator
+
+### Enshrouded: the player check keeps failing
+
+If the server query does not answer (wrong `queryPort`, a bind `ip` the
+server is not on, a firewall on loopback, or the server still loading), the
+update **fails closed** at `notifying`: the server is left running and the
+card shows "Last auto-update check failed at notifying: Could not check for
+online players…". Nothing updates until the query works, so fix the config
+(**Edit Config** → `queryPort` / `ip`) or update manually with the server
+stopped. A server that is never empty also never auto-updates; stop it
+yourself when convenient and the next check updates it.
 
 ### The Steam client shows the update stuck at ~99.9% / "finish" pending
 
@@ -81,8 +100,10 @@ its download for that app) and let the next auto-update cycle retry.
 
 ## Diagnosing failures
 
-- Every failure carries the stage it failed at (`checking`, `updating`,
-  `verifying`, `restarting`, …) plus an error message in the UI banner.
+- Every failure carries the stage it failed at (`checking`, `notifying`,
+  `updating`, `verifying`, `restarting`, …) plus an error message in the UI
+  banner, and the card keeps the last failed or deferred check visible until a
+  later check succeeds.
 - SteamCMD output is captured (the tail, where depot/login errors appear) and
   included in `updating`-stage errors and the main-process log.
 - `verifying` failures mean SteamCMD exited "successfully" but the manifest

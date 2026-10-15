@@ -47,6 +47,10 @@ const mockElectronApi: ElectronAPI = {
     .fn()
     .mockResolvedValue({ success: true, enabled: false, isPalworld: false }),
   palworldRestRequest: jest.fn().mockResolvedValue({ success: true, data: {} }),
+  getGameQuerySnapshot: jest.fn().mockResolvedValue({
+    success: false,
+    errorKind: "unavailable",
+  }),
   listServerMods: jest.fn().mockResolvedValue({ success: true, mods: [] }),
   selectAndImportModZip: jest.fn().mockResolvedValue({ success: true }),
   setServerModEnabled: jest.fn().mockResolvedValue({ success: true }),

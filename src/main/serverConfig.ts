@@ -30,6 +30,19 @@ function getServerConfigLocation(appId: number): string | null {
   return configLocation;
 }
 
+/**
+ * Config editor tooltips for this app. Cosmetic: a lookup failure must never
+ * fail the config read that live ops, Admin and auto-update also depend on.
+ */
+function readSettingDocs(appId: number): Record<string, string> {
+  try {
+    return getCatalogRepository().getSettingDocs(appId);
+  } catch (err) {
+    logger.warn("Could not load setting docs:", err);
+    return {};
+  }
+}
+
 export async function getServerConfig(
   appId: number,
   installPath: string
@@ -61,7 +74,14 @@ export async function getServerConfig(
       parsed = parseIniContent(content);
     }
 
-    return { success: true, content: parsed, format, filePath: configPath };
+    const settingDocs = readSettingDocs(appId);
+    return {
+      success: true,
+      content: parsed,
+      format,
+      filePath: configPath,
+      ...(Object.keys(settingDocs).length > 0 ? { settingDocs } : {}),
+    };
   } catch (err) {
     logger.error("Error reading server config:", err);
     return {

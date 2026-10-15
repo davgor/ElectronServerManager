@@ -11,6 +11,12 @@ type ServerRow = {
   config_location: string | null;
 };
 
+type SettingDocRow = {
+  app_id: number;
+  key_path: string;
+  description: string;
+};
+
 type OverrideRow = {
   app_id: number;
   platform: "win32" | "linux" | "darwin";
@@ -67,6 +73,7 @@ function rowToServerInfo(row: ServerRow, overrides: OverrideRow[]): ServerInfo {
  */
 export class CatalogRepository {
   private cache: Map<number, ServerInfo> | null = null;
+  private settingDocsCache: Map<number, Record<string, string>> | null = null;
 
   public constructor(private readonly db: CatalogDb) {}
 
@@ -101,6 +108,7 @@ export class CatalogRepository {
       );
     }
     this.cache = next;
+    this.settingDocsCache = null;
   }
 
   private ensureCache(): Map<number, ServerInfo> {
@@ -124,6 +132,30 @@ export class CatalogRepository {
 
   public getServer(appId: number): ServerInfo | null {
     return this.ensureCache().get(appId) ?? null;
+  }
+
+  /**
+   * Config editor tooltips keyed by setting path (`gameSettings.x`,
+   * `userGroups.*.canKickBan`); empty when the game has none. Loaded lazily
+   * on first use.
+   */
+  public getSettingDocs(appId: number): Record<string, string> {
+    if (this.settingDocsCache === null) {
+      const rows = this.db
+        .prepare(
+          `SELECT app_id, key_path, description
+           FROM server_setting_docs`
+        )
+        .all() as SettingDocRow[];
+      const docs = new Map<number, Record<string, string>>();
+      for (const row of rows) {
+        const forApp = docs.get(row.app_id) ?? {};
+        forApp[row.key_path] = row.description;
+        docs.set(row.app_id, forApp);
+      }
+      this.settingDocsCache = docs;
+    }
+    return { ...(this.settingDocsCache.get(appId) ?? {}) };
   }
 }
 

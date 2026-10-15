@@ -1,7 +1,10 @@
+import type { ServerOpsProtocol } from "../../types/ipc";
+
 import type { CatalogDb } from "./openCatalogDb";
 import {
   isServerCapabilityId,
   type ServerCapabilityId,
+  type ServerQueryMetadata,
   type ServerRestMetadata,
 } from "./serverCapabilities";
 
@@ -19,14 +22,25 @@ type RestMetadataRow = {
   password_config_key: string;
 };
 
+type QueryMetadataRow = {
+  app_id: number;
+  adapter_id: string;
+  default_port: number;
+  port_config_key: string;
+  host_config_key: string | null;
+  admin_config_key: string | null;
+};
+
 /**
- * Capability + REST metadata reads for the SQLite catalog (epic 039).
+ * Capability + REST/query metadata reads for the SQLite catalog (epics 039,
+ * 042).
  * Kept separate from CatalogRepository so feature gates do not share that
  * module's mutation surface with unrelated ServerInfo mapping code.
  */
 export class CapabilityRepository {
   private capabilitiesCache: Map<number, ServerCapabilityId[]> | null = null;
   private restMetadataCache: Map<number, ServerRestMetadata> | null = null;
+  private queryMetadataCache: Map<number, ServerQueryMetadata> | null = null;
 
   public constructor(private readonly db: CatalogDb) {}
 
@@ -69,6 +83,26 @@ export class CapabilityRepository {
       });
     }
     this.restMetadataCache = metadata;
+
+    const queryRows = this.db
+      .prepare(
+        `SELECT app_id, adapter_id, default_port,
+                port_config_key, host_config_key, admin_config_key
+         FROM server_query_metadata`
+      )
+      .all() as QueryMetadataRow[];
+
+    const queryMetadata = new Map<number, ServerQueryMetadata>();
+    for (const row of queryRows) {
+      queryMetadata.set(row.app_id, {
+        adapterId: row.adapter_id,
+        defaultPort: row.default_port,
+        portConfigKey: row.port_config_key,
+        hostConfigKey: row.host_config_key,
+        adminConfigKey: row.admin_config_key,
+      });
+    }
+    this.queryMetadataCache = queryMetadata;
   }
 
   private ensureCapabilities(): Map<number, ServerCapabilityId[]> {
@@ -85,6 +119,13 @@ export class CapabilityRepository {
     return this.restMetadataCache as Map<number, ServerRestMetadata>;
   }
 
+  private ensureQueryMetadata(): Map<number, ServerQueryMetadata> {
+    if (this.queryMetadataCache === null) {
+      this.refresh();
+    }
+    return this.queryMetadataCache as Map<number, ServerQueryMetadata>;
+  }
+
   public hasCapability(appId: number, capability: ServerCapabilityId): boolean {
     return this.listCapabilities(appId).includes(capability);
   }
@@ -95,6 +136,24 @@ export class CapabilityRepository {
 
   public getRestMetadata(appId: number): ServerRestMetadata | null {
     return this.ensureRestMetadata().get(appId) ?? null;
+  }
+
+  public getQueryMetadata(appId: number): ServerQueryMetadata | null {
+    return this.ensureQueryMetadata().get(appId) ?? null;
+  }
+
+  /**
+   * Which ops protocol backs this app's capabilities: REST metadata wins
+   * (Palworld), then query metadata (Enshrouded), else null.
+   */
+  public getOpsProtocol(appId: number): ServerOpsProtocol | null {
+    if (this.getRestMetadata(appId) !== null) {
+      return "rest";
+    }
+    if (this.getQueryMetadata(appId) !== null) {
+      return "query";
+    }
+    return null;
   }
 }
 

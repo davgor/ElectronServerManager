@@ -31,6 +31,9 @@ function appIdsWithFlag(
 function App(): JSX.Element {
   const [actionError, setActionError] = useState<string | null>(null);
   const [editingServer, setEditingServer] = useState<SteamServer | null>(null);
+  const [editingSearch, setEditingSearch] = useState<string | undefined>(
+    undefined
+  );
   const [configRevision, setConfigRevision] = useState(0);
 
   const {
@@ -62,6 +65,7 @@ function App(): JSX.Element {
     availablePaths,
     selectedPath,
     setSelectedPath,
+    autoUpdateNotices,
   } = useSteamServers({
     autoRestartAppIds,
     autoUpdateAppIds,
@@ -142,9 +146,13 @@ function App(): JSX.Element {
     [setAutoRestart]
   );
 
-  const handleEditConfig = useCallback((server: SteamServer): void => {
-    setEditingServer(server);
-  }, []);
+  const handleEditConfig = useCallback(
+    (server: SteamServer, initialSearch?: string): void => {
+      setEditingServer(server);
+      setEditingSearch(initialSearch);
+    },
+    []
+  );
 
   return (
     <div className="app">
@@ -207,6 +215,7 @@ function App(): JSX.Element {
                     palworldOpsIntervalSeconds={
                       serverSettings?.palworldOpsIntervalSeconds
                     }
+                    autoUpdateNotice={autoUpdateNotices[server.appId]}
                     onRunServer={handleRunServer}
                     onStopServer={handleStopServer}
                     onToggleAutoRestart={setAutoRestart}
@@ -227,6 +236,7 @@ function App(): JSX.Element {
                 appId={editingServer.appId}
                 serverName={editingServer.name}
                 installPath={editingServer.installPath}
+                initialSearchQuery={editingSearch}
                 onClose={() => setEditingServer(null)}
                 onSave={() => {
                   setConfigRevision((n) => n + 1);

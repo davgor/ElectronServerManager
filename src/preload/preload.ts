@@ -45,6 +45,7 @@ export const ALLOWED_CHANNELS: readonly IpcChannel[] = [
   "window-close",
   "palworld-rest-status",
   "palworld-rest-request",
+  "game-query-snapshot",
   "list-server-mods",
   "select-and-import-mod-zip",
   "set-server-mod-enabled",
@@ -123,6 +124,8 @@ const electronApi: ElectronAPI = {
       endpoint,
       body
     ),
+  getGameQuerySnapshot: (appId: number, installPath: string) =>
+    invokeIpc("game-query-snapshot", appId, installPath),
   listServerMods: (appId: number, installPath: string) =>
     invokeIpc("list-server-mods", appId, installPath),
   selectAndImportModZip: (appId: number, installPath: string) =>

@@ -61,6 +61,8 @@ src/
 │   ├── steamDetection.ts       # Detection + path resolution helpers
 │   ├── catalog/                # SQLite server catalog + migrations
 │   ├── gameRest/               # REST adapter registry (Palworld first)
+│   ├── gameQuery/              # UDP query adapters (Steam A2S; Enshrouded)
+│   ├── gameQueryIpc.ts         # game-query-snapshot handler (catalog-gated)
 │   ├── mods/                   # Palworld mod manager (zip import, SQLite)
 │   ├── steamIpc.ts             # Diagnostics / path listing helpers
 │   ├── steamCmd.ts             # SteamCMD path + update helpers
@@ -85,6 +87,8 @@ src/
 │   ├── ServerCard.tsx          # Per-server actions
 │   ├── ConfigEditor.tsx        # Nested JSON/INI editor
 │   ├── PalworldAdminModal.tsx  # Palworld REST admin UI
+│   ├── QueryAdminModal.tsx     # Query-protocol admin UI (Enshrouded)
+│   ├── QueryOpsPanel.tsx       # Query-protocol live ops panel
 │   ├── ModManagerModal.tsx     # Palworld mod zip import / enable / remove
 │   ├── SteamPathSelector.tsx / SteamCmdPathInput.tsx
 │   └── hooks/                  # useSteamServers, settings, backups
@@ -124,7 +128,7 @@ from `userData/server-catalog.sqlite` on app ready via `initCatalog()`. Schema
 and seed data come from versioned migrations in `src/main/catalog/migrations/`.
 `CatalogRepository` exposes `ServerInfo`-compatible records to detection,
 process control, config I/O, and backups, plus **capability** and **REST
-metadata** lookups for optional features.
+metadata** plus **query metadata** lookups for optional features.
 
 ### Tables
 
@@ -132,20 +136,25 @@ metadata** lookups for optional features.
 |-------|---------|
 | `servers` | Core catalog row (name, folder, executable, save/config paths) |
 | `server_platform_overrides` | Per-`win32`/`linux`/`darwin` path overrides |
-| `server_capabilities` | Optional features: `rest_admin`, `live_ops`, `update_announce` |
+| `server_capabilities` | Optional features: `rest_admin` (Admin surface), `live_ops`, `update_announce` (pre-update player protection) |
 | `server_rest_metadata` | REST adapter id, default port, config keys for enable/port/password |
+| `server_query_metadata` | Query adapter id, default port, config keys for port / bind address / admin roles (epic 042) |
+| `server_setting_docs` | Config editor tooltip text per setting path (`gameSettings.x`, `userGroups.*.canKickBan`); returned as `settingDocs` with `get-server-config` (epic 042.8, Enshrouded) |
 
-Feature gating (Admin button, live ops panel, announce-before-update) reads
-capabilities from the catalog — not a hardcoded Palworld app id. REST HTTP
+Feature gating (Admin button, live ops panel, pre-update player protection)
+reads capabilities from the catalog — not a hardcoded app id. Which protocol
+backs them comes from the metadata table (`getOpsProtocol`: `rest` or
+`query`), surfaced to the renderer as `SteamServer.opsProtocol`. REST HTTP
 shapes live in `src/main/gameRest/` adapters (Palworld is the first
-`adapter_id`); only enablement and defaults come from SQLite.
+`adapter_id`); Steam A2S lives in `src/main/gameQuery/` (`a2s`). Only
+enablement and defaults come from SQLite.
 
 Currently seeded (**2** entries):
 
-| App ID | Name | Capabilities |
-|--------|------|--------------|
-| `2278520` | Enshrouded Dedicated Server | (none) |
-| `1623730` | Palworld Dedicated Server | `rest_admin`, `live_ops`, `update_announce` |
+| App ID | Name | Capabilities | Protocol |
+|--------|------|--------------|----------|
+| `2278520` | Enshrouded Dedicated Server | `rest_admin`, `live_ops`, `update_announce` | query (`a2s`, `queryPort` 15637) |
+| `1623730` | Palworld Dedicated Server | `rest_admin`, `live_ops`, `update_announce` | REST (`palworld`, port 8212) |
 
 Add games via a new migration — see [docs/ADDING_SERVERS.md](docs/ADDING_SERVERS.md).
 
@@ -186,6 +195,7 @@ All handlers use `ipcMain.handle` (no `ipcMain.on` subscriptions). Registered in
 | `app-update-install` | Quit and install a downloaded app update |
 | `palworld-rest-status` | Whether Palworld REST API is enabled in config |
 | `palworld-rest-request` | Invoke a Palworld REST admin endpoint |
+| `game-query-snapshot` | Server info + player list over the catalog query adapter (Enshrouded A2S) |
 | `list-server-mods` | List imported mods for a Palworld install |
 | `select-and-import-mod-zip` | Native zip picker + import/enable |
 | `set-server-mod-enabled` | Soft enable/disable an imported mod |
@@ -213,9 +223,12 @@ easy to confirm.
 4. **Auto-update (game files)** — SteamCMD via `autoUpdate.ts` when enabled per
    server: read the local buildid from the manifest of the library that owns
    `installPath` (see `buildManifestCandidatePaths`) and compare to the remote
-   public buildid (`app_info_print`, no stop) → only if they differ, optionally
-   announce a 5-minute reboot warning via Palworld REST (when `RESTAPIEnabled`)
-   and wait → stop → `+force_install_dir <installPath>` + `app_update validate`
+   public buildid (`app_info_print`, no stop) → only if they differ, protect
+   players when `update_announce` is seeded: REST games announce a 5-minute
+   reboot warning (when `RESTAPIEnabled`) and wait; query games return
+   `stage: "deferred"` while the query reports players online (retried on the
+   next check) and, if the query fails, return a `notifying` error with the
+   server left running — only an empty server continues → stop → `+force_install_dir <installPath>` + `app_update validate`
    → verify the post-update manifest buildid **matches remote** (partial
    downloads fail at `verifying`) → always restart (matching versions leave
    the running server alone). Operator notes: [docs/GAME_UPDATES.md](docs/GAME_UPDATES.md).
@@ -227,7 +240,9 @@ easy to confirm.
    error feedback; see [docs/AUTO_UPDATE.md](docs/AUTO_UPDATE.md).
 6. **Backup** — Copies configured save location into a user-chosen backup root.
 7. **Config editor** — Loads config over IPC; `ConfigEditor` edits nested
-   values with type preservation; saves back through main.
+   values with type preservation; saves back through main. Keys documented in
+   the catalog (`server_setting_docs`) show an ⓘ with the setting's
+   description as a tooltip.
 8. **Palworld Mod Manager** — Zip import resolves Workshop `Info.json` or
    `Pal/`/`Mods/` paths, records changes + overwrite BLOBs, auto-enables;
    disable soft-removes; trash reverts.

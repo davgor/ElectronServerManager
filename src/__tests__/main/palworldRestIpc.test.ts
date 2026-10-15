@@ -16,8 +16,21 @@ describe("palworldRestIpc capability gating", () => {
     mockGetServerConfig.mockReset();
   });
 
-  it("returns isPalworld false for Enshrouded (no rest_admin capability)", async () => {
+  it("returns isPalworld false for Enshrouded (Admin over query, not REST)", async () => {
+    expect(getCapabilityRepository().hasCapability(2278520, "rest_admin")).toBe(
+      true
+    );
     const status = await getPalworldRestStatus(2278520, "/servers/enshrouded");
+    expect(status).toEqual({
+      success: true,
+      enabled: false,
+      isPalworld: false,
+    });
+    expect(mockGetServerConfig).not.toHaveBeenCalled();
+  });
+
+  it("returns isPalworld false for apps missing from the catalog", async () => {
+    const status = await getPalworldRestStatus(9999999, "/servers/unknown");
     expect(status).toEqual({
       success: true,
       enabled: false,
@@ -52,16 +65,25 @@ describe("palworldRestIpc capability gating", () => {
     );
   });
 
-  it("rejects REST invoke for games without rest_admin", async () => {
-    const result = await invokePalworldRest(
-      2278520,
-      "/servers/enshrouded",
-      "GET",
-      "info"
-    );
-    expect(result.success).toBe(false);
-    expect(result.error).toMatch(/not available/i);
-  });
+  it.each([
+    [2278520, "Enshrouded (query protocol)"],
+    [9999999, "an unknown app"],
+  ])(
+    "rejects REST invoke for %s (%s) without reading config",
+    async (appId) => {
+      const result = await invokePalworldRest(
+        appId,
+        "/servers/other",
+        "GET",
+        "info"
+      );
+      expect(result).toEqual({
+        success: false,
+        error: "REST admin is not available for this server",
+      });
+      expect(mockGetServerConfig).not.toHaveBeenCalled();
+    }
+  );
 
   it("surfaces config read failures for REST-capable games", async () => {
     mockGetServerConfig.mockResolvedValue({

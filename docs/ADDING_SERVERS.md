@@ -14,15 +14,33 @@ TypeScript object literal or scattered `if (appId === …)` checks.
 | 2. Run / stop | Executable (+ optional platform override) | Same migration |
 | 3. Config editor | `config_location` (`.json` / `.ini`) | Same migration |
 | 4. Backup | `save_location` | Same migration |
-| 5. Optional REST admin | `rest_admin` + `server_rest_metadata` + adapter | Migration + `src/main/gameRest/` |
-| 6. Optional live ops | `live_ops` (usually with `rest_admin`) | Migration capability row |
-| 7. Optional update announce | `update_announce` (REST announce before SteamCMD reboot) | Migration capability row |
-| 8. Tests | Repository + resolution (+ adapter if REST) | `src/__tests__/main/catalog/`, etc. |
-| 9. Manual smoke | Detect → start/stop → config → backup → Admin/ops if enabled | `npm start` with the server installed |
+| 5. Optional Admin | `rest_admin` + **either** `server_rest_metadata` + REST adapter **or** `server_query_metadata` + query adapter | Migration + `src/main/gameRest/` or `src/main/gameQuery/` |
+| 6. Optional live ops | `live_ops` (polls the same REST/query protocol) | Migration capability row |
+| 7. Optional pre-update player protection | `update_announce` (REST: announce + 5-minute warn; query: defer while players are online) | Migration capability row |
+| 8. Optional setting tooltips | `server_setting_docs` rows (`key_path` with `*` for array entries, `description`) | Migration (see `005_enshrouded_setting_docs.ts`) |
+| 9. Tests | Repository + resolution (+ adapter, + docs completeness against a real config) | `src/__tests__/main/catalog/`, etc. |
+| 10. Manual smoke | Detect → start/stop → config → backup → Admin/ops if enabled | `npm start` with the server installed |
 
-UI entry points (`ServerCard` Admin / live ops, auto-update announce) read
-`SteamServer.capabilities` from the catalog via detection IPC. Do **not** add
-new Palworld-named conditionals in the renderer or `autoUpdate.ts`.
+UI entry points (`ServerCard` Admin / live ops, auto-update player protection)
+read `SteamServer.capabilities` and `SteamServer.opsProtocol` from the catalog
+via detection IPC. Do **not** add new game-named conditionals in the renderer or
+`autoUpdate.ts`.
+
+### Two ops patterns
+
+The capability ids are historical; since epic 042 they mean *what* to show, and
+the metadata table decides *how*:
+
+| Capability | Meaning | REST pattern (Palworld) | Query pattern (Enshrouded) |
+|------------|---------|-------------------------|----------------------------|
+| `rest_admin` | Show the Admin surface | HTTP admin modal (kick/ban/announce/save/shutdown) | Query admin modal: live status + player list, honest "not supported remotely" moderation/announce/save, link into the roles config key, confirmed Stop |
+| `live_ops` | Show the live ops poller | GET info/players/metrics | Steam A2S info + player list |
+| `update_announce` | Protect players before an auto-update reboot | Announce, then wait 5 minutes | Defer the update while the query reports players online; fail closed (server left running) if the query fails |
+
+`CapabilityRepository.getOpsProtocol(appId)` returns `"rest"` when a
+`server_rest_metadata` row exists, `"query"` when a `server_query_metadata` row
+exists, else `null`. Pick the query pattern when the game has no HTTP admin API —
+do not fake REST enable/password keys to fit `server_rest_metadata`.
 
 ## The catalog schema
 
@@ -39,19 +57,25 @@ shape used at runtime (`src/main/steamDetection.ts`):
 | `config_location`        | no       | `configLocation`     | Default config file (relative) |
 | platform override row    | no       | `executables` / `saveLocations` / `configLocations` | Per-`win32`/`linux`/`darwin` overrides |
 
-### Capabilities + REST metadata
+### Capabilities + REST / query metadata
 
 | Table | Columns | Notes |
 |-------|---------|-------|
 | `server_capabilities` | `app_id`, `capability` | `capability` ∈ `rest_admin` \| `live_ops` \| `update_announce` |
-| `server_rest_metadata` | `app_id`, `adapter_id`, `default_port`, `enabled_config_key`, `port_config_key`, `password_config_key` | Required when seeding `rest_admin` |
+| `server_rest_metadata` | `app_id`, `adapter_id`, `default_port`, `enabled_config_key`, `port_config_key`, `password_config_key` | REST pattern (HTTP admin API) |
+| `server_query_metadata` | `app_id`, `adapter_id`, `default_port`, `port_config_key`, `host_config_key` (nullable), `admin_config_key` (nullable) | Query pattern (migration 004). `host_config_key` is the bind address (wildcard → `127.0.0.1`); `admin_config_key` is the top-level key the Admin modal opens the config editor on |
+| `server_setting_docs` | `app_id`, `key_path`, `description` | Optional config editor tooltips. `key_path` is the dotted setting path with array indexes written as `*`. Source the text from the game's official docs and record the sources in the migration comment |
+
+Seed exactly one of the two metadata tables when you seed `rest_admin`.
 
 Resolution rules are unchanged: `resolveServerExecutable`,
 `resolveServerConfigLocation`, and `resolveServerSaveLocation` prefer the
 platform override and fall back to the default column.
 
-`CatalogRepository.hasCapability(appId, …)` / `getRestMetadata(appId)` are the
-main-process APIs. Detected servers include a `capabilities` array for the UI.
+`CapabilityRepository.hasCapability(appId, …)`, `getRestMetadata(appId)`,
+`getQueryMetadata(appId)` and `getOpsProtocol(appId)` are the main-process APIs.
+Detected servers include `capabilities`, `opsProtocol` and (query pattern)
+`adminConfigKey` for the UI.
 
 ## Steps to add a server
 
@@ -64,10 +88,13 @@ main-process APIs. Detected servers include a `capabilities` array for the UI.
 3. **Add a new migration** under `src/main/catalog/migrations/` (next version
    number after the highest existing file). Register it in
    `src/main/catalog/catalogMigrations.ts`. Use the templates below.
-4. **Optional REST / ops / announce.** Insert capability rows and REST metadata.
-   If the game’s HTTP protocol is not Palworld’s, add a new adapter under
-   `src/main/gameRest/adapters/`, register it in
-   `ensureDefaultGameRestAdapters()`, and set `adapter_id` accordingly.
+4. **Optional Admin / ops / player protection.** Insert capability rows plus
+   REST **or** query metadata. If the game’s HTTP protocol is not Palworld’s,
+   add a REST adapter under `src/main/gameRest/adapters/`; if it answers Steam
+   A2S queries in a single packet (small player counts), reuse
+   `adapter_id: "a2s"`; otherwise add a query adapter under
+   `src/main/gameQuery/adapters/`. Register new adapters in the matching
+   `ensureDefault…Adapters()` and set `adapter_id` accordingly.
 5. **Add unit tests.** Assert the new rows (and platform overrides / capabilities)
    via `openAndMigrateCatalogDb(":memory:")` / `CatalogRepository`, and cover
    executable resolution in `platformResolution.test.ts` (or a sibling test).
@@ -156,6 +183,38 @@ db.prepare(
 */
 ```
 
+### Query pattern (games without an HTTP admin API)
+
+See `src/main/catalog/migrations/004_enshrouded_query_capabilities.ts`:
+
+```typescript
+/*
+for (const capability of ["rest_admin", "live_ops", "update_announce"] as const) {
+  db.prepare(
+    `INSERT INTO server_capabilities (app_id, capability)
+     VALUES (@app_id, @capability)`
+  ).run({ app_id: 1234567, capability });
+}
+
+db.prepare(
+  `INSERT INTO server_query_metadata (
+     app_id, adapter_id, default_port,
+     port_config_key, host_config_key, admin_config_key
+   ) VALUES (
+     @app_id, @adapter_id, @default_port,
+     @port_config_key, @host_config_key, @admin_config_key
+   )`
+).run({
+  app_id: 1234567,
+  adapter_id: "a2s", // Steam A2S over UDP
+  default_port: 27015,
+  port_config_key: "queryPort", // top-level key in a JSON config
+  host_config_key: null, // or the bind-address key, e.g. "ip"
+  admin_config_key: null, // or the in-game roles key, e.g. "userGroups"
+});
+*/
+```
+
 Then append the migration export to `CATALOG_MIGRATIONS` in
 `src/main/catalog/catalogMigrations.ts`.
 
@@ -169,6 +228,26 @@ Then append the migration export to `CATALOG_MIGRATIONS` in
 
 Protocol modules (URL paths, auth headers) stay in code; SQLite only decides
 **whether** REST is offered and which config keys / default port bind it.
+
+## Query adapter hook
+
+1. Implement `GameQueryAdapter` (`src/main/gameQuery/types.ts`) with a unique
+   `id`, `extractTarget` (host/port from catalog metadata keys) and
+   `querySnapshot` (normalized info + player list; never throws — failures
+   are structured `errorKind`s).
+2. Register it from `ensureDefaultGameQueryAdapters()` in
+   `src/main/gameQuery/ensureDefaultAdapters.ts`.
+3. Point `server_query_metadata.adapter_id` at that id.
+
+The built-in `a2s` adapter (`src/main/gameQuery/a2sClient.ts`) speaks Steam
+A2S_INFO / A2S_PLAYER with challenge handling over an injectable UDP exchange,
+so it is unit-tested without a live server. It does **not** reassemble
+multi-packet responses (fine for ≤16-player Enshrouded): a game whose
+A2S_PLAYER reply splits (roughly 25+ players) gets a `parse` error, and with
+`update_announce` seeded its auto-update would then fail closed on every
+check. The query target is the config bind address only when this machine
+owns it, else `127.0.0.1`. The renderer reaches it only through the
+`game-query-snapshot` IPC channel.
 
 Notes:
 

@@ -1,6 +1,8 @@
 import type { AutoUpdateServerResponse } from "../types/ipc";
 
 import { getCapabilityRepository } from "./catalog/capabilityRepository";
+import { getGameQuerySnapshot } from "./gameQueryIpc";
+import * as logger from "./logger";
 import { getServerBuildId } from "./steamDetection";
 import { getServerMapping, startServer, stopServer } from "./serverProcess";
 import {
@@ -16,7 +18,10 @@ import { getPalworldRestStatus, invokePalworldRest } from "./palworldRestIpc";
  */
 const DEFAULT_BUILDID_POLL_DELAYS_MS = [1000, 2000, 4000];
 
-/** Player warn window before stop/update when Palworld REST announce is available. */
+/**
+ * Player warn window before stop/update when Palworld REST announce is
+ * available. Query-protocol games never wait: they defer while occupied.
+ */
 const DEFAULT_WARN_BEFORE_UPDATE_MS = 5 * 60 * 1000;
 
 export const UPDATE_REBOOT_WARN_MESSAGE =
@@ -43,13 +48,53 @@ function delay(ms: number): Promise<void> {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
 
+type PlayerGateResult =
+  | { kind: "empty" }
+  | { kind: "occupied"; playersOnline: number }
+  | { kind: "unknown"; detail: string };
+
+/**
+ * Query-protocol games (Enshrouded) cannot announce a reboot, so the only
+ * honest protection is to not reboot while anyone is playing. Bots are not
+ * players; a non-empty player list counts even if the info count says 0. A
+ * failed query is "unknown" — callers fail closed on it.
+ */
+async function checkPlayersOnline(
+  appId: number,
+  installPath: string
+): Promise<PlayerGateResult> {
+  const snapshot = await getGameQuerySnapshot(appId, installPath);
+  if (!snapshot.success || snapshot.info === undefined) {
+    const reason = snapshot.error ?? "unknown query error";
+    return {
+      kind: "unknown",
+      detail:
+        snapshot.errorKind === undefined
+          ? reason
+          : `${snapshot.errorKind}: ${reason}`,
+    };
+  }
+  // Lean toward deferring: trust whichever source reports more people (the
+  // info count can lag the player list on some Steamworks servers).
+  const listedPlayers = snapshot.players?.length ?? 0;
+  const playersOnline = Math.max(
+    snapshot.info.players - snapshot.info.bots,
+    listedPlayers
+  );
+  return playersOnline > 0
+    ? { kind: "occupied", playersOnline }
+    : { kind: "empty" };
+}
+
 /**
  * Auto-update state machine: validate -> resolve steamcmd -> compare local vs
- * remote buildid (no stop) -> only if they differ: optionally announce + wait
- * when Palworld REST is enabled -> stop server -> run steamcmd app_update
- * (into installPath) -> verify buildid (with backoff) -> always restart after
- * a successful stop. `updated: true` means the buildid changed; matching
- * versions return `stage: "no-update"` without interrupting the server.
+ * remote buildid (no stop) -> only if they differ: protect players when the
+ * catalog grants `update_announce` (REST games: announce + wait when REST is
+ * enabled; query games: defer while players are online) -> stop server -> run
+ * steamcmd app_update (into installPath) -> verify buildid (with backoff) ->
+ * always restart after a successful stop. `updated: true` means the buildid
+ * changed; matching versions return `stage: "no-update"` and occupied query
+ * servers return `stage: "deferred"`, both without interrupting the server.
  */
 export async function autoUpdateServer(
   appId: number,
@@ -145,8 +190,36 @@ async function runAutoUpdate(
     };
   }
 
-  // Stage: notifying — REST announce + warn window when catalog says so.
-  if (getCapabilityRepository().hasCapability(appId, "update_announce")) {
+  // Stage: notifying — protect players when the catalog says so.
+  const catalog = getCapabilityRepository();
+  if (
+    catalog.hasCapability(appId, "update_announce") &&
+    catalog.getOpsProtocol(appId) === "query"
+  ) {
+    const gate = await checkPlayersOnline(appId, installPath);
+    if (gate.kind === "unknown") {
+      return {
+        success: false,
+        stage: "notifying",
+        updated: false,
+        previousBuildId,
+        error: `Could not check for online players before updating (${gate.detail}). Update deferred; server was left running.`,
+      };
+    }
+    if (gate.kind === "occupied") {
+      logger.info(
+        `Auto-update for app ${String(appId)} deferred: ${String(gate.playersOnline)} player(s) online.`
+      );
+      return {
+        success: true,
+        stage: "deferred",
+        updated: false,
+        previousBuildId,
+        playersOnline: gate.playersOnline,
+      };
+    }
+  } else if (catalog.hasCapability(appId, "update_announce")) {
+    // REST announce + warn window.
     const restStatus = await getPalworldRestStatus(appId, installPath);
     if (restStatus.success && restStatus.isPalworld && restStatus.enabled) {
       const announceResult = await invokePalworldRest(

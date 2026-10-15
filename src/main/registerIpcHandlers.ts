@@ -21,6 +21,7 @@ import { getServerOutput } from "./serverOutputBuffer";
 import { getServerMetrics } from "./serverMetrics";
 import { checkForAppUpdate, installAppUpdate } from "./appUpdater";
 import { getPalworldRestStatus, invokePalworldRest } from "./palworldRestIpc";
+import { getGameQuerySnapshot } from "./gameQueryIpc";
 import {
   listServerMods,
   removeServerMod,
@@ -142,6 +143,13 @@ export function registerIpcHandlers(deps: IpcRegistrationDeps): void {
       body?: Record<string, unknown>
     ) => {
       return invokePalworldRest(appId, installPath, method, endpoint, body);
+    }
+  );
+
+  ipcMain.handle(
+    "game-query-snapshot",
+    async (_event, appId: number, installPath: string) => {
+      return getGameQuerySnapshot(appId, installPath);
     }
   );
 

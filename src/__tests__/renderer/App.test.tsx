@@ -25,6 +25,7 @@ const mockOpenFileDefault = jest.fn();
 const mockGetSettings = jest.fn();
 const mockSaveSettings = jest.fn();
 const mockGetAppVersion = jest.fn().mockResolvedValue("0.0.0-test");
+const mockGetGameQuerySnapshot = jest.fn();
 
 const mockElectronApi: ElectronAPI = {
   getAppVersion: mockGetAppVersion,
@@ -53,6 +54,7 @@ const mockElectronApi: ElectronAPI = {
     .fn()
     .mockResolvedValue({ success: true, enabled: false, isPalworld: false }),
   palworldRestRequest: jest.fn().mockResolvedValue({ success: true, data: {} }),
+  getGameQuerySnapshot: mockGetGameQuerySnapshot,
   listServerMods: jest.fn().mockResolvedValue({ success: true, mods: [] }),
   selectAndImportModZip: jest.fn().mockResolvedValue({ success: true }),
   setServerModEnabled: jest.fn().mockResolvedValue({ success: true }),
@@ -533,5 +535,91 @@ describe("App Component", () => {
       await screen.findByText("Detected Steam Dedicated Servers")
     ).toBeInTheDocument();
     await flushAsync();
+  });
+
+  describe("query admin roles deep link", () => {
+    const enshroudedServer = {
+      name: "Enshrouded Dedicated Server",
+      appId: 2278520,
+      installPath: "C:\\servers\\enshrouded",
+      isRunning: false,
+      capabilities: ["rest_admin", "live_ops", "update_announce"],
+      opsProtocol: "query",
+      adminConfigKey: "userGroups",
+    };
+
+    beforeEach(() => {
+      mockGetSteamServers.mockResolvedValue({
+        success: true,
+        servers: [enshroudedServer],
+      });
+      mockGetGameQuerySnapshot.mockResolvedValue({
+        success: false,
+        errorKind: "timeout",
+        error: "No response from 127.0.0.1:15637 within 2000 ms",
+        host: "127.0.0.1",
+        port: 15637,
+      });
+      mockGetServerConfig.mockResolvedValue({
+        success: true,
+        content: {
+          name: "Embervale Keep",
+          saveInterval: 300,
+          userGroups: { admin: { password: "secret", canKickBan: true } },
+        },
+        format: "json",
+        filePath: "C:\\servers\\enshrouded\\enshrouded_server.json",
+      });
+    });
+
+    async function openRolesFromAdmin(
+      user: ReturnType<typeof userEvent.setup>
+    ): Promise<void> {
+      await user.click(await screen.findByRole("button", { name: "Admin" }));
+      const roles = await screen.findByRole("button", {
+        name: "Edit admin roles in config",
+      });
+      await waitFor(() => {
+        expect(roles).toBeEnabled();
+      });
+      await user.click(roles);
+    }
+
+    it("opens the config editor pre-filtered to the admin roles key", async () => {
+      const user = userEvent.setup();
+      await renderApp();
+
+      await openRolesFromAdmin(user);
+
+      expect(await screen.findByLabelText("Search settings")).toHaveValue(
+        "userGroups"
+      );
+      // The server is stopped, so Admin never queried it.
+      expect(mockGetGameQuerySnapshot).not.toHaveBeenCalled();
+      expect(mockGetServerConfig).toHaveBeenCalledWith(
+        2278520,
+        "C:\\servers\\enshrouded"
+      );
+      expect(screen.getByText("userGroups")).toBeInTheDocument();
+      expect(screen.queryByText("saveInterval")).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole("dialog", { name: "Server Admin" })
+      ).not.toBeInTheDocument();
+      await flushAsync();
+    });
+
+    it("opens Edit Config unfiltered after a roles deep link was closed", async () => {
+      const user = userEvent.setup();
+      await renderApp();
+
+      await openRolesFromAdmin(user);
+      await screen.findByLabelText("Search settings");
+      await user.click(screen.getByRole("button", { name: "✕" }));
+      await user.click(screen.getByText("⚙️ Edit Config"));
+
+      expect(await screen.findByLabelText("Search settings")).toHaveValue("");
+      expect(screen.getByText("saveInterval")).toBeInTheDocument();
+      await flushAsync();
+    });
   });
 });

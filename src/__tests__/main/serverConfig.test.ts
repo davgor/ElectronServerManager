@@ -1,5 +1,6 @@
 import { promises as fs } from "fs";
 
+import { getCatalogRepository } from "../../main/catalog/catalogRepository";
 import { getServerConfig, saveServerConfig } from "../../main/serverConfig";
 
 jest.mock("fs", () => ({
@@ -75,6 +76,56 @@ describe("serverConfig", () => {
       });
       expect(result.format).toBe("json");
       expect(result.filePath).toContain("enshrouded_server.json");
+    });
+
+    it("attaches catalog setting docs for Enshrouded (config editor tooltips)", async () => {
+      mockFs.stat.mockResolvedValueOnce({} as never);
+      mockFs.readFile.mockResolvedValueOnce(
+        JSON.stringify({ queryPort: 15637 })
+      );
+
+      const result = await getServerConfig(
+        2278520,
+        "C:\\Games\\EnshroudedServer"
+      );
+
+      expect(result.settingDocs?.queryPort).toContain("15637");
+      expect(result.settingDocs?.["userGroups.*.password"]).toBeDefined();
+    });
+
+    it("still returns the config when the setting docs lookup fails", async () => {
+      const getSettingDocs = jest
+        .spyOn(getCatalogRepository(), "getSettingDocs")
+        .mockImplementation(() => {
+          throw new Error("no such table: server_setting_docs");
+        });
+      try {
+        mockFs.stat.mockResolvedValueOnce({} as never);
+        mockFs.readFile.mockResolvedValueOnce(
+          JSON.stringify({ queryPort: 15637 })
+        );
+
+        const result = await getServerConfig(
+          2278520,
+          "C:\\Games\\EnshroudedServer"
+        );
+
+        expect(result.success).toBe(true);
+        expect(result.content).toEqual({ queryPort: 15637 });
+        expect(result).not.toHaveProperty("settingDocs");
+      } finally {
+        getSettingDocs.mockRestore();
+      }
+    });
+
+    it("omits setting docs for games without any (Palworld)", async () => {
+      mockFs.stat.mockResolvedValueOnce({} as never);
+      mockFs.readFile.mockResolvedValueOnce("[ServerSettings]\nA=1");
+
+      const result = await getServerConfig(1623730, "C:\\Games\\PalServer");
+
+      expect(result.success).toBe(true);
+      expect(result).not.toHaveProperty("settingDocs");
     });
 
     it("reads Palworld INI config", async () => {

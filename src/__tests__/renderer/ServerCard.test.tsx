@@ -1,15 +1,49 @@
-import { act, render, screen, waitFor } from "@testing-library/react";
+import {
+  act,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { ServerCard } from "../../renderer/ServerCard";
 import type { ServerCardProps } from "../../renderer/ServerCard";
-import type { SteamServer } from "../../types/ipc";
+import type { GameQuerySnapshotResponse, SteamServer } from "../../types/ipc";
 
 const baseServer: SteamServer = {
   name: "Valheim Server",
   appId: 1396110,
   installPath: "C:\\servers\\valheim",
   isRunning: false,
+};
+
+const enshroudedServer: SteamServer = {
+  name: "Enshrouded Dedicated Server",
+  appId: 2278520,
+  installPath: "C:\\servers\\enshrouded",
+  isRunning: true,
+  capabilities: ["rest_admin", "live_ops", "update_announce"],
+  opsProtocol: "query",
+  adminConfigKey: "userGroups",
+};
+
+const enshroudedSnapshot: GameQuerySnapshotResponse = {
+  success: true,
+  host: "127.0.0.1",
+  port: 15637,
+  info: {
+    serverName: "Embervale Keep",
+    map: "Embervale",
+    game: "Enshrouded",
+    version: "0.7.4.1",
+    players: 1,
+    maxPlayers: 16,
+    bots: 0,
+    passwordProtected: false,
+  },
+  players: [{ name: "Ash", score: 0, durationSeconds: 61 }],
 };
 
 function makeProps(overrides: Partial<ServerCardProps> = {}): ServerCardProps {
@@ -22,6 +56,7 @@ function makeProps(overrides: Partial<ServerCardProps> = {}): ServerCardProps {
     lastBackup: undefined,
     palworldOpsEnabled: false,
     palworldOpsIntervalSeconds: undefined,
+    autoUpdateNotice: undefined,
     configRevision: 0,
     onRunServer: jest.fn(),
     onStopServer: jest.fn(),
@@ -53,6 +88,7 @@ function stubElectron(
       isPalworld: false,
     }),
     listServerMods: jest.fn().mockResolvedValue({ success: true, mods: [] }),
+    getGameQuerySnapshot: jest.fn().mockResolvedValue(enshroudedSnapshot),
     ...overrides,
   };
   Object.defineProperty(window, "electron", {
@@ -75,6 +111,33 @@ describe("ServerCard Component", () => {
     expect(screen.getByText("C:\\servers\\valheim")).toBeInTheDocument();
     expect(screen.getByText("Stopped")).toBeInTheDocument();
     expect(screen.queryByText("Running")).not.toBeInTheDocument();
+  });
+
+  it("shows the last auto-update notice while auto-update is enabled", () => {
+    const { rerender } = render(
+      <ServerCard
+        {...makeProps({
+          autoUpdateEnabled: true,
+          autoUpdateNotice:
+            "Update available — waiting for 2 players to leave.",
+        })}
+      />
+    );
+
+    expect(screen.getByRole("status")).toHaveTextContent(
+      "Update available — waiting for 2 players to leave."
+    );
+
+    rerender(
+      <ServerCard
+        {...makeProps({
+          autoUpdateEnabled: false,
+          autoUpdateNotice:
+            "Update available — waiting for 2 players to leave.",
+        })}
+      />
+    );
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("should render Running status when the server is running", () => {
@@ -544,5 +607,179 @@ describe("ServerCard Component", () => {
       expect(getPalworldRestStatus).toHaveBeenCalledTimes(2);
     });
     expect(await screen.findByRole("button", { name: "Admin" })).toBeDisabled();
+  });
+
+  it("opens the REST admin modal from an enabled REST Admin button", async () => {
+    stubElectron({
+      getPalworldRestStatus: jest.fn().mockResolvedValue({
+        success: true,
+        enabled: true,
+        isPalworld: true,
+      }),
+    });
+
+    render(
+      <ServerCard
+        {...makeProps({
+          server: {
+            name: "Palworld Dedicated Server",
+            appId: 1623730,
+            installPath: "C:\\servers\\pal",
+            isRunning: false,
+            capabilities: ["rest_admin", "live_ops", "update_announce"],
+            opsProtocol: "rest",
+          },
+        })}
+      />
+    );
+
+    const admin = await screen.findByRole("button", { name: "Admin" });
+    await waitFor(() => {
+      expect(admin).toBeEnabled();
+    });
+    expect(admin).toHaveAttribute("title", "Open REST admin");
+    expect(screen.getByTestId("palworld-ops-panel")).toBeInTheDocument();
+    expect(screen.queryByTestId("query-ops-panel")).not.toBeInTheDocument();
+
+    fireEvent.click(admin);
+
+    expect(
+      screen.getByRole("dialog", { name: "Palworld REST Admin" })
+    ).toBeInTheDocument();
+  });
+
+  describe("query-protocol servers", () => {
+    it("shows an enabled Admin button without checking REST status", async () => {
+      const electron = stubElectron();
+
+      render(<ServerCard {...makeProps({ server: enshroudedServer })} />);
+
+      const admin = screen.getByRole("button", { name: "Admin" });
+      expect(admin).toBeEnabled();
+      expect(admin).toHaveAttribute("title", "Open server admin");
+      await waitFor(() => {
+        expect(electron.getServerMetrics).toHaveBeenCalledWith(2278520);
+      });
+      expect(electron.getPalworldRestStatus).not.toHaveBeenCalled();
+      expect(screen.getByRole("button", { name: "Admin" })).toBeEnabled();
+    });
+
+    it("renders the query live ops panel instead of the REST one", async () => {
+      const electron = stubElectron();
+
+      render(
+        <ServerCard
+          {...makeProps({
+            server: enshroudedServer,
+            palworldOpsEnabled: true,
+            palworldOpsIntervalSeconds: 30,
+          })}
+        />
+      );
+
+      expect(screen.getByTestId("query-ops-panel")).toBeInTheDocument();
+      expect(
+        screen.queryByTestId("palworld-ops-panel")
+      ).not.toBeInTheDocument();
+      expect(screen.getByLabelText("Poll every")).toHaveValue("30");
+      const live = await screen.findByTestId("query-ops-live");
+      await waitFor(() => {
+        expect(live).toHaveTextContent("Embervale Keep");
+      });
+      expect(live).toHaveTextContent("1/16 · Ash");
+      expect(electron.getGameQuerySnapshot).toHaveBeenCalledWith(
+        2278520,
+        "C:\\servers\\enshrouded"
+      );
+    });
+
+    it("forwards live ops toggle and interval changes with the app id", () => {
+      const props = makeProps({
+        server: { ...enshroudedServer, isRunning: false },
+      });
+      render(<ServerCard {...props} />);
+
+      fireEvent.click(screen.getByLabelText("Live ops panel"));
+      fireEvent.change(screen.getByLabelText("Poll every"), {
+        target: { value: "10" },
+      });
+
+      expect(props.onTogglePalworldOps).toHaveBeenCalledWith(2278520, true);
+      expect(props.onChangePalworldOpsInterval).toHaveBeenCalledWith(
+        2278520,
+        10
+      );
+    });
+
+    it("opens the query admin modal from the Admin button", async () => {
+      const electron = stubElectron();
+      render(<ServerCard {...makeProps({ server: enshroudedServer })} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+
+      const dialog = screen.getByRole("dialog", { name: "Server Admin" });
+      expect(within(dialog).getByText("Live status")).toBeInTheDocument();
+      expect(
+        await within(dialog).findByText("127.0.0.1:15637")
+      ).toBeInTheDocument();
+      expect(electron.getGameQuerySnapshot).toHaveBeenCalledWith(
+        2278520,
+        "C:\\servers\\enshrouded"
+      );
+      expect(
+        screen.queryByRole("dialog", { name: "Palworld REST Admin" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("deep-links admin roles into the config editor and closes the modal", async () => {
+      const props = makeProps({ server: enshroudedServer });
+      render(<ServerCard {...props} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+      await screen.findByText("127.0.0.1:15637");
+      fireEvent.click(
+        screen.getByRole("button", { name: "Edit admin roles in config" })
+      );
+
+      expect(props.onEditConfig).toHaveBeenCalledWith(
+        enshroudedServer,
+        "userGroups"
+      );
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
+
+    it("omits the roles link when the catalog has no admin config key", async () => {
+      render(
+        <ServerCard
+          {...makeProps({
+            server: { ...enshroudedServer, adminConfigKey: undefined },
+          })}
+        />
+      );
+
+      fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+      await screen.findByText("127.0.0.1:15637");
+
+      expect(
+        screen.queryByRole("button", { name: "Edit admin roles in config" })
+      ).not.toBeInTheDocument();
+    });
+
+    it("stops the server through the card stop flow after confirming in the modal", async () => {
+      const confirmSpy = jest.spyOn(window, "confirm").mockReturnValue(true);
+      const props = makeProps({ server: enshroudedServer });
+      render(<ServerCard {...props} />);
+
+      fireEvent.click(screen.getByRole("button", { name: "Admin" }));
+      await screen.findByText("127.0.0.1:15637");
+      fireEvent.click(screen.getByRole("button", { name: "Stop server" }));
+      confirmSpy.mockRestore();
+
+      expect(props.onStopServer).toHaveBeenCalledWith(
+        2278520,
+        "C:\\servers\\enshrouded"
+      );
+      expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    });
   });
 });
