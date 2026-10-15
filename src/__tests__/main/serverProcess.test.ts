@@ -58,7 +58,7 @@ function spawnSyncResult(
     status,
     signal: null,
     ...overrides,
-  } as ReturnType<typeof childProcess.spawnSync>;
+  };
 }
 
 interface FakeChild extends EventEmitter {

@@ -1,6 +1,6 @@
 import { renderHook, act, waitFor } from "@testing-library/react";
 
-import type { AppSettings, ElectronAPI } from "../../types/ipc";
+import type { AppSettings } from "../../types/ipc";
 import { useServerSettings } from "../../renderer/hooks/useServerSettings";
 
 interface ElectronSettingsMock {
@@ -16,7 +16,7 @@ function installElectronMock(persisted: AppSettings): ElectronSettingsMock {
     saveSettings: jest.fn().mockResolvedValue({ success: true }),
   };
   Object.defineProperty(window, "electron", {
-    value: mock as unknown as ElectronAPI,
+    value: mock,
     writable: true,
   });
   return mock;

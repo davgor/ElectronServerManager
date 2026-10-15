@@ -3,7 +3,11 @@ export function normalizeQuery(q: string): string {
 }
 
 function primitiveMatches(value: unknown, query: string): boolean {
-  if (value === null || value === undefined || typeof value === "object") {
+  if (
+    typeof value !== "string" &&
+    typeof value !== "number" &&
+    typeof value !== "boolean"
+  ) {
     return false;
   }
   return String(value).toLowerCase().includes(query);
@@ -21,7 +25,7 @@ export function valueMatches(value: unknown, query: string): boolean {
     return false;
   }
   if (typeof value !== "object") {
-    return String(value).toLowerCase().includes(query);
+    return primitiveMatches(value, query);
   }
   if (Array.isArray(value)) {
     return value.some(
