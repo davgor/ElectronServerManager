@@ -22,9 +22,7 @@ jest.mock("electron-store", () => {
     if (mockStoreBehavior.throwOnConstruct) {
       throw new Error("store unavailable");
     }
-    if (mockStoreBehavior.data === null) {
-      mockStoreBehavior.data = { ...options.defaults };
-    }
+    mockStoreBehavior.data ??= { ...options.defaults };
     return {
       get store(): AppSettings {
         return mockStoreBehavior.data as AppSettings;

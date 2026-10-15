@@ -51,7 +51,7 @@ describe("backupServerSave", () => {
 
   it("returns null when save directory is missing", async (): Promise<void> => {
     // Simulate save directory missing
-    mockFs.stat.mockRejectedValueOnce(new Error("ENOENT") as never);
+    mockFs.stat.mockRejectedValueOnce(new Error("ENOENT"));
 
     const result = await backupServerSave(
       2278520,
@@ -67,7 +67,7 @@ describe("backupServerSave", () => {
     // Simulate save directory exists
     mockFs.stat.mockResolvedValueOnce({} as never);
     // mkdir succeeds
-    mockFs.mkdir.mockResolvedValueOnce(undefined as never);
+    mockFs.mkdir.mockResolvedValueOnce(undefined);
 
     mockExecSync.mockImplementationOnce(() => undefined as never);
 
@@ -89,7 +89,7 @@ describe("backupServerSave", () => {
 
   it("returns null when zip command fails", async (): Promise<void> => {
     mockFs.stat.mockResolvedValueOnce({} as never);
-    mockFs.mkdir.mockResolvedValueOnce(undefined as never);
+    mockFs.mkdir.mockResolvedValueOnce(undefined);
 
     mockExecSync.mockImplementationOnce(() => {
       throw new Error("zip failed");
@@ -108,7 +108,7 @@ describe("backupServerSave", () => {
     const original = setPlatform("linux");
 
     mockFs.stat.mockResolvedValueOnce({} as never);
-    mockFs.mkdir.mockResolvedValueOnce(undefined as never);
+    mockFs.mkdir.mockResolvedValueOnce(undefined);
     mockExecSync.mockImplementationOnce(() => undefined as never);
 
     const result = await backupServerSave(
@@ -129,7 +129,7 @@ describe("backupServerSave", () => {
     const original = setPlatform("freebsd");
 
     mockFs.stat.mockResolvedValueOnce({} as never);
-    mockFs.mkdir.mockResolvedValueOnce(undefined as never);
+    mockFs.mkdir.mockResolvedValueOnce(undefined);
 
     await backupServerSave(
       2278520,
@@ -144,7 +144,7 @@ describe("backupServerSave", () => {
 
   it("returns null when creating backup directory fails", async (): Promise<void> => {
     mockFs.stat.mockResolvedValueOnce({} as never);
-    mockFs.mkdir.mockRejectedValueOnce(new Error("EACCES") as never);
+    mockFs.mkdir.mockRejectedValueOnce(new Error("EACCES"));
 
     const result = await backupServerSave(
       2278520,

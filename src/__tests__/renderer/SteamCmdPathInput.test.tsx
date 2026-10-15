@@ -2,7 +2,6 @@ import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 
 import { SteamCmdPathInput } from "../../renderer/SteamCmdPathInput";
-import type { ElectronAPI } from "../../types/ipc";
 
 const mockSelectSteamCmdPath = jest.fn();
 const mockOnChange = jest.fn();
@@ -12,7 +11,7 @@ beforeEach(() => {
   Object.defineProperty(window, "electron", {
     value: {
       selectSteamCmdPath: mockSelectSteamCmdPath,
-    } as unknown as ElectronAPI,
+    },
     writable: true,
   });
 });

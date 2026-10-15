@@ -22,7 +22,7 @@ describe("parseLibraryFolders", () => {
     const result = await parseLibraryFolders("C:\\Program Files (x86)\\Steam");
 
     expect(result.length).toBeGreaterThanOrEqual(1);
-    const joined = (result as unknown as string[]).join(";");
+    const joined = result.join(";");
     expect(joined).toContain("D:\\Games\\Steam");
     expect(joined).toContain("E:\\MoreSteam");
   });
@@ -34,6 +34,6 @@ describe("parseLibraryFolders", () => {
 
     const result = await parseLibraryFolders("C:\\Program Files (x86)\\Steam");
     expect(result.length).toBeGreaterThanOrEqual(1);
-    expect((result as unknown as string[])[0]).toContain("steamapps");
+    expect(result[0]).toContain("steamapps");
   });
 });

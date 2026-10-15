@@ -11,12 +11,10 @@ import * as logger from "./logger";
 let store: Store<AppSettings> | null = null;
 
 function getStore(): Store<AppSettings> {
-  if (store === null) {
-    store = new Store<AppSettings>({
-      name: "settings",
-      defaults: { servers: {} },
-    });
-  }
+  store ??= new Store<AppSettings>({
+    name: "settings",
+    defaults: { servers: {} },
+  });
   return store;
 }
 
