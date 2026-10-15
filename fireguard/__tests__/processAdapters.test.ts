@@ -77,6 +77,17 @@ describe("resolveSpawnTarget", () => {
     ).toEqual({ command: "npx", args: ["jest"] });
   });
 
+  it("reads manifests from disk and leaves missing packages unchanged", async () => {
+    const dir = await mkdtemp(join(tmpdir(), "fireguard-"));
+    expect(
+      resolveSpawnTarget("npx", ["jest", "a.test.ts"], {
+        cwd: dir,
+        platform: "win32",
+        nodePath: "node.exe",
+      })
+    ).toEqual({ command: "npx", args: ["jest", "a.test.ts"] });
+  });
+
   it("leaves packages with an unreadable manifest unchanged", () => {
     expect(
       resolveSpawnTarget("npx", ["jest"], {
